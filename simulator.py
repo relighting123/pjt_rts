@@ -91,12 +91,13 @@ class DBRSimulator:
             for i in range(item['count']):
                 eq = Equipment(item['model'], f"{item['model']}_{i+1}")
                 # Initial positions from capabilities (if count > 0)
-                temp_caps = self.capabilities.copy()
-                for cap in temp_caps:
-                    if cap['model'] == item['model'] and cap.get('initial_count', 0) > 0:
+                cap_counts = { (c['model'], c['product'], c['process']): c.get('initial_count', 0) for c in self.capabilities }
+                for cap in self.capabilities:
+                    key = (cap['model'], cap['product'], cap['process'])
+                    if cap['model'] == item['model'] and cap_counts[key] > 0:
                         eq.current_product = cap['product']
                         eq.current_process = cap['process']
-                        cap['initial_count'] -= 1
+                        cap_counts[key] -= 1
                         break
                 self.equipments.append(eq)
 

@@ -24,7 +24,7 @@ class DBRScheduler(BaseScheduler):
         if eq.current_product == to_prod and eq.current_process == to_proc:
             return 0
         if eq.current_product is None:
-            return 0
+            return default_co
         for rule in co_rules:
             if (rule['from_product'] == eq.current_product and 
                 rule['from_process'] == eq.current_process and 
@@ -83,36 +83,27 @@ class DBRScheduler(BaseScheduler):
                              for cap in capabilities)
                 if not capable: continue
                 
-                # Flow-based logic refined
                 imm_wip = local_wip.get(task, 0)
                 is_resident = (eq.current_product == prod and eq.current_process == proc)
                 
-                # 1. Flow Score: High base for having immediate or near-future work
+                # Simple Scoring
                 if imm_wip > 0:
                     flow_score = 1000 + (imm_wip * 10)
-                elif is_resident and potential[task] > 0:
-                    # Moderate base to stay and wait for upstream work
-                    flow_score = 800 + (potential[task] * 5)
+                elif is_resident:
+                    flow_score = 500 + (potential[task] * 5)
                 else:
                     flow_score = 0
                 
-                # 2. Resident Priority: Bonus to stay at station
                 resident_bonus = 200 if is_resident else 0
-                
-                # 3. Changeover Penalty: Barrier to moving
                 co_time = self.get_co_time(eq, prod, proc, co_rules, default_co)
                 move_penalty = (co_time * 15) if not is_resident else 0
                 
-                # 4. Balancing: Discourage dogpiling beyond one machine per station 
-                # unless WIP is high
                 assigned_at_task = current_assignments.get(task, 0)
                 balance_penalty = assigned_at_task * 500
                 
                 score = flow_score + resident_bonus - move_penalty - balance_penalty
 
-                # Decision Gate
                 if under_way[task] < plan[task]:
-                    # Rope logic
                     if oper_seq[task] < oper_seq[self.drum_process]:
                         if local_wip[self.drum_process] >= self.buffer_size: continue
 
@@ -130,6 +121,8 @@ class DBRScheduler(BaseScheduler):
                     under_way[best_task] += 1
                 else:
                     # Chose to stay and wait for Future WIP (Resident logic)
+                    # However, if there was another task with immediate WIP that was close in score, 
+                    # we might want to reconsider. For now, we follow the best_task.
                     pass
                 
         return assignments

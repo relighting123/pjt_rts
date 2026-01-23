@@ -116,7 +116,30 @@ balance_penalty = assigned_at_task * 500
 | :--- | :--- | :--- |
 | **0분** | `local_wip[Step_10] = 36` 이므로 장비 1이 점수 가중치를 받아 작업 시작 | Step_10 가동 (남은 WIP 35) |
 | **10분** | Step_10 첫 제품 완성 -> `wip[Step_20]`이 1 증가함 | Step_20 대기 중인 장비가 작업 시작 |
-| **20분** | 장비들이 각각 Step_10, Step_20, Step_30에 1대씩 배치되려고 함 | 밸런스 패널티(-500)에 의해 최적 배치 유지 |
+| **37분** | Takt 리듬(36.6분)에 의해 두 번째 유닛 생산 허용 시점 도달 | Step_10 두 번째 유닛 투입 시작 |
+
+---
+
+## 5. [심화] 시뮬레이터-스케줄러 상호작용 (T=37 시점)
+
+시뮬레이션이 진행되어 두 번째 생산 주기(Takt)가 도달했을 때의 변화를 추적합니다.
+
+### 1) 시뮬레이터의 상태 변화 (`simulator.py`)
+- **[simulator.py:165]** `for t in range(total_minutes + 1):` 루프가 T=37에 도달.
+- **[simulator.py:175]** `idle_eqs`에 장비 1(Step_10 완료 후 IDLE)이 포함됨.
+- **[simulator.py:190]** `self.scheduler.select_tasks()` 호출.
+
+### 2) 스케줄러의 판단 (`scheduler.py`)
+- **데이터**: `under_way[Step_10] = 1` (첫 번째 유닛은 이미 가동 중임)
+- **[scheduler.py:114]** `if under_way[task] < plan[task]:` (1 < 36) 통과.
+- **[scheduler.py:91]** `imm_wip(35) > 0` 이므로 높은 **Flow Score(1350점)** 부여.
+- **[scheduler.py:127]** `assignments.append((eq, best_task, co_time))` 에 두 번째 유닛 할당 추가.
+
+### 3) 시뮬레이터의 실행 (`simulator.py`)
+- **[simulator.py:193]** `self.wip[task] -= 1`: 자재 창고에서 유닛 하나 차감 (35 -> 34).
+- **[simulator.py:194]** `eq.start_work(...)`: 장비가 다시 10분 동안 `Step_10` 작업을 시작.
+
+**결론**: 이 과정이 36.6분마다 반복되면서 전체 라인이 과부하 없이 일정한 리듬으로 가동됩니다.
 
 ---
 
