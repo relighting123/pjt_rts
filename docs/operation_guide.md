@@ -75,7 +75,42 @@ balance_penalty = assigned_at_task * 500
 
 ---
 
-## 3. 타임라인에 따른 동작 요약 (Snapshot)
+## 3. [상세 트레이스] T=0 시점의 의사결정 시뮬레이션
+
+가장 첫 번째 장비(Basic_1)가 어떤 과정을 거쳐 `Step_10` 작업을 선택하는지 소스코드 흐름에 따라 추적합니다.
+
+### 시나리오 데이터:
+- **현재 시간(T)**: 0분
+- **IDLE 장비**: Basic_1 (현재 제품/공정 없음)
+- **Step_10 WIP**: 36개
+- **Step_20 WIP**: 0개
+
+### 소스코드 실행 추적:
+
+1.  **[scheduler.py:63]** `for task in tasks:` 루프 시작
+    - 첫 번째 후보: `task = (Fast_A, Step_10)`
+2.  **[scheduler.py:74]** `potential[Step_10]` 계산
+    - `imm(36) + running(0) + upstream_wip(0) = 36`
+3.  **[scheduler.py:91]** `if imm_wip > 0:` 판단
+    - 36 > 0 이므로 **True** 진입
+    - `flow_score = 1000 + (36 * 10) = 1360`
+4.  **[scheduler.py:100]** `resident_bonus` 계산
+    - 초기 상태이므로 `is_resident` = False -> **0점**
+5.  **[scheduler.py:104]** `move_penalty` 계산
+    - 장비에 등록된 현재 공정이 없으므로 `co_time` = 0 -> **0점**
+6.  **[scheduler.py:109]** `balance_penalty` 계산
+    - 아직 할당된 장비가 없으므로 `assigned_at_task(0) * 500` -> **0점**
+7.  **[scheduler.py:111]** 최종 점수 합산
+    - `1360 + 0 - 0 - 0 = 1360점`
+8.  **[scheduler.py:114]** `if under_way[task] < plan[task]:` 게이트 통과
+    - `0 < 36` 이므로 **True** 진입
+9.  **[scheduler.py:121]** `best_task = (Fast_A, Step_10)` 저장
+
+**최종 결과**: `Basic_1` 장비는 1360점이라는 압도적인 점수로 `Step_10`에 할당됩니다.
+
+---
+
+## 4. 타임라인에 따른 동작 요약 (Snapshot)
 
 | 시간(T) | 주요 의사결정 (Logic Path) | 결과 |
 | :--- | :--- | :--- |
