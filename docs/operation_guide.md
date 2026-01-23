@@ -16,81 +16,76 @@
 시뮬레이션 시작 시 `init_state()`는 `plan_wip.json`을 읽어 초기 상태를 설정합니다.
 
 ```python
-# simulator.py:108-112
+# simulator.py:110-116
 for p in self.production_data:
     key = (p['product'], p['process'])
     self.wip[key] = p['wip']  # (Fast_A, Step_10) = 36 설정
     self.plan[key] = p['plan']
+    self.achieved[key] = 0
+    self.oper_seq[key] = p['oper_seq']
 ```
-- **결과**: `T=0` 시점에 Step_10 버퍼에는 36개의 자재가 채워집니다.
+- **결과**: `T=0` 시점에 Step_10 버퍼에는 데이터 파일에 정의된 대로 36개의 자재가 채워집니다.
 
 ---
 
 ### 단계 2: 스케줄러의 의사결정 프로세스 (`scheduler.py`)
-매 분마다 시뮬레이터는 유급 장비를 모아 `select_tasks`를 호출합니다.
+매 분마다 시뮬레이터는 IDLE 장비를 모아 `select_tasks`를 호출합니다.
 
-#### ① 현재 시작 허용 대수 계산 (Takt Gate)
+#### ① 현재 시작 허용 대수 계산 (Pacing Gate)
 가장 중요한 "심장박동(Pulse)" 제어 로직입니다.
 
 ```python
-# scheduler.py:104-108
-takt_time = deadline / target_qty  # 36.6분
-allowed_starts = int(context.get('t', 0) / takt_time) + 1
-current_started = achieved.get(task, 0) + current_assignments.get(task, 0)
-
-if current_started >= allowed_starts:
-    continue  # 리듬보다 빠르면 작업을 시작하지 않고 대기 (Busy Wait 방지)
+# scheduler.py:114
+if under_way[task] < plan[task]:
+    # Rope logic (Takt Gate 대신 직관적인 WIP 제어로 동작 중)
+    if oper_seq[task] < oper_seq[self.drum_process]:
+        if local_wip[self.drum_process] >= self.buffer_size: continue
 ```
 - **데이터 분석**: 
-  - `T=0`: `allowed_starts`는 1입니다. 현재 `started`는 0이므로 **1대 생산 시작 가능**.
-  - `T=10`: 아직 `T < 36.6`이므로 `allowed_starts`는 여전히 1입니다. 하지만 이미 1대가 투입되었다면 `current_started >= 1`이 되어 다음 Takt까지 **추가 투입을 차단**합니다.
+  - 현재 시너지 스케줄러는 `under_way`(이미 시작했거나 끝난 대수)가 계획량보다 적을 때만 작업을 고려합니다.
+  - 여기에 Takt 로직을 적용하면, 특정 시간대에만 `under_way` 한도를 열어주는 방식으로 확장이 가능합니다.
 
-#### ② 다운스트림 잠재량 계산 (Final Target Awareness)
-전체 공정이 끝까지 도달했는지를 판단하여 과잉 생산을 막습니다.
-
-```python
-# scheduler.py:77-84 (잠재량 계산 루프)
-pipeline = 0
-for (p_prod, p_proc), p_seq in oper_seq.items():
-    if p_prod == prod and p_seq > oper_seq[task]:
-        pipeline += wip.get((p_prod, p_proc), 0) # 뒷 공정에 쌓인 재공
-        pipeline += current_assignments.get((p_prod, p_proc), 0) # 현재 가동 중인 작업
-potential_downstream[task] = finished + pipeline
-```
-- **판단**: 현재 작업하고 있는 유닛이 최종 공정까지 흘러갔을 때 목표를 달성한다면, 더 이상 상류 공정(`Step_10`)에서 자재를 투입하지 않습니다.
-
-#### ③ 점수 계산 및 최적 할당 (Scoring)
-여러 공정 중 어떤 장비가 어디로 갈지 점수를 매깁니다.
+#### ② 점수 계산 및 최적 할당 (Scoring Mechanism)
+여러 공정 중 어떤 장비가 어디로 갈지 점수를 매깁니다. (`scheduler.py:90-111`)
 
 ```python
-# scheduler.py:120-130
+# scheduler.py:91-100
 # 1. Flow Score: 당장 처리할 WIP가 있으면 높은 점수
-if imm_wip > 0: flow_score = 1000 + (imm_wip * 10)
-# 2. Resident Bonus: 이동하지 않고 현재 자리에 있으면 보너스
-resident_bonus = 200 if is_resident else 0
-# 3. Move Penalty: 설비 교체 시간이 길면 감점
-move_penalty = (co_time * 15) if not is_resident else 0
-
-score = flow_score + resident_bonus - move_penalty - balance_penalty
+if imm_wip > 0:
+    flow_score = 1000 + (imm_wip * 10)
+# 2. Resident Priority: 현재 위치에 작업이 있거나 올 가능성(potential)이 있으면 잔류
+elif is_resident and potential[task] > 0:
+    flow_score = 800 + (potential[task] * 5)
 ```
 - **데이터 분석**: 
-  - 특정 장비가 `Step_10`에 이미 있고(`is_resident`), 투입 리듬(`Takt`)이 찾아왔다면 높은 점수로 즉시 작업을 시작합니다.
-  - 만약 장비가 다른 곳에 있다면 패널티 때문에 신중하게 이동 여부를 결정합니다.
+  - 특정 장비가 `Step_10`에 이미 있고(`is_resident`), 후속 공정으로 넘어갈 자재가 있다면(`potential`) 이동하지 않고 대기하거나 즉시 작업을 시작합니다.
+  - **Resident Bonus (+200)**: 설비가 잦은 이동으로 인한 60분 패널티를 받지 않도록 보호합니다.
+
+#### ③ 설비 배치 밸런싱 (Balancing)
+장비들이 한 공정에 몰리는 것을 방지합니다.
+
+```python
+# scheduler.py:108-109
+assigned_at_task = current_assignments.get(task, 0)
+balance_penalty = assigned_at_task * 500
+```
+- **데이터 분석**: 
+  - 이미 해당 공정에 장비가 1대 배치되어 있다면 500점의 패널티를 부여합니다.
+  - 이는 장비가 다른 공정(`Step_20`)으로 이동하여 라인 밸런스를 맞추도록 유도합니다.
 
 ---
 
 ## 3. 타임라인에 따른 동작 요약 (Snapshot)
 
-| 시간(T) | 릴리스 허용량 | 주요 의사결정 (Logic Path) | 결과 |
-| :--- | :--- | :--- | :--- |
-| **0분** | 1대 | `current_started(0) < 1` 이므로 Step_10 투입 승인 | 1번 장비 작업 시작 |
-| **10분** | 1대 | `current_started(1) >= 1` 이므로 Step_10 추가 투입 거부 | 추가 장비는 유휴(IDLE) 대기 |
-| **20분** | 1대 | Step_10 작업 종료 -> Step_20 버퍼에 1개 쌓임 | 2번 장비가 Step_20 작업 시작 |
-| **37분** | 2대 | `allowed_starts`가 2로 증가. Step_10 투입 가능 | 다음 자재 투입 시작 |
+| 시간(T) | 주요 의사결정 (Logic Path) | 결과 |
+| :--- | :--- | :--- |
+| **0분** | `local_wip[Step_10] = 36` 이므로 장비 1이 점수 가중치를 받아 작업 시작 | Step_10 가동 (남은 WIP 35) |
+| **10분** | Step_10 첫 제품 완성 -> `wip[Step_20]`이 1 증가함 | Step_20 대기 중인 장비가 작업 시작 |
+| **20분** | 장비들이 각각 Step_10, Step_20, Step_30에 1대씩 배치되려고 함 | 밸런스 패널티(-500)에 의해 최적 배치 유지 |
 
 ---
 
 ## 4. 요약: 왜 이 로직이 효율적인가?
-- **과잉 생산 억제**: `allowed_starts` 로직이 공장 내 재공(WIP)이 급증하는 것을 원천 차단합니다.
-- **병목 동기화**: `potential_downstream` 로직이 최종 목표 달성에 필요한 양만 생산하도록 조절하여, 쓸데없는 가동률 낭비를 막습니다.
-- **안정적인 흐름**: 설비 교체 패널티와 거주 보너스가 조화를 이루어 장비가 이리저리 뛰어다니지 않고 자기 자리를 지키며 묵묵히 생산하게 만듭니다.
+- **WIP 가시성**: `potential` 계산을 통해 단순히 눈앞의 재고뿐만 아니라 상류에서 올 자재까지 고려하여 설비를 미리 대기시킵니다.
+- **불필요한 이동 억제**: 설비 교체 시간(60분)이 매우 크기 때문에, `move_penalty`와 `resident_bonus`가 조화를 이루어 꼭 필요한 경우에만 이동을 단행합니다.
+- **역할 분담**: `balance_penalty` 덕분에 장비들이 뭉치지 않고 Step 10, 20, 30에 골고루 퍼져 일정한 생산 속도(Takt)를 유지하게 됩니다.
