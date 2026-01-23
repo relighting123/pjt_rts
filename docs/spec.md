@@ -1,73 +1,68 @@
-# DBR Simulator & Flow-based Scheduler Technical Specification
+# DBR 시뮬레이터 및 흐름 기반 스케줄러 기술 사양서
 
-## 1. Overview
-This system is a time-stepped manufacturing simulator based on the **DBR (Drum-Buffer-Rope)** methodology. It is designed to optimize production flow, minimize changeovers, and maximize equipment utilization by making intelligent, flow-aware scheduling decisions.
+## 1. 개요
+본 시스템은 **DBR(Drum-Buffer-Rope)** 방법론에 기반한 타임-스텝(Time-stepped) 제조 시뮬레이터입니다. 생산 흐름을 최적화하고, 설비 교체(Changeover)를 최소화하며, 지능적인 흐름 인식 스케줄링 의사결정을 통해 설비 가동률을 극대화하도록 설계되었습니다.
 
-## 2. System Architecture
-The system is decoupled into two main components:
-- **`DBRSimulator`**: Manages the time-stepped environment, equipment states, WIP tracking, and I/O.
-- **`DBRScheduler`**: An interchangeable logic module that decides which equipment should perform which task at any given idle moment.
-
----
-
-## 3. Core Logic: Flow-based DBR Scheduling
-The scheduler utilizes a **Flow-based scoring algorithm** with **Future WIP Awareness**.
-
-### A. Drum-Buffer-Rope (DBR) Mechanics
-- **Drum (Bottleneck)**: Identifies the process with the highest load (`Target * Standard Time`) as the Drum. All other processes synchronize with the Drum's pace.
-- **Final Target Orientation**: Upstream processes are driven by the **final process's plan**. A process only works if the final target is not yet satisfied by (Finished Goods + Units currently downstream). This creates a natural "Pull" system.
-- **Rope**: Controls the release of materials to ensure the Drum and final processes are never starved, essentially managing the total system inventory level.
-- **JIT Backward Scheduling**: A critical "Rope" mechanism that delays production until the latest start window.
-    - **Formula**: `LatestStartTime = Deadline - Buffer - (BatchTime) - (FutureLT)`.
-    - **Effect**: Reduces mid-process WIP and storage costs by strictly adhering to a Just-In-Time execution window.
-
-### B. Scoring Algorithm (The "Flow" Engine)
-For each idle equipment, the scheduler calculates a `Score` for all capable tasks:
-`Score = FlowValue + ResidentBonus - MovePenalty - BalancePenalty + PriorityBonus`
-
-1.  **Flow Value (Potential)**:
-    - **Immediate WIP**: High weight for work currently available.
-    - **Future WIP**: WIP in upstream material buffers.
-    - **In-process WIP**: WIP currently being processed by machines in upstream stages.
-    - *Logic: If `Immediate + Future > 0`, the station is considered active.*
-2.  **Resident Bonus**:
-    - A significant bonus (+200) given if the equipment is already at the station. This encourages "staying and waiting" for flow rather than jumping to other stations.
-3.  **Move Penalty**:
-    - Deducted based on `Changeover Time * 15`. Prevents jumping for small, transient WIP gains.
-4.  **Balance Penalty**:
-    - A heavy penalty (-500) per already assigned machine to ensure units are spread across the line (Parallelism) rather than dogpiling on a single station.
+## 2. 시스템 아키텍처
+시스템은 두 개의 주요 구성 요소로 분리되어 있습니다:
+- **`DBRSimulator`**: 타임-스텝 환경, 장비 상태, WIP(재공) 추적 및 입출력을 관리합니다.
+- **`DBRScheduler`**: 유급 장비가 있을 때 어떤 작업을 수행할지 결정하는 교체 가능한 로직 모듈입니다.
 
 ---
 
-## 4. Simulation Engine Details
-### State Machine (Equipment)
-- **IDLE**: Waiting for assignment.
-- **CHANGEOVER**: Moving/Setting up for a new task.
-- **WORKING**: Actively processing units.
+## 3. 핵심 로직: 흐름 기반 DBR 스케줄링
+스케줄러는 **Takt 인식형 흐름 점수 알고리즘**을 사용하여 의사결정을 내립니다.
 
-### Time Step (1 minute)
-1.  **Step Equipment**: Decrement `remaining_time`. If finished, increment `achieved` and transfer WIP to the next step's buffer.
-2.  **Collect Idle Units**: Gather all units in `IDLE` state.
-3.  **Dynamic Scheduling**: Call `scheduler.select_tasks()` with the current global context (WIP, Achieving, Assignments).
-4.  **Execute Assignments**: Trigger work or changeover for assigned units.
-5.  **Logging**: Print status only when major state changes occur (Activity tracking).
+### A. DBR(Drum-Buffer-Rope) 메커니즘
+- **Drum (병목 공정)**: 부하(`목표량 * 표준 시간`)가 가장 높은 공정을 Drum으로 식별합니다. 모든 다른 공정은 Drum의 속도에 동기화됩니다.
+- **최종 목표 지향(Final Target Orientation)**: 상류 공정은 **최종 공정의 계획**에 의해 구동됩니다. 최종 목표가 아직 충족되지 않은 경우(완제품 + 하류에 있는 유닛 수 기준)에만 작업을 수행하여 자연스러운 "Pull(당기기)" 시스템을 형성합니다.
+- **Rope (투입 제어)**: 자재 투입을 제어하여 Drum과 최종 공정이 굶지 않도록 보장하며, 시스템 전체의 재고 수준을 관리합니다.
+- **Takt 기반 평준화 생산(Steady Production)**: 22시간(1320분) 동안 일정한 리듬으로 생산되도록 조절하는 핵심 Rope 메커니즘입니다.
+    - **공식**: `허용 시작 대수 = (현재 시간 / Takt Time) + 1`
+    - **Takt Time**: `22시간 / 최종 생산 목표`
+    - **효과**: 공장 전체에 균형 잡힌 부하를 보장하고, 재공(WIP) 급증을 방지하며, 후반부에 작업이 몰리는 현상 없이 정해진 시간에 정확히 생산을 완료합니다.
 
-### Early Exit Condition
-The simulator monitors the global state and terminates before the `total_minutes` limit if:
-- `All WIP == 0`
-- `All Equipment statuses == IDLE`
-- `All Production Targets reached`
+### B. 스코어링 알고리즘 (흐름 엔진)
+유급 장비마다 가능한 모든 작업에 대해 `점수(Score)`를 계산합니다:
+`점수 = 흐름 점수 + 거주 보너스 - 이동 패널티 - 밸런싱 패널티`
+
+1.  **흐름 점수 (Takt 인식)**:
+    - **즉시 재공(Immediate WIP)**: 현재 가용한 작업에 대해 높은 가중치(2000+)를 부여하여 흐름을 유도합니다.
+    - **잠재 재공(Potential WIP)**: 상류 버퍼의 상황을 인식하여 자재 도착에 대비합니다.
+2.  **거주 안정성(Resident Stability)**:
+    - 흐름이 안정적일 때 장비가 현재 공정에 머물도록 보너스(+500)를 부여하여 불필요한 설비 교체를 최소화합니다.
+3.  **설비 교체 패널티(Setup Penalty)**:
+    - 안정적인 Takt 간격 동안 장비가 성급하게 이동하는 것을 방지하기 위해 강한 마찰력(`교체 시간 * 20`)을 적용합니다.
+4.  **역할 분담(Balancing)**:
+    - Takt 펄스가 병목을 만들지 않는 한, 공정당 1:1 배치를 유도하기 위해 이미 할당된 장비당 큰 패널티(-1500)를 부여합니다.
 
 ---
 
-## 5. Performance Metrics
-- **Achievement Rate**: (Achieved / Plan) * 100 per process.
-- **Equipment Utilization**: (Total Working Time / (Num Equipments * Total Elapsed Time)) * 100.
-- **Changeover Count**: Total number of setup operations performed.
-- **CAPA (Capacity)**: `(Allocated Machines * 10) / Standard Time` (10-minute projection).
+## 4. 시뮬레이션 엔진 상세
+### 장비 상태 머신 (Equipment State Machine)
+- **IDLE**: 할당 대기 중.
+- **CHANGEOVER**: 새로운 작업을 위한 이동/설정 중.
+- **WORKING**: 활발히 작업을 처리 중.
 
-## 6. Development Roadmap
-- [ ] Support for multiple model types per process with setup matrix.
-- [ ] Non-linear process routing (Branching/Merging).
-- [ ] Machine breakdown (MTBF/MTTR) modeling.
-- [ ] Integration with Reinforcement Learning (RL) for dynamic policy optimization.
+### 타임 스텝 (1분 단위)
+1.  **장비 스텝**: `잔여 시간`을 감소시킵니다. 작업이 완료되면 `달성량`을 증가시키고 다음 공정 버퍼로 WIP를 전달합니다.
+2.  **유급 유닛 수집**: `IDLE` 상태의 모든 장비를 모읍니다.
+3.  **동적 스케줄링**: 현재의 전체 상황(WIP, 달성량, 할당 현황)을 담은 컨텍스트로 `scheduler.select_tasks()`를 호출합니다.
+4.  **할당 실행**: 할당된 장비에 대해 작업 또는 설비 교체를 시작합니다.
+5.  **로깅**: 주요 상태 변화가 있을 때만 상태를 출력합니다.
+
+---
+
+## 5. 성과 지표 (Performance Metrics)
+- **목표 달성률(Achievement Rate)**: 공정별 (달성량 / 계획량) * 100.
+- **설비 가동률(Utilization)**: (총 생산 시간 / (장비 대수 * 총 소요 시간)) * 100.
+- **설비 교체 횟수(Changeover Count)**: 수행된 총 설정 변경 횟수.
+- **CAPA (생산 능력)**: `(할당된 장비 * 10) / 표준 시간` (10분 투영치).
+
+---
+
+## 6. 개발 로드맵
+- [ ] 공정별 복수 모델 지원 및 설정 매트릭스 적용
+- [ ] 비선형 공정 경로 (분기/합류) 지원
+- [ ] 장비 고장(MTBF/MTTR) 모델링
+- [ ] 동적 정책 최적화를 위한 강화학습(RL) 통합

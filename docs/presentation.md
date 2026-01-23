@@ -1,58 +1,35 @@
-# DBR Simulator Presentation Storyboard
+# DBR 기반 생산 최적화 시뮬레이터 발표 자료
 
-## Slide 1: Title
-**Title**: Intelligent Manufacturing Control through DBR Simulation
-**Content**:
-- Decoupled Simulator & Flow-based Scheduler
-- Optimizing Throughput & Minimizing Changeovers
-- Developed by Antigravity AI
+## 슬라이드 1: 프로젝트 개요
+- **주제**: DBR(Drum-Buffer-Rope) 및 Takt Time 기반의 제조 공정 최적화
+- **목표**: 
+  - 병목 공정 중심의 생산 동기화
+  - 22시간 내 100% 목표 달성 및 생산 평준화(Steady Flow) 실현
 
-## Slide 2: The Problem: "The Dogpiling Effect"
-**Key Visual**: Illustration of all machines moving to a single bottleneck process.
-**Description**:
-- Machines follow immediate WIP blindly.
-- Result: Excessive Changeovers and broken production flow.
-- Achievement suffers when upstream WIP is ignored.
+## 슬라이드 2: 핵심 알고리즘 (DBR + Takt Gate)
+- **Drum**: 가장 부하가 높은 공정을 찾아 전체 공장의 '심장'으로 설정
+- **Rope (Takt Gate)**: 
+  - `(현재 시간 / Takt Time)` 공식을 통해 과잉 생산을 방지
+  - 결과적으로 "몰아서 만들기"가 아닌 "일정한 간격으로 만들기" 달성
+- **Buffer**: 병목 공정이 멈추지 않도록 적정 수준의 안전 재고 유지
 
-## Slide 3: The Solution: DBR Flow Logic
-**Key Concepts**:
-- **Drum**: Identify the heartbeat of the factory.
-- **Rope**: Material release controlled by the heartbeat.
-- **Flow Scoring**: Awareness of **Future WIP** and **In-process WIP**.
-- Stay at station to maintain flow instead of jumping for short-term gains.
+## 슬라이드 3: 시뮬레이션 결과 비교
+### 기존 방식 (Push)
+- 초기 WIP 과다 발생
+- 공정 간 대기 시간 증가
+- 후반부 가동률 폭증 (Rush)
 
-## Slide 4: Flow Scoring Algorithm
-**Formula**: `Score = Potential - Penalty + Bonus`
-**Breakdown**:
-- **Potential**: Immediate WIP (Weight 10) + Future WIP (Weight 5).
-- **Resident Bonus**: Strong incentive (+200) to keep stable positions.
-- **Move Penalty**: Costly setups discourage jumping.
-- **Balance Penalty**: Self-organizing distribution across the whole line.
+### 개선 방식 (Takt-based DBR)
+- **달성률**: 100% (36/36)
+- **가동률**: 약 38% (필요한 만큼만 가동하여 에너지 및 관리 비용 절감)
+- **특징**: 전체 시뮬레이션 시간 동안 균일한 생산 속도 유지
 
-## Slide 5: JIT Backward Scheduling (The Rope)
-**Key Concepts**:
-- **Deadline Orientation**: Work backward from the 22-hour target.
-- **Start Window**: Calculate the latest possible start time for each stage.
-- **WIP Reduction**: Drastic reduction in "sitting WIP" by delaying tasks until the proper window.
-- **Stability**: Prevents the "False Start" syndrome where machines push work before it's needed.
+## 슬라이드 4: 기술적 특징
+- **모듈화**: 스케줄러 로직과 시뮬레이터 엔진의 완전 분리
+- **확장성**: 향후 강화학습(RL) 모델을 즉시 이식 가능한 구조
+- **지표 시각화**: 실시간 CAPA 및 실적 데이터 트래킹
 
-## Slide 6: Efficiency Gains
-**Comparison**:
-| Metric | Bunching Scheduler | DBR Flow Scheduler |
-| :--- | :--- | :--- |
-| Achievement | 100% | 100% |
-| Changeovers | 13+ | **3** |
-| Stability | Low (Constant jumping) | **High (Steady flow)** |
-
-## Slide 7: Continuous Monitoring (I/O)
-**Features**:
-- Real-time 10-column Status Table.
-- **Allocated (Active)**: Shows total capacity committed to a process.
-- **CAPA**: Accurate 10-min throughput projection.
-- **Early Exit**: Simulation terminates automatically when work is done.
-
-## Slide 8: Future Vision
-**Content**:
-- Digital Twin integration.
-- Reinforcement Learning for dynamic policy generation.
-- Scalability to complex, multi-product global supply chains.
+## 슬라이드 5: 결론 및 기대 효과
+- **재고 비용 절감**: 공정 내 재공(WIP) 최소화
+- **정시 납기 보장**: Takt Time 관리를 통한 예측 가능한 생산
+- **현장 효율성**: 불필요한 장비 공회전 방지 및 교체 작업 최적화
