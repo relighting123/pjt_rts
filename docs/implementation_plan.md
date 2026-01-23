@@ -1,50 +1,28 @@
-# DBR Simulator Implementation Plan
+# DBR 기반 생산 최적화 구현 계획서
 
-Develop a manufacturing scheduling simulator based on DBR (Drum-Buffer-Rope) theory to optimize equipment allocation and achieve delivery plans.
+본 문서는 Takt 기반 평준화 흐름 생산을 달성하기 위한 DBR(Drum-Buffer-Rope) 시뮬레이터의 기술적 구현 계획을 설명합니다.
 
-## Proposed Changes
+## 1. 개요
+기존의 무제한 투입 방식에서 벗어나, 정해진 목표(22시간 내 36대)를 달성하기 위해 일정한 간격(Takt)으로 생산이 흐르도록 하는 시스템을 구축합니다.
 
-### Core Architecture: Modular Design
-- [NEW] `scheduler.py`: Contains the `BaseScheduler` interface and the specific `DBRScheduler` implementation.
-  - `BaseScheduler`: Abstract class defining how to select tasks for idle machines.
-  - `DBRScheduler`: Implementation of Drum-Buffer-Rope logic.
-- [MODIFY] `simulator.py`: Refactored to act as a pure emission/execution engine.
-  - Accepts any object that implements `BaseScheduler`.
-  - Manages time-steps, machine states, and inventory.
-  - Responsible for reporting and logging based on simulation events.
+## 2. 주요 변경 사항
 
-### Algorithm: DBR (Drum-Buffer-Rope)
-- **Drum**: Identify the bottleneck process (highest load).
-- **Buffer**: Maintain a time-based buffer before the Drum and before Shipping.
-- **Rope**: Control the release of raw materials (Step_10) and pacing of all stages.
-  - **Takt-based Pacing (Steady Flow)**:
-    - **Takt Time** = `22h (1320m) / Total Target`.
-    - **Pacing Gate**: A station only starts a new unit if `(Achieved + Running) < (CurrentTime / TaktTime + 1)`.
-    - Machines only begin work according to this steady "pulse", ensuring no dogpiling at any stage.
-  - **Inflow Assumption**: Upstream WIP for Step_30 is assumed to arrive at the same Takt interval.
-  - **Final Target Orientation**: Upstream processes produce based on the **final process's plan**, ensuring enough material for the ultimate goal.
-  - **Move Penalty**: Changeovers are only allowed if another station is critical (Drum starving) and current station has 0 value.
+### [스케줄러 모듈: scheduler.py]
+- **Takt Gate 도입**: 현재 시간이 허용하는 누적 생산 대수 이내에서만 신규 작업이 시작되도록 제한합니다.
+- **로직 개선**: 
+    - `Flow Score`: 재공(WIP) 가시성에 따른 가중치 부여.
+    - `Resident Bonus`: 불필요한 설비 이동 방지.
+    - `Balancing`: 특정 공정에 장비가 몰리지 않도록 자동 분산.
 
-### Output and Logging
-- Implement a logging system that captures:
-  - Initial state (T=0).
-  - States at points of equipment changeover.
-  - Final state (T=1440).
-- Detailed Table Columns:
-  - `time`, `product`, `process`, `model`, `active`, `target`, `prod(after)`, `wip`, `capa`.
-  - `capa` = (Active Machines * 10) / Standard Time.
-- Summary report including:
-  - Planning Achievement Rate (%)
-  - Equipment Utilization (%)
-  - Total Changeover Count
+### [시뮬레이터 모듈: simulator.py]
+- **동적 자재 투입 (Rope)**: 초기 WIP를 한꺼번에 투입하는 대신, Takt 주기에 맞춰 투입되도록 시뮬레이션 환경을 조정할 수 있는 구조 마련.
+- **보고 기능 강화**: 시간대별 장비 할당 현황 및 실시간 목표 대비 실적(Achievement) 출력.
 
-## Verification Plan
+## 3. 검증 계획
+- **목표**: 22시간(1320분) 시점에 100% 목표 달성 여부 확인.
+- **흐름 분석**: 생산 실적 그래프가 계단형이 아닌 완만한 직선형을 그리는지 검증.
+- **가동률 최적화**: 불필요한 가동을 줄여 목표 달성 범위 내에서 효율적인 에너지 사용 확인.
 
-### Automated Verification
-- Run the simulator using the provided JSON data.
-- Check if the console output matches the user's requirements (Start, Changeover, End logs).
-- Verify that terminal outputs the final summary with Achievement Rate, Utilization, and Changeover count.
-
-### Manual Verification
-- Review the logs to ensure DBR logic is applied (e.g., release at Step_10 is throttled by the Drum).
-- Validate that changeover times are correctly applied according to `changeover_rules.json`.
+## 4. 향후 확장성
+- 강화학습(RL) 에이전트 연동을 위한 인터페이스 표준화.
+- 다품종 소량 생산을 위한 설비 교체 규칙(Setup Matrix) 고도화.
