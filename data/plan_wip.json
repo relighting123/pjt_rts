@@ -1,0 +1,46 @@
+{
+    "production": [
+        {
+            "product": "Fast_A",
+            "process": "Step_10",
+            "oper_seq": 10,
+            "plan": 36,
+            "wip": 36
+        },
+        {
+            "product": "Fast_A",
+            "process": "Step_20",
+            "oper_seq": 20,
+            "plan": 36,
+            "wip": 0
+        },
+        {
+            "product": "Fast_A",
+            "process": "Step_30",
+            "oper_seq": 30,
+            "plan": 36,
+            "wip": 0
+        },
+        {
+            "product": "Heavy_B",
+            "process": "Step_10",
+            "oper_seq": 10,
+            "plan": 0,
+            "wip": 0
+        },
+        {
+            "product": "Heavy_B",
+            "process": "Step_20",
+            "oper_seq": 20,
+            "plan": 0,
+            "wip": 0
+        },
+        {
+            "product": "Heavy_B",
+            "process": "Step_30",
+            "oper_seq": 30,
+            "plan": 0,
+            "wip": 0
+        }
+    ]
+}

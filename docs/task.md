@@ -1,0 +1,27 @@
+# DBR Simulator Implementation Task
+
+- [x] Planning and Design
+    - [x] Define DBR logic (Drum, Buffer, Rope)
+    - [x] Design simulator class structure
+- [x] Implementation
+    - [x] Data loading module
+    - [x] DBR Scheduler core
+    - [x] Simulation engine (time-stepped)
+    - [x] Logging and Reporting
+- [x] Verification
+    - [x] Run simulation and verify metrics
+- [x] Refactoring: Separation of Concerns
+    - [x] Design abstract Scheduler interface
+    - [x] Decouple DBR logic into `scheduler.py`
+    - [x] Refactor `simulator.py` to accept a scheduler instance
+- [x] Logic Refinement
+    - [x] Balanced Scheduling (Parallelism)
+    - [x] Correct CAPA Calculation (10min Prod)
+    - [x] DBR Flow Logic: Future WIP awareness
+    - [x] Early Exit Condition
+    - [x] Final Process Target Orientation (Upstream follows Final Plan)
+    - [x] JIT Backward Scheduling Implementation
+    - [x] Verify functionality
+- [x] Documentation
+    - [x] Create Technical Specification (`spec.md`)
+    - [x] Create Presentation Storyboard (`presentation.md`)

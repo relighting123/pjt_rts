@@ -1,0 +1,17 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Output files
+output.txt
+output_debug.txt
+
+# Local IDE settings
+.vscode/
+.idea/
+.gemini/
