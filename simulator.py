@@ -182,7 +182,7 @@ class Simulator:
         s.assign[(model, ti)] = s.assign.get((model, ti), 0) + 1
         if fb != tb:
             s.idle[(model, ti)] = s.idle.get((model, ti), 0) + p.switch_time_hours
-            s.tool_used[(fb, model)] = s.tool_used.get((fb, model), 0) - 1
+            s.tool_used[(fb, model)] = max(0, s.tool_used.get((fb, model), 0) - 1)
             s.tool_used[(tb, model)] = s.tool_used.get((tb, model), 0) + 1
 
 
