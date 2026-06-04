@@ -63,9 +63,10 @@ def evaluate_benchmark(problem: ProblemInstance, model=None) -> dict:
         "heuristic_per_task": h_metrics["per_task"],
         "trace": h_trace,
         "hourly_stats": h_hourly,
-        "avg_utilization": h_extra["avg_utilization"],
-        "task_hourly_rows": h_extra["task_hourly_rows"],
-        "allocation_rows": h_extra["allocation_rows"],
+        **{k: h_extra[k] for k in (
+            "avg_utilization", "output_tables", "plan_achv_rows", "assign_rows",
+            "conv_rows", "task_hourly_rows", "allocation_rows",
+        )},
     }
     if model is not None and _model_matches(model, problem):
         sim2 = Simulator(problem)
@@ -77,6 +78,10 @@ def evaluate_benchmark(problem: ProblemInstance, model=None) -> dict:
         out["rl_hourly_stats"] = rl_hourly
         out["rl_avg_utilization"] = avg_utilization(rl_hourly)
         rl_extra = enrich_eval_result(problem, rl_trace, rl_hourly)
+        out["rl_output_tables"] = rl_extra["output_tables"]
+        out["rl_plan_achv_rows"] = rl_extra["plan_achv_rows"]
+        out["rl_assign_rows"] = rl_extra["assign_rows"]
+        out["rl_conv_rows"] = rl_extra["conv_rows"]
         out["rl_task_hourly_rows"] = rl_extra["task_hourly_rows"]
         out["rl_allocation_rows"] = rl_extra["allocation_rows"]
     return out
@@ -120,9 +125,11 @@ def render_markdown(results: dict[str, tuple[ProblemInstance, dict]]) -> str:
         lines.append(_gantt(p, r.get("rl_trace", r["trace"])))
         lines.append("")
         stats_key = "rl_hourly_stats" if "rl_hourly_stats" in r else "hourly_stats"
+        trace_key = "rl_trace" if "rl_trace" in r else "trace"
         label = "RL" if stats_key == "rl_hourly_stats" else "휴리스틱"
         if r.get(stats_key):
-            lines.append(render_detail_sections(p, r[stats_key], policy_label=label))
+            lines.append(render_detail_sections(
+                p, r[stats_key], r.get(trace_key, r["trace"]), policy_label=label))
         lines.append("")
     return "\n".join(lines)
 

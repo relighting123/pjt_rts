@@ -90,24 +90,64 @@ def fetch_problem(rule_timekey: str | None = None, horizon_hours: int = 12,
         conn.close()
 
 
-def write_results(rule_timekey: str, allocation_rows: list[dict]) -> None:
-    """RTS_RSLT_MAS/HIS 삭제 후 insert. allocation_rows는 출력 스키마 dict 목록.
+def write_assign_results(rule_timekey: str, assign_rows: list[dict]) -> None:
+    """RTS_ASSIGN_INF/HIS 삭제 후 insert."""
+    _write_table_pair(config.ASSIGN_TABLE, config.ASSIGN_HIS_TABLE, rule_timekey, assign_rows, _ASSIGN_INSERT_SQL)
 
-    TODO(미구현): 아직 호출부가 없다(추론 trace→allocation_rows 빌더 필요). 또한
-    CHG_TM/CHG_USER_ID 컬럼과 BATCH_ID 변경 시점의 RTS_CONV_INF/RTS_CONV_HIS
-    기록(config.CONV_TABLE/CONV_HIS_TABLE)은 후속 작업으로 남아 있다.
-    """
+
+def write_plan_achv_results(rule_timekey: str, plan_rows: list[dict]) -> None:
+    """RTS_PLAN_ACHV_INF/HIS 삭제 후 insert."""
+    _write_table_pair(
+        config.PLAN_ACHV_TABLE, config.PLAN_ACHV_HIS_TABLE, rule_timekey, plan_rows, _PLAN_ACHV_INSERT_SQL)
+
+
+def write_conv_results(rule_timekey: str, conv_rows: list[dict]) -> None:
+    """RTS_CONV_INF/HIS 삭제 후 insert."""
+    _write_table_pair(config.CONV_TABLE, config.CONV_HIS_TABLE, rule_timekey, conv_rows, _CONV_INSERT_SQL)
+
+
+_ASSIGN_INSERT_SQL = (
+    "INSERT INTO {table} (RULE_TIMEKEY, EQP_ID, EQP_MODEL_CD, SEQ_NO, "
+    "START_TIME, END_TIME, PLAN_PROD_KEY, PRODUCE_QTY, CRT_TM, CRT_USER_ID) "
+    "VALUES (:RULE_TIMEKEY, :EQP_ID, :EQP_MODEL_CD, :SEQ_NO, :START_TIME, "
+    ":END_TIME, :PLAN_PROD_KEY, :PRODUCE_QTY, SYSTIMESTAMP, :CRT_USER_ID)"
+)
+
+_PLAN_ACHV_INSERT_SQL = (
+    "INSERT INTO {table} (RULE_TIMEKEY, EVENT_TM, BATCH_ID, PLAN_PROD_KEY, OPER_ID, "
+    "PLAN_QTY, REMAIN_QTY, PRODUCE_QTY, ACHIEVE_RATE, EQP_UTIL_RATE, CRT_TM, CRT_USER_ID) "
+    "VALUES (:RULE_TIMEKEY, :EVENT_TM, :BATCH_ID, :PLAN_PROD_KEY, :OPER_ID, "
+    ":PLAN_QTY, :REMAIN_QTY, :PRODUCE_QTY, :ACHIEVE_RATE, :EQP_UTIL_RATE, "
+    "SYSTIMESTAMP, :CRT_USER_ID)"
+)
+
+_CONV_INSERT_SQL = (
+    "INSERT INTO {table} (RULE_TIMEKEY, EVENT_TM, EQP_ID, EQP_MODEL_CD, SEQ_NO, "
+    "START_TIME, END_TIME, FROM_BATCH_ID, TO_BATCH_ID, "
+    "FROM_PLAN_PROD_KEY, TO_PLAN_PROD_KEY, FROM_OPER_ID, TO_OPER_ID, CRT_TM, CRT_USER_ID) "
+    "VALUES (:RULE_TIMEKEY, :EVENT_TM, :EQP_ID, :EQP_MODEL_CD, :SEQ_NO, "
+    ":START_TIME, :END_TIME, :FROM_BATCH_ID, :TO_BATCH_ID, "
+    ":FROM_PLAN_PROD_KEY, :TO_PLAN_PROD_KEY, :FROM_OPER_ID, :TO_OPER_ID, "
+    "SYSTIMESTAMP, :CRT_USER_ID)"
+)
+
+
+def _write_table_pair(inf_table: str, his_table: str, rule_timekey: str,
+                      rows: list[dict], insert_sql_template: str) -> None:
+    if not rows:
+        return
     conn = _connect()
     try:
         cur = conn.cursor()
-        for table in (config.RESULT_TABLE, config.RESULT_HIS_TABLE):
+        sql = insert_sql_template.format(table="{table}")
+        for table in (inf_table, his_table):
             cur.execute(f"DELETE FROM {table} WHERE RULE_TIMEKEY = :rk", rk=rule_timekey)
-            cur.executemany(
-                f"INSERT INTO {table} (RULE_TIMEKEY, EQP_ID, EQP_MODEL_CD, SEQ_NO, "
-                f"START_TIME, END_TIME, PLAN_PROD_KEY, PRODUCE_QTY, CRT_TM, CRT_USER_ID) "
-                f"VALUES (:RULE_TIMEKEY, :EQP_ID, :EQP_MODEL_CD, :SEQ_NO, :START_TIME, "
-                f":END_TIME, :PLAN_PROD_KEY, :PRODUCE_QTY, SYSTIMESTAMP, :CRT_USER_ID)",
-                allocation_rows)
+            cur.executemany(sql.format(table=table), rows)
         conn.commit()
     finally:
         conn.close()
+
+
+def write_results(rule_timekey: str, allocation_rows: list[dict]) -> None:
+    """하위호환: RTS_ASSIGN_INF/HIS insert (allocation_rows = assign_rows)."""
+    write_assign_results(rule_timekey, allocation_rows)

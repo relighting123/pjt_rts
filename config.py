@@ -20,11 +20,24 @@ BC_EPOCHS = 300
 BC_LR = 1e-3
 DEFAULT_SWITCH_TIME_HOURS = 1
 
-# 출력 테이블 (db.py)
-RESULT_TABLE = "RTS_RSLT_MAS"
-RESULT_HIS_TABLE = "RTS_RSLT_HIS"
+# --- DB 테이블 (INF=현행, HIS=이력) ---
+INPUT_TABLE = "RTS_LINEDSDB_INF"
+
+# 시간대별 계획/달성 (task × hour)
+PLAN_ACHV_TABLE = "RTS_PLAN_ACHV_INF"
+PLAN_ACHV_HIS_TABLE = "RTS_PLAN_ACHV_HIS"
+
+# 장비 배치·생산 (eqp × hour)
+ASSIGN_TABLE = "RTS_ASSIGN_INF"
+ASSIGN_HIS_TABLE = "RTS_ASSIGN_HIS"
+
+# batch(tool) 전환 이벤트
 CONV_TABLE = "RTS_CONV_INF"
 CONV_HIS_TABLE = "RTS_CONV_HIS"
+
+# db.write_assign_results 하위호환 alias
+RESULT_TABLE = ASSIGN_TABLE
+RESULT_HIS_TABLE = ASSIGN_HIS_TABLE
 
 
 def load_config() -> dict:
