@@ -186,6 +186,73 @@ class Simulator:
             s.tool_used[(tb, model)] = s.tool_used.get((tb, model), 0) + 1
 
 
+def _remaining(p: ProblemInstance, s: SimState, ti: int) -> int:
+    return max(0, p.tasks[ti].plan_qty - s.produced[ti])
+
+
+def heuristic_actions(sim: "Simulator", s: SimState) -> list[Move]:
+    """이번 1시간에 둘 이동들을 그리디로 결정.
+
+    원칙:
+    1) 잔여계획이 0인 task에서 잔여계획이 큰 task로 장비를 옮긴다.
+    2) batch 전환은 from-task가 더 이상 기여 못할 때만(잔여=0 또는 WIP=0).
+    3) 한 시간의 남은 잔여계획을 가장 많이 줄이는 이동을 우선.
+    """
+    p = sim.p
+    moves: list[Move] = []
+    # 반복적으로 최선 이동 1개씩 선택 (substep)
+    for _ in range(sum(p.eqp_qty.values()) + 1):
+        candidates = sim.valid_moves(s)
+        best, best_gain = None, 0.0
+        for mv in candidates:
+            from_rem = _remaining(p, s, mv.from_index)
+            from_wip = s.wip[mv.from_index]
+            to_rem = _remaining(p, s, mv.to_index)
+            uph_to = p.uph_of(mv.model, mv.to_index) or 0.0
+            uph_from = p.uph_of(mv.model, mv.from_index) or 0.0
+            same_batch = p.batch_of(mv.from_index) == p.batch_of(mv.to_index)
+            # from이 여전히 유효 생산 중이면 기본 유지하되,
+            # 같은 batch에서 to의 UPH가 더 높아 총 생산이 늘 때만 이동 허용
+            if from_rem > 0 and from_wip > 0:
+                better_here = same_batch and uph_to > uph_from
+                if not better_here:
+                    continue
+            hours_left = p.horizon_hours - s.hour - (0 if same_batch else p.switch_time_hours)
+            gain = min(to_rem, s.wip[mv.to_index], uph_to * max(0, hours_left))
+            if gain > best_gain:
+                best, best_gain = mv, gain
+        if best is None:
+            break
+        sim.apply_move(s, best)
+        moves.append(best)
+    return moves
+
+
+def run_policy(sim: "Simulator", policy_fn) -> tuple[SimState, list]:
+    """policy_fn(sim, state)->list[Move]를 매 시간 적용하며 horizon까지 시뮬레이션."""
+    s = sim.reset()
+    trace = []
+    while not sim.is_done(s):
+        applied = policy_fn(sim, s)
+        snapshot = {(m, ti): c for (m, ti), c in s.assign.items()}
+        sim.advance_hour(s)
+        trace.append((s.hour - 1, applied, snapshot))
+    return s, trace
+
+
+def evaluate(problem: ProblemInstance) -> dict:
+    """휴리스틱 vs ground_truth 비교."""
+    sim = Simulator(problem)
+    final, trace = run_policy(sim, heuristic_actions)
+    m = sim.metrics(final)
+    return {
+        "heuristic": m["plan_achievement"],
+        "optimal": problem.ground_truth.get("plan_achievement"),
+        "per_task": m["per_task"],
+        "trace": trace,
+    }
+
+
 def load_problem(path: str | Path) -> ProblemInstance:
     data = json.loads(Path(path).read_text(encoding="utf-8"))
     tasks = [
