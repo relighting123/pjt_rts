@@ -6,6 +6,13 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import NamedTuple
+
+
+class Move(NamedTuple):
+    model: str
+    from_index: int
+    to_index: int
 
 
 @dataclass(frozen=True)
@@ -136,6 +143,47 @@ class Simulator:
             "plan_achievement": round(sum(rates) / len(rates), 4) if rates else 0.0,
             "per_task": per_task,
         }
+
+    def valid_moves(self, s: SimState) -> list[Move]:
+        """현재 상태에서 둘 수 있는 (model, from, to) 이동 목록."""
+        p = self.p
+        out: list[Move] = []
+        n = len(p.tasks)
+        for model in p.models():
+            for fi in range(n):
+                # 옮길 수 있는 (Idle 아닌) 대수가 있어야 함
+                movable = s.assign.get((model, fi), 0) - s.idle.get((model, fi), 0)
+                if movable <= 0:
+                    continue
+                for ti in range(n):
+                    if ti == fi:
+                        continue
+                    if p.uph_of(model, ti) is None:        # 적격(UPH 존재)해야
+                        continue
+                    fb, tb = p.batch_of(fi), p.batch_of(ti)
+                    if fb != tb:
+                        if not p.can_convert(fb, tb):       # 그룹 외 전환 불가
+                            continue
+                        used = s.tool_used.get((tb, model), 0)
+                        cap = p.tool_qty.get((tb, model), 0)
+                        if used >= cap:                     # tool 부족
+                            continue
+                    out.append(Move(model, fi, ti))
+        return out
+
+    def apply_move(self, s: SimState, mv: Move) -> None:
+        """장비 1대를 from→to로 이동. batch 변경이면 Idle + tool 교체."""
+        p = self.p
+        model, fi, ti = mv
+        fb, tb = p.batch_of(fi), p.batch_of(ti)
+        s.assign[(model, fi)] = s.assign.get((model, fi), 0) - 1
+        if s.assign[(model, fi)] == 0:
+            del s.assign[(model, fi)]
+        s.assign[(model, ti)] = s.assign.get((model, ti), 0) + 1
+        if fb != tb:
+            s.idle[(model, ti)] = s.idle.get((model, ti), 0) + p.switch_time_hours
+            s.tool_used[(fb, model)] = s.tool_used.get((fb, model), 0) - 1
+            s.tool_used[(tb, model)] = s.tool_used.get((tb, model), 0) + 1
 
 
 def load_problem(path: str | Path) -> ProblemInstance:
