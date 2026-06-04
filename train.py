@@ -84,6 +84,17 @@ def train_model(problems: list[ProblemInstance], ppo_steps: int = config.DEFAULT
     save_path = Path(save_path) if save_path else config.MODEL_PATH
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
+    # 단일 정책은 동일 (관측/액션) shape만 학습 가능 → 첫 문제 기준으로 필터
+    def _shape(p):
+        e = DispatchEnv(p)
+        return (tuple(e.observation_space.shape), int(e.action_space.n))
+    base = _shape(problems[0])
+    same = [p for p in problems if _shape(p) == base]
+    if len(same) < len(problems):
+        print(f"[train] shape가 다른 문제 {len(problems) - len(same)}개 제외 "
+              f"(단일 정책은 동일 shape만 학습). {len(same)}개로 학습.")
+    problems = same
+
     def env_fn():
         return make_env(random.choice(problems))
 
