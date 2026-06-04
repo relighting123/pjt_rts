@@ -9,6 +9,7 @@ SAVED_MODELS_DIR = ROOT / "saved_models"
 DATA_DIR = ROOT / "data"
 ARTIFACTS_DIR = ROOT / "artifacts"
 REPORT_PATH = ROOT / "MODEL_REPORT.md"
+HTML_REPORT_PATH = ROOT / "MODEL_REPORT.html"
 
 MODEL_PATH = SAVED_MODELS_DIR / "ppo_dispatch.zip"
 BC_POLICY_PATH = SAVED_MODELS_DIR / "bc_init.pt"

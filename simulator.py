@@ -232,28 +232,58 @@ def heuristic_actions(sim: "Simulator", s: SimState) -> list[Move]:
     return moves
 
 
-def run_policy(sim: "Simulator", policy_fn) -> tuple[SimState, list]:
-    """policy_fn(sim, state)->list[Move]를 매 시간 적용하며 horizon까지 시뮬레이션."""
+def _active_eqp_count(p: ProblemInstance, s: SimState) -> int:
+    """Idle 제외 가동 중인 장비 대수 합."""
+    return sum(
+        max(0, s.assign.get((m, ti), 0) - s.idle.get((m, ti), 0))
+        for m in p.models()
+        for ti in range(len(p.tasks))
+    )
+
+
+def run_policy(sim: "Simulator", policy_fn) -> tuple[SimState, list, list[dict]]:
+    """policy_fn(sim, state)->list[Move]를 매 시간 적용하며 horizon까지 시뮬레이션.
+
+    반환 trace 항목: (hour, applied_moves, assign_snapshot)
+    hourly_stats 항목: hour, hourly_produce, cumulative_produced, util_rate, assign_snapshot
+    """
+    p = sim.p
     s = sim.reset()
-    trace = []
+    trace: list = []
+    hourly_stats: list[dict] = []
+    total_eqp = sum(p.eqp_qty.values()) or 1
+    n_tasks = len(p.tasks)
     while not sim.is_done(s):
+        hour = s.hour
         applied = policy_fn(sim, s)
         snapshot = {(m, ti): c for (m, ti), c in s.assign.items()}
+        before = dict(s.produced)
+        util_rate = round(_active_eqp_count(p, s) / total_eqp, 4)
         sim.advance_hour(s)
-        trace.append((s.hour - 1, applied, snapshot))
-    return s, trace
+        hourly_produce = {ti: s.produced[ti] - before.get(ti, 0) for ti in range(n_tasks)}
+        stat = {
+            "hour": hour,
+            "hourly_produce": hourly_produce,
+            "cumulative_produced": dict(s.produced),
+            "util_rate": util_rate,
+            "assign_snapshot": snapshot,
+        }
+        hourly_stats.append(stat)
+        trace.append((hour, applied, snapshot))
+    return s, trace, hourly_stats
 
 
 def evaluate(problem: ProblemInstance) -> dict:
     """휴리스틱 vs ground_truth 비교."""
     sim = Simulator(problem)
-    final, trace = run_policy(sim, heuristic_actions)
+    final, trace, hourly_stats = run_policy(sim, heuristic_actions)
     m = sim.metrics(final)
     return {
         "heuristic": m["plan_achievement"],
         "optimal": problem.ground_truth.get("plan_achievement"),
         "per_task": m["per_task"],
         "trace": trace,
+        "hourly_stats": hourly_stats,
     }
 
 

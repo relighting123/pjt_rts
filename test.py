@@ -1,9 +1,16 @@
-"""학습된 정책 평가 + RL/휴리스틱/최적 비교 리포트(md) 생성."""
+"""학습된 정책 평가 + RL/휴리스틱/최적 비교 리포트(md/html) 생성."""
 from __future__ import annotations
 from pathlib import Path
 import numpy as np
 
 from simulator import ProblemInstance, Simulator, heuristic_actions, run_policy, Move
+from report_output import (
+    render_detail_sections,
+    render_html_report,
+    enrich_eval_result,
+    gantt_text,
+    avg_utilization,
+)
 import config
 
 
@@ -25,7 +32,6 @@ def _rl_policy_factory(model, problem: ProblemInstance):
     env = DispatchEnv(problem)
 
     def policy_fn(sim: Simulator, s):
-        # env 상태를 sim 상태와 동기화
         env._state = s
         env._substeps = 0
         moves = []
@@ -48,36 +54,36 @@ def _rl_policy_factory(model, problem: ProblemInstance):
 
 def evaluate_benchmark(problem: ProblemInstance, model=None) -> dict:
     sim = Simulator(problem)
-    h_final, h_trace = run_policy(sim, heuristic_actions)
+    h_final, h_trace, h_hourly = run_policy(sim, heuristic_actions)
     h_metrics = sim.metrics(h_final)
+    h_extra = enrich_eval_result(problem, h_trace, h_hourly)
     out = {
         "heuristic": h_metrics["plan_achievement"],
         "optimal": problem.ground_truth.get("plan_achievement"),
         "heuristic_per_task": h_metrics["per_task"],
         "trace": h_trace,
+        "hourly_stats": h_hourly,
+        "avg_utilization": h_extra["avg_utilization"],
+        "task_hourly_rows": h_extra["task_hourly_rows"],
+        "allocation_rows": h_extra["allocation_rows"],
     }
     if model is not None and _model_matches(model, problem):
         sim2 = Simulator(problem)
-        rl_final, rl_trace = run_policy(sim2, _rl_policy_factory(model, problem))
+        rl_final, rl_trace, rl_hourly = run_policy(sim2, _rl_policy_factory(model, problem))
         rl_metrics = sim2.metrics(rl_final)
         out["rl"] = rl_metrics["plan_achievement"]
         out["rl_per_task"] = rl_metrics["per_task"]
         out["rl_trace"] = rl_trace
+        out["rl_hourly_stats"] = rl_hourly
+        out["rl_avg_utilization"] = avg_utilization(rl_hourly)
+        rl_extra = enrich_eval_result(problem, rl_trace, rl_hourly)
+        out["rl_task_hourly_rows"] = rl_extra["task_hourly_rows"]
+        out["rl_allocation_rows"] = rl_extra["allocation_rows"]
     return out
 
 
 def _gantt(problem: ProblemInstance, trace) -> str:
-    """장비(model)별 시간대 배치를 텍스트 간트로."""
-    lines = ["```", "간트 (model x hour → task)"]
-    task_label = {i: f"{t.plan_prod_key}/{t.oper_id}" for i, t in enumerate(problem.tasks)}
-    for model in problem.models():
-        row = [f"{model:>8}"]
-        for hour, applied, snapshot in trace:
-            here = [task_label[ti] for (m, ti), c in snapshot.items() if m == model and c > 0]
-            row.append((here[0] if here else "-").split("/")[0][:6].ljust(6))
-        lines.append(" | ".join(row))
-    lines.append("```")
-    return "\n".join(lines)
+    return "```\n" + gantt_text(problem, trace) + "\n```"
 
 
 def render_markdown(results: dict[str, tuple[ProblemInstance, dict]]) -> str:
@@ -91,15 +97,21 @@ def render_markdown(results: dict[str, tuple[ProblemInstance, dict]]) -> str:
         rl_avg_str = f" / RL: {np.mean([r.get('rl', 0) for _, r in results.values()]):.3f}"
     lines.append(f"- 평균 계획달성률 — 최적: {opt_avg:.3f} / 휴리스틱: {h_avg:.3f}{rl_avg_str}")
     lines.append("")
-    header = "| 벤치마크 | 최적 | 휴리스틱 |" + (" RL |" if has_rl else "")
-    sep = "|---|---|---|" + ("---|" if has_rl else "")
+    lines.append(
+        "- **액션:** 0=commit(이동 없이 1시간 경과), 1..N=장비 이동. "
+        "이동 없이 commit만 선택 가능."
+    )
+    lines.append("")
+    header = "| 벤치마크 | 최적 | 휴리스틱 | 평균 가동률 |" + (" RL | RL 가동률 |" if has_rl else "")
+    sep = "|---|---|---|---|" + ("---|---|" if has_rl else "")
     lines.append(header)
     lines.append(sep)
     for name, (p, r) in results.items():
         opt = r["optimal"] if r["optimal"] is not None else 0.0
-        line = f"| {name} | {opt:.3f} | {r['heuristic']:.3f} |"
+        util = r.get("avg_utilization", 0.0)
+        line = f"| {name} | {opt:.3f} | {r['heuristic']:.3f} | {util:.3f} |"
         if has_rl:
-            line += f" {r.get('rl', 0):.3f} |"
+            line += f" {r.get('rl', 0):.3f} | {r.get('rl_avg_utilization', 0):.3f} |"
         lines.append(line)
     lines.append("")
     for name, (p, r) in results.items():
@@ -107,16 +119,30 @@ def render_markdown(results: dict[str, tuple[ProblemInstance, dict]]) -> str:
         lines.append(f"- 비고: {p.ground_truth.get('note', '')}")
         lines.append(_gantt(p, r.get("rl_trace", r["trace"])))
         lines.append("")
+        stats_key = "rl_hourly_stats" if "rl_hourly_stats" in r else "hourly_stats"
+        label = "RL" if stats_key == "rl_hourly_stats" else "휴리스틱"
+        if r.get(stats_key):
+            lines.append(render_detail_sections(p, r[stats_key], policy_label=label))
+        lines.append("")
     return "\n".join(lines)
 
 
 def run_eval(benchmarks_dir: Path = config.BENCHMARKS_DIR, model=None,
-             report_path: Path = config.REPORT_PATH) -> str:
+             report_path: Path = config.REPORT_PATH,
+             html_report_path: Path | None = None) -> str:
     from simulator import load_problem
     results = {}
     for path in sorted(Path(benchmarks_dir).glob("benchmark_*.json")):
         p = load_problem(path)
         results[path.stem] = (p, evaluate_benchmark(p, model))
     md = render_markdown(results)
+    report_path = Path(report_path)
     Path(report_path).write_text(md, encoding="utf-8")
+    if html_report_path is None:
+        html_report_path = (
+            config.HTML_REPORT_PATH
+            if report_path == config.REPORT_PATH
+            else report_path.with_suffix(".html")
+        )
+    Path(html_report_path).write_text(render_html_report(results), encoding="utf-8")
     return md

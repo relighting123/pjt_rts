@@ -28,6 +28,7 @@ def cmd_train(args):
     model = MaskablePPO.load(config.MODEL_PATH)
     report.run_eval(model=model)
     print(f"평가 리포트 → {config.REPORT_PATH}")
+    print(f"HTML 리포트 → {config.HTML_REPORT_PATH}")
 
 
 def cmd_eval(args):
@@ -39,6 +40,12 @@ def cmd_eval(args):
     report_path = Path(args.report) if args.report else config.REPORT_PATH
     report.run_eval(model=model, report_path=report_path)
     print(f"평가 리포트 → {report_path}")
+    html_path = (
+        config.HTML_REPORT_PATH
+        if report_path == config.REPORT_PATH
+        else report_path.with_suffix(".html")
+    )
+    print(f"HTML 리포트 → {html_path}")
 
 
 def cmd_infer(args):

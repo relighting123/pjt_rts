@@ -9,7 +9,7 @@ def _teacher_policy(sim, s):
 def test_heuristic_reaches_ground_truth_bench01():
     p = load_problem(BENCHMARKS_DIR / "benchmark_01.json")
     sim = Simulator(p)
-    final, trace = run_policy(sim, _teacher_policy)
+    final, trace, _hourly = run_policy(sim, _teacher_policy)
     m = sim.metrics(final)
     assert m["plan_achievement"] >= p.ground_truth["plan_achievement"] - 1e-6
 
@@ -17,7 +17,7 @@ def test_heuristic_reaches_ground_truth_bench01():
 def test_heuristic_reaches_ground_truth_bench02_with_conversion():
     p = load_problem(BENCHMARKS_DIR / "benchmark_02.json")
     sim = Simulator(p)
-    final, trace = run_policy(sim, _teacher_policy)
+    final, trace, _hourly = run_policy(sim, _teacher_policy)
     m = sim.metrics(final)
     # PA 200 + PB 100 모두 달성 (전환 1h Idle 포함 4h 안에)
     assert m["plan_achievement"] >= 0.999
