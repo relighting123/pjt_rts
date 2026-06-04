@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from html import escape
 
-from simulator import ProblemInstance, Simulator
+from simulator import ProblemInstance
 
 
 def event_tm_for_hour(rule_timekey: str, hours: int) -> str:
@@ -12,35 +12,6 @@ def event_tm_for_hour(rule_timekey: str, hours: int) -> str:
     suffix = s[14:]
     dt = datetime.strptime(s[:14], "%Y%m%d%H%M%S") + timedelta(hours=hours)
     return dt.strftime("%Y%m%d%H%M%S") + suffix
-
-
-def build_task_hourly_rows(problem: ProblemInstance, hourly_stats: list[dict]) -> list[dict]:
-    """시간대 × task별 필수 컬럼 행."""
-    rows: list[dict] = []
-    rule_timekey = problem.rule_timekey
-    for stat in hourly_stats:
-        hour = stat["hour"]
-        event_tm = event_tm_for_hour(rule_timekey, hour)
-        cumulative = stat["cumulative_produced"]
-        hourly = stat["hourly_produce"]
-        for ti, task in enumerate(problem.tasks):
-            produced = cumulative.get(ti, 0)
-            plan = task.plan_qty
-            achieve = round(min(produced / plan, 1.0), 4) if plan > 0 else 1.0
-            rows.append({
-                "RULE_TIMEKEY": rule_timekey,
-                "EVENT_TM": event_tm,
-                "BATCH_ID": task.batch_id,
-                "PLAN_PROD_KEY": task.plan_prod_key,
-                "OPER_ID": task.oper_id,
-                "PLAN_QTY": plan,
-                "REMAIN_QTY": max(0, plan - produced),
-                "PRODUCE_QTY": hourly.get(ti, 0),
-                "ACHIEVE_RATE": achieve,
-                "HOUR": hour,
-                "UTIL_RATE": stat["util_rate"],
-            })
-    return rows
 
 
 def _split_hourly_produce(problem: ProblemInstance, stat: dict, ti: int) -> dict[str, int]:
@@ -72,12 +43,12 @@ def _split_hourly_produce(problem: ProblemInstance, stat: dict, ti: int) -> dict
     return out
 
 
-def build_allocation_rows(
+def _build_eqp_hourly_rows(
     problem: ProblemInstance,
     hourly_stats: list[dict],
     crt_user_id: str = "RL_AGENT",
 ) -> list[dict]:
-    """RTS_RSLT_MAS/HIS 스키마에 맞는 장비 배치·생산 행."""
+    """시간대 × 장비 단위 RTS_RSLT + 계획/달성 필드 통합 행."""
     rows: list[dict] = []
     seq = 0
     rule_timekey = problem.rule_timekey
@@ -87,20 +58,24 @@ def build_allocation_rows(
         start_time = event_tm
         end_time = event_tm_for_hour(rule_timekey, hour + 1)
         snapshot = stat["assign_snapshot"]
-        by_model_task: dict[tuple[str, int], int] = {}
-        for ti in range(len(problem.tasks)):
-            split = _split_hourly_produce(problem, stat, ti)
-            for model, qty in split.items():
-                if qty <= 0:
-                    continue
-                by_model_task[(model, ti)] = by_model_task.get((model, ti), 0) + qty
-        for (model, ti), produce_qty in sorted(by_model_task.items()):
-            active = snapshot.get((model, ti), 0)
-            if active <= 0:
-                continue
+        cumulative = stat["cumulative_produced"]
+        hourly = stat["hourly_produce"]
+
+        assignments: list[tuple[str, int, int]] = []
+        for model in problem.models():
+            for ti in range(len(problem.tasks)):
+                active = snapshot.get((model, ti), 0)
+                if active > 0:
+                    assignments.append((model, ti, active))
+
+        for model, ti, active in sorted(assignments):
             task = problem.tasks[ti]
-            per_unit = produce_qty // active
-            remainder = produce_qty % active
+            produced = cumulative.get(ti, 0)
+            plan = task.plan_qty
+            achieve = round(min(produced / plan, 1.0), 4) if plan > 0 else 1.0
+            model_total = _split_hourly_produce(problem, stat, ti).get(model, 0)
+            per_unit = model_total // active if active else 0
+            remainder = model_total % active if active else 0
             for u in range(active):
                 seq += 1
                 qty = per_unit + (1 if u < remainder else 0)
@@ -112,11 +87,35 @@ def build_allocation_rows(
                     "SEQ_NO": seq,
                     "START_TIME": start_time,
                     "END_TIME": end_time,
+                    "BATCH_ID": task.batch_id,
                     "PLAN_PROD_KEY": task.plan_prod_key,
+                    "OPER_ID": task.oper_id,
+                    "PLAN_QTY": plan,
+                    "REMAIN_QTY": max(0, plan - produced),
                     "PRODUCE_QTY": qty,
+                    "ACHIEVE_RATE": achieve,
                     "CRT_USER_ID": crt_user_id,
+                    "HOUR": hour,
+                    "UTIL_RATE": stat["util_rate"],
                 })
     return rows
+
+
+def build_task_hourly_rows(problem: ProblemInstance, hourly_stats: list[dict]) -> list[dict]:
+    """시간대 × 장비별 계획/생산 상세 (RTS 테이블 + 필수 필드)."""
+    return _build_eqp_hourly_rows(problem, hourly_stats)
+
+
+def build_allocation_rows(
+    problem: ProblemInstance,
+    hourly_stats: list[dict],
+    crt_user_id: str = "RL_AGENT",
+) -> list[dict]:
+    """RTS_RSLT_MAS/HIS DB insert용 행 (기존 테이블 컬럼)."""
+    return [
+        {k: row[k] for k in ALLOC_DB_KEYS}
+        for row in _build_eqp_hourly_rows(problem, hourly_stats, crt_user_id)
+    ]
 
 
 def avg_utilization(hourly_stats: list[dict]) -> float:
@@ -135,20 +134,32 @@ def _markdown_table(headers: list[str], rows: list[dict], keys: list[str]) -> st
     return "\n".join(lines)
 
 
-TASK_DETAIL_KEYS = [
-    "RULE_TIMEKEY", "EVENT_TM", "BATCH_ID", "PLAN_PROD_KEY", "OPER_ID",
+RESULT_ROW_KEYS = [
+    "RULE_TIMEKEY", "EVENT_TM", "EQP_ID", "EQP_MODEL_CD", "SEQ_NO",
+    "START_TIME", "END_TIME",
+    "BATCH_ID", "PLAN_PROD_KEY", "OPER_ID",
     "PLAN_QTY", "REMAIN_QTY", "PRODUCE_QTY", "ACHIEVE_RATE",
+    "CRT_USER_ID",
 ]
-TASK_DETAIL_HEADERS = [
-    "RULE_TIMEKEY", "EVENT_TM", "BATCH_ID", "PLAN_PROD_KEY", "OPER",
+RESULT_ROW_HEADERS = [
+    "RULE_TIMEKEY", "EVENT_TM", "EQP_ID", "EQP_MODEL_CD", "SEQ",
+    "START_TIME", "END_TIME",
+    "BATCH_ID", "PLAN_PROD_KEY", "OPER",
     "PLAN_QTY", "REMAIN_QTY", "PRODUCE_QTY", "ACHIEVE_RATE",
+    "CRT_USER_ID",
 ]
 
-ALLOC_KEYS = [
-    "RULE_TIMEKEY", "EVENT_TM", "EQP_ID", "EQP_MODEL_CD", "SEQ_NO",
+# db.write_results INSERT 컬럼 (SEQ_NO 키 이름 유지)
+ALLOC_DB_KEYS = [
+    "RULE_TIMEKEY", "EQP_ID", "EQP_MODEL_CD", "SEQ_NO",
     "START_TIME", "END_TIME", "PLAN_PROD_KEY", "PRODUCE_QTY", "CRT_USER_ID",
 ]
-ALLOC_HEADERS = ALLOC_KEYS
+
+# 하위호환 alias
+TASK_DETAIL_KEYS = RESULT_ROW_KEYS
+TASK_DETAIL_HEADERS = RESULT_ROW_HEADERS
+ALLOC_KEYS = RESULT_ROW_KEYS
+ALLOC_HEADERS = RESULT_ROW_HEADERS
 
 
 def render_detail_sections(
@@ -156,18 +167,13 @@ def render_detail_sections(
     hourly_stats: list[dict],
     policy_label: str = "heuristic",
 ) -> str:
-    """MD용 시간대별 상세 + 장비 배치 테이블."""
-    task_rows = build_task_hourly_rows(problem, hourly_stats)
-    alloc_rows = build_allocation_rows(problem, hourly_stats)
+    """MD용 시간대별 상세 (RTS_RSLT + 계획/달성 통합 테이블)."""
+    rows = build_task_hourly_rows(problem, hourly_stats)
     util_avg = avg_utilization(hourly_stats)
     lines = [
         f"### {policy_label} — 시간대별 계획/생산 (평균 장비 가동률: {util_avg:.3f})",
         "",
-        _markdown_table(TASK_DETAIL_HEADERS, task_rows, TASK_DETAIL_KEYS),
-        "",
-        f"### {policy_label} — 장비 배치 (RTS_RSLT 형식)",
-        "",
-        _markdown_table(ALLOC_HEADERS, alloc_rows, ALLOC_KEYS),
+        _markdown_table(RESULT_ROW_HEADERS, rows, RESULT_ROW_KEYS),
         "",
     ]
     return "\n".join(lines)
@@ -258,12 +264,9 @@ def render_html_report(results: dict[str, tuple[ProblemInstance, dict]]) -> str:
             parts.append(
                 f"<p>평균 장비 가동률 ({escape(label)}): <strong>{util_avg:.3f}</strong></p>"
             )
-            task_rows = build_task_hourly_rows(p, hourly)
-            parts.append("<h3>시간대별 계획/생산</h3>")
-            parts.append(_html_table(TASK_DETAIL_HEADERS, task_rows, TASK_DETAIL_KEYS))
-            alloc_rows = build_allocation_rows(p, hourly)
-            parts.append("<h3>장비 배치 (RTS_RSLT)</h3>")
-            parts.append(_html_table(ALLOC_HEADERS, alloc_rows, ALLOC_KEYS))
+            rows = build_task_hourly_rows(p, hourly)
+            parts.append("<h3>시간대별 계획/생산 (RTS_RSLT)</h3>")
+            parts.append(_html_table(RESULT_ROW_HEADERS, rows, RESULT_ROW_KEYS))
         parts.append(f"<pre>{escape(gantt_text(p, r.get(trace_key, r['trace'])))}</pre>")
 
     parts.append("</body></html>")
