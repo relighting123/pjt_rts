@@ -60,6 +60,84 @@ class ProblemInstance:
         return sorted(self.eqp_qty)
 
 
+@dataclass
+class SimState:
+    hour: int
+    produced: dict[int, int]                  # task_index -> 누적 생산
+    wip: dict[int, int]                        # task_index -> 현재 가용 유입재공
+    assign: dict[tuple[str, int], int]         # (model, task_index) -> 배치 대수
+    idle: dict[tuple[str, int], int]           # (model, task_index) -> 전환 Idle 잔여대수
+    tool_used: dict[tuple[str, str], int]      # (batch_id, model) -> 사용중 tool
+
+
+class Simulator:
+    """1시간 단위로 전이하는 결정론적 시뮬레이터."""
+
+    def __init__(self, problem: ProblemInstance):
+        self.p = problem
+
+    def reset(self) -> SimState:
+        p = self.p
+        wip = {i: t.init_wip for i, t in enumerate(p.tasks)}
+        produced = {i: 0 for i in range(len(p.tasks))}
+        assign = dict(p.init_assign)
+        idle: dict[tuple[str, int], int] = {}
+        tool_used: dict[tuple[str, str], int] = {}
+        for (model, ti), cnt in assign.items():
+            key = (p.batch_of(ti), model)
+            tool_used[key] = tool_used.get(key, 0) + cnt
+        return SimState(0, produced, wip, assign, idle, tool_used)
+
+    def advance_hour(self, s: SimState) -> None:
+        """배치된(Idle 아닌) 장비로 1시간 생산 후 WIP를 다음 공정으로 흘린다."""
+        p = self.p
+        inflow: dict[int, int] = {}
+        for ti in range(len(p.tasks)):
+            capacity = 0.0
+            for model in p.models():
+                active = s.assign.get((model, ti), 0) - s.idle.get((model, ti), 0)
+                if active <= 0:
+                    continue
+                uph = p.uph_of(model, ti)
+                if uph:
+                    capacity += active * uph
+            q = int(min(capacity, s.wip[ti]))
+            if q <= 0:
+                continue
+            s.produced[ti] += q
+            s.wip[ti] -= q
+            nxt = p.next_task_index(ti)
+            if nxt is not None:
+                inflow[nxt] = inflow.get(nxt, 0) + q
+        # 생산분은 다음 시간에 가용 (지금 더해두면 다음 advance에서 읽힘)
+        for ti, v in inflow.items():
+            s.wip[ti] += v
+        # 전환 Idle 1시간 차감
+        for key in list(s.idle):
+            s.idle[key] = max(0, s.idle[key] - 1)
+            if s.idle[key] == 0:
+                del s.idle[key]
+        s.hour += 1
+
+    def is_done(self, s: SimState) -> bool:
+        return s.hour >= self.p.horizon_hours
+
+    def metrics(self, s: SimState) -> dict:
+        p = self.p
+        rates = []
+        per_task = {}
+        for i, t in enumerate(p.tasks):
+            rate = min(s.produced[i] / t.plan_qty, 1.0) if t.plan_qty > 0 else 1.0
+            rates.append(rate)
+            per_task[f"{t.plan_prod_key}/{t.oper_id}"] = {
+                "produced": s.produced[i], "plan": t.plan_qty, "rate": round(rate, 4)
+            }
+        return {
+            "plan_achievement": round(sum(rates) / len(rates), 4) if rates else 0.0,
+            "per_task": per_task,
+        }
+
+
 def load_problem(path: str | Path) -> ProblemInstance:
     data = json.loads(Path(path).read_text(encoding="utf-8"))
     tasks = [
