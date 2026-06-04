@@ -6,8 +6,8 @@ from html import escape
 from simulator import ProblemInstance, Simulator
 
 
-def offset_timekey(rule_timekey: str, hours: int) -> str:
-    """RULE_TIMEKEY(16자)에 hours만큼 더한 START/END TIME."""
+def event_tm_for_hour(rule_timekey: str, hours: int) -> str:
+    """RULE_TIMEKEY 기준 hours만큼 더한 EVENT_TM (16자)."""
     s = rule_timekey.ljust(16, "0")[:16]
     suffix = s[14:]
     dt = datetime.strptime(s[:14], "%Y%m%d%H%M%S") + timedelta(hours=hours)
@@ -17,9 +17,10 @@ def offset_timekey(rule_timekey: str, hours: int) -> str:
 def build_task_hourly_rows(problem: ProblemInstance, hourly_stats: list[dict]) -> list[dict]:
     """시간대 × task별 필수 컬럼 행."""
     rows: list[dict] = []
+    rule_timekey = problem.rule_timekey
     for stat in hourly_stats:
         hour = stat["hour"]
-        timekey = offset_timekey(problem.rule_timekey, hour)
+        event_tm = event_tm_for_hour(rule_timekey, hour)
         cumulative = stat["cumulative_produced"]
         hourly = stat["hourly_produce"]
         for ti, task in enumerate(problem.tasks):
@@ -27,7 +28,8 @@ def build_task_hourly_rows(problem: ProblemInstance, hourly_stats: list[dict]) -
             plan = task.plan_qty
             achieve = round(min(produced / plan, 1.0), 4) if plan > 0 else 1.0
             rows.append({
-                "RULE_TIMEKEY": timekey,
+                "RULE_TIMEKEY": rule_timekey,
+                "EVENT_TM": event_tm,
                 "BATCH_ID": task.batch_id,
                 "PLAN_PROD_KEY": task.plan_prod_key,
                 "OPER_ID": task.oper_id,
@@ -78,10 +80,12 @@ def build_allocation_rows(
     """RTS_RSLT_MAS/HIS 스키마에 맞는 장비 배치·생산 행."""
     rows: list[dict] = []
     seq = 0
+    rule_timekey = problem.rule_timekey
     for stat in hourly_stats:
         hour = stat["hour"]
-        start_time = offset_timekey(problem.rule_timekey, hour)
-        end_time = offset_timekey(problem.rule_timekey, hour + 1)
+        event_tm = event_tm_for_hour(rule_timekey, hour)
+        start_time = event_tm
+        end_time = event_tm_for_hour(rule_timekey, hour + 1)
         snapshot = stat["assign_snapshot"]
         by_model_task: dict[tuple[str, int], int] = {}
         for ti in range(len(problem.tasks)):
@@ -101,7 +105,8 @@ def build_allocation_rows(
                 seq += 1
                 qty = per_unit + (1 if u < remainder else 0)
                 rows.append({
-                    "RULE_TIMEKEY": problem.rule_timekey,
+                    "RULE_TIMEKEY": rule_timekey,
+                    "EVENT_TM": event_tm,
                     "EQP_ID": f"{model}-{u + 1:03d}",
                     "EQP_MODEL_CD": model,
                     "SEQ_NO": seq,
@@ -131,16 +136,16 @@ def _markdown_table(headers: list[str], rows: list[dict], keys: list[str]) -> st
 
 
 TASK_DETAIL_KEYS = [
-    "RULE_TIMEKEY", "BATCH_ID", "PLAN_PROD_KEY", "OPER_ID",
+    "RULE_TIMEKEY", "EVENT_TM", "BATCH_ID", "PLAN_PROD_KEY", "OPER_ID",
     "PLAN_QTY", "REMAIN_QTY", "PRODUCE_QTY", "ACHIEVE_RATE",
 ]
 TASK_DETAIL_HEADERS = [
-    "RULE_TIMEKEY", "BATCH_ID", "PLAN_PROD_KEY", "OPER",
+    "RULE_TIMEKEY", "EVENT_TM", "BATCH_ID", "PLAN_PROD_KEY", "OPER",
     "PLAN_QTY", "REMAIN_QTY", "PRODUCE_QTY", "ACHIEVE_RATE",
 ]
 
 ALLOC_KEYS = [
-    "RULE_TIMEKEY", "EQP_ID", "EQP_MODEL_CD", "SEQ_NO",
+    "RULE_TIMEKEY", "EVENT_TM", "EQP_ID", "EQP_MODEL_CD", "SEQ_NO",
     "START_TIME", "END_TIME", "PLAN_PROD_KEY", "PRODUCE_QTY", "CRT_USER_ID",
 ]
 ALLOC_HEADERS = ALLOC_KEYS
