@@ -1,0 +1,9 @@
+.env
+__pycache__/
+*.pyc
+saved_models/*.zip
+saved_models/*.pt
+data/*
+!data/.gitkeep
+artifacts/
+.pytest_cache/
