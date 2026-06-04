@@ -1,0 +1,20 @@
+{
+  "rule_timekey": "2026052922500000",
+  "horizon_hours": 2,
+  "switch_time_hours": 1,
+  "tasks": [
+    {"plan_prod_key": "P1", "oper_id": "OP10", "oper_seq": 1, "batch_id": "B1", "plan_qty": 1000, "init_wip": 5000}
+  ],
+  "uph": [
+    {"plan_prod_key": "P1", "oper_id": "OP10", "eqp_model": "M1", "uph": 100}
+  ],
+  "eqp_qty": {"M1": 2},
+  "init_assign": [
+    {"eqp_model": "M1", "plan_prod_key": "P1", "oper_id": "OP10", "count": 2}
+  ],
+  "tool_qty": [
+    {"batch_id": "B1", "eqp_model": "M1", "tool_qty": 2}
+  ],
+  "conv_groups": {"G1": ["B1"]},
+  "ground_truth": {"plan_achievement": 0.4, "note": "최대 2대x100x2h=400 vs 계획 1000 → 0.4 상한."}
+}

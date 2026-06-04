@@ -1,0 +1,26 @@
+{
+  "rule_timekey": "2026052922500000",
+  "horizon_hours": 2,
+  "switch_time_hours": 1,
+  "tasks": [
+    {"plan_prod_key": "P1", "oper_id": "OP10", "oper_seq": 1, "batch_id": "B1", "plan_qty": 300, "init_wip": 1000},
+    {"plan_prod_key": "P2", "oper_id": "OP10", "oper_seq": 1, "batch_id": "B1", "plan_qty": 100, "init_wip": 1000}
+  ],
+  "uph": [
+    {"plan_prod_key": "P1", "oper_id": "OP10", "eqp_model": "M_FAST", "uph": 150},
+    {"plan_prod_key": "P1", "oper_id": "OP10", "eqp_model": "M_SLOW", "uph": 50},
+    {"plan_prod_key": "P2", "oper_id": "OP10", "eqp_model": "M_FAST", "uph": 50},
+    {"plan_prod_key": "P2", "oper_id": "OP10", "eqp_model": "M_SLOW", "uph": 50}
+  ],
+  "eqp_qty": {"M_FAST": 1, "M_SLOW": 1},
+  "init_assign": [
+    {"eqp_model": "M_FAST", "plan_prod_key": "P2", "oper_id": "OP10", "count": 1},
+    {"eqp_model": "M_SLOW", "plan_prod_key": "P1", "oper_id": "OP10", "count": 1}
+  ],
+  "tool_qty": [
+    {"batch_id": "B1", "eqp_model": "M_FAST", "tool_qty": 2},
+    {"batch_id": "B1", "eqp_model": "M_SLOW", "tool_qty": 2}
+  ],
+  "conv_groups": {"G1": ["B1"]},
+  "ground_truth": {"plan_achievement": 1.0, "note": "같은 batch라 전환 무비용. M_FAST를 P1(150x2h=300)에, M_SLOW를 P2(50x2h=100)에 두면 둘 다 100%. 초기 배치는 반대라 교체 필요."}
+}

@@ -211,11 +211,15 @@ def heuristic_actions(sim: "Simulator", s: SimState) -> list[Move]:
             uph_to = p.uph_of(mv.model, mv.to_index) or 0.0
             uph_from = p.uph_of(mv.model, mv.from_index) or 0.0
             same_batch = p.batch_of(mv.from_index) == p.batch_of(mv.to_index)
-            # from이 여전히 유효 생산 중이면 기본 유지하되,
-            # 같은 batch에서 to의 UPH가 더 높아 총 생산이 늘 때만 이동 허용
+            to_has_eqp = any(s.assign.get((m, mv.to_index), 0) > 0 for m in p.models())
+            # from이 여전히 유효 생산 중이면 기본 유지하되, 무비용(같은 batch) 이동만 예외 허용:
+            # (a) to의 UPH가 더 높아 총 생산이 늘거나
+            # (b) to가 잔여>0인데 장비가 없어 무비용 충원이 가능할 때
+            #     (단, UPH 저하 이동은 제외 — 고UPH 장비가 저UPH 태스크로 역배치되는 thrashing 방지)
             if from_rem > 0 and from_wip > 0:
                 better_here = same_batch and uph_to > uph_from
-                if not better_here:
+                fill_empty_free = same_batch and to_rem > 0 and not to_has_eqp and uph_to >= uph_from
+                if not (better_here or fill_empty_free):
                     continue
             hours_left = p.horizon_hours - s.hour - (0 if same_batch else p.switch_time_hours)
             gain = min(to_rem, s.wip[mv.to_index], uph_to * max(0, hours_left))
