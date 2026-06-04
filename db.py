@@ -91,7 +91,12 @@ def fetch_problem(rule_timekey: str | None = None, horizon_hours: int = 12,
 
 
 def write_results(rule_timekey: str, allocation_rows: list[dict]) -> None:
-    """RTS_RSLT_MAS/HIS 삭제 후 insert. allocation_rows는 출력 스키마 dict 목록."""
+    """RTS_RSLT_MAS/HIS 삭제 후 insert. allocation_rows는 출력 스키마 dict 목록.
+
+    TODO(미구현): 아직 호출부가 없다(추론 trace→allocation_rows 빌더 필요). 또한
+    CHG_TM/CHG_USER_ID 컬럼과 BATCH_ID 변경 시점의 RTS_CONV_INF/RTS_CONV_HIS
+    기록(config.CONV_TABLE/CONV_HIS_TABLE)은 후속 작업으로 남아 있다.
+    """
     conn = _connect()
     try:
         cur = conn.cursor()
