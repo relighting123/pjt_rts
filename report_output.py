@@ -88,9 +88,9 @@ def build_assign_rows(
     hourly_stats: list[dict],
     crt_user_id: str = "RL_AGENT",
 ) -> list[dict]:
-    """RTS_ASSIGN_INF/HIS — 시간대 × 장비 배치·생산."""
+    """RTS_ASSIGN_INF/HIS — 시간대 × 장비 배치·생산. SEQ_NO는 EQP_ID(호기)별."""
     rows: list[dict] = []
-    seq = 0
+    seq_by_eqp: dict[str, int] = {}
     rule_timekey = problem.rule_timekey
     for stat in hourly_stats:
         hour = stat["hour"]
@@ -112,14 +112,15 @@ def build_assign_rows(
             per_unit = model_total // active if active else 0
             remainder = model_total % active if active else 0
             for u in range(active):
-                seq += 1
                 qty = per_unit + (1 if u < remainder else 0)
+                eqp_id = f"{model}-{u + 1:03d}"
+                seq_by_eqp[eqp_id] = seq_by_eqp.get(eqp_id, 0) + 1
                 rows.append({
                     "RULE_TIMEKEY": rule_timekey,
                     "EVENT_TM": event_tm,
-                    "EQP_ID": f"{model}-{u + 1:03d}",
+                    "EQP_ID": eqp_id,
                     "EQP_MODEL_CD": model,
-                    "SEQ_NO": seq,
+                    "SEQ_NO": seq_by_eqp[eqp_id],
                     "START_TIME": start_time,
                     "END_TIME": end_time,
                     "PLAN_PROD_KEY": task.plan_prod_key,
@@ -134,9 +135,9 @@ def build_conv_rows(
     trace: list,
     crt_user_id: str = "RL_AGENT",
 ) -> list[dict]:
-    """RTS_CONV_INF/HIS — batch(tool) 전환 이벤트 (cross-batch move)."""
+    """RTS_CONV_INF/HIS — batch(tool) 전환 이벤트. SEQ_NO는 EQP_ID(호기)별."""
     rows: list[dict] = []
-    seq = 0
+    seq_by_eqp: dict[str, int] = {}
     rule_timekey = problem.rule_timekey
     unit_idx: dict[str, int] = {}
 
@@ -152,13 +153,14 @@ def build_conv_rows(
             from_task = problem.tasks[mv.from_index]
             to_task = problem.tasks[mv.to_index]
             unit_idx[mv.model] = unit_idx.get(mv.model, 0) + 1
-            seq += 1
+            eqp_id = f"{mv.model}-{unit_idx[mv.model]:03d}"
+            seq_by_eqp[eqp_id] = seq_by_eqp.get(eqp_id, 0) + 1
             rows.append({
                 "RULE_TIMEKEY": rule_timekey,
                 "EVENT_TM": event_tm,
-                "EQP_ID": f"{mv.model}-{unit_idx[mv.model]:03d}",
+                "EQP_ID": eqp_id,
                 "EQP_MODEL_CD": mv.model,
-                "SEQ_NO": seq,
+                "SEQ_NO": seq_by_eqp[eqp_id],
                 "START_TIME": event_tm,
                 "END_TIME": event_tm,
                 "FROM_BATCH_ID": from_batch,

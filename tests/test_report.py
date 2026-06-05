@@ -36,9 +36,22 @@ def test_assign_rows_eqp_and_seq():
     rows = res["assign_rows"]
     assert len(rows) == p.horizon_hours
     assert rows[0]["EQP_ID"] == "M1-001"
-    assert rows[0]["SEQ_NO"] == 1
+    assert [r["SEQ_NO"] for r in rows] == [1, 2, 3]
     for key in ASSIGN_KEYS:
         assert key in rows[0]
+
+
+def test_assign_seq_per_eqp_id():
+    """SEQ는 전역이 아니라 EQP_ID(호기)별로 1부터 증가."""
+    p = load_problem(BENCHMARKS_DIR / "benchmark_05.json")
+    res = report.evaluate_benchmark(p, model=None)
+    rows = res["assign_rows"]
+    by_eqp: dict[str, list[int]] = {}
+    for row in rows:
+        by_eqp.setdefault(row["EQP_ID"], []).append(row["SEQ_NO"])
+    assert set(by_eqp) == {"M1-001", "M1-002"}
+    assert by_eqp["M1-001"] == [1, 2]
+    assert by_eqp["M1-002"] == [1, 2]
 
 
 def test_conv_rows_on_benchmark_02():
