@@ -14,13 +14,23 @@ from simulator import Simulator, Move, ProblemInstance
 class DispatchEnv(gym.Env):
     metadata = {"render_modes": []}
 
-    def __init__(self, problem: ProblemInstance, max_substeps_per_hour: int | None = None):
+    def __init__(self, problem: ProblemInstance, max_substeps_per_hour: int | None = None,
+                 max_tasks: int | None = None, max_models: int | None = None):
         super().__init__()
         self.p = problem
         self.sim = Simulator(problem)
         self.models = problem.models()
         self.n_tasks = len(problem.tasks)
-        # 가능한 모든 (model, from, to) 조합을 고정 인덱싱 (마스크로 유효성 판단)
+        self.n_models = len(self.models)
+        # max_tasks/max_models 지정 시 obs·action 차원을 고정 (미달 문제는 0 패딩)
+        # 미지정 시 문제 크기 그대로 사용
+        self.mt = max_tasks  if max_tasks  is not None else self.n_tasks
+        self.mm = max_models if max_models is not None else self.n_models
+        if self.mt < self.n_tasks:
+            raise ValueError(f"max_tasks({self.mt}) < 실제 tasks({self.n_tasks})")
+        if self.mm < self.n_models:
+            raise ValueError(f"max_models({self.mm}) < 실제 models({self.n_models})")
+        # 가능한 모든 (model, from, to) 조합 — 고정 max 기준으로 인덱싱
         self.move_list: list[Move] = [
             Move(m, fi, ti)
             for m in self.models
@@ -29,8 +39,8 @@ class DispatchEnv(gym.Env):
             if fi != ti
         ]
         self.action_space = spaces.Discrete(len(self.move_list) + 1)  # 0=commit
-        # 관측: [per-task 잔여계획비율, per-task WIP(정규화), per (model,task) 배치대수(정규화), hour 비율]
-        obs_dim = self.n_tasks * 2 + len(self.models) * self.n_tasks + 1
+        # obs: [잔여계획×mt | WIP×mt | 배치대수×(mm×mt) | hour×1]
+        obs_dim = self.mt * 2 + self.mm * self.mt + 1
         self.observation_space = spaces.Box(low=0.0, high=1.0, shape=(obs_dim,), dtype=np.float32)
         total_eqp = sum(problem.eqp_qty.values())
         self.max_substeps = max_substeps_per_hour or (total_eqp + 1)
@@ -39,19 +49,25 @@ class DispatchEnv(gym.Env):
 
     def _obs(self) -> np.ndarray:
         p, s = self.p, self._state
-        parts = []
+        # ① 잔여계획비율 (mt 차원, 실제 task 수 이후는 0 패딩)
+        plan_part = [0.0] * self.mt
         for i, t in enumerate(p.tasks):
             rem = max(0, t.plan_qty - s.produced[i])
-            parts.append(rem / t.plan_qty if t.plan_qty else 0.0)
+            plan_part[i] = rem / t.plan_qty if t.plan_qty else 0.0
+        # ② WIP 정규화 (mt 차원)
         max_wip = max([t.init_wip for t in p.tasks] + [1])
+        wip_part = [0.0] * self.mt
         for i in range(self.n_tasks):
-            parts.append(min(1.0, s.wip[i] / max_wip))
-        for m in self.models:
+            wip_part[i] = min(1.0, s.wip[i] / max_wip)
+        # ③ 배치대수 정규화 (mm×mt 차원, 실제 model/task 수 이후는 0 패딩)
+        assign_part = [0.0] * (self.mm * self.mt)
+        for mi, m in enumerate(self.models):
             cap = max(1, p.eqp_qty[m])
             for i in range(self.n_tasks):
-                parts.append(s.assign.get((m, i), 0) / cap)
-        parts.append(s.hour / max(1, p.horizon_hours))
-        return np.asarray(parts, dtype=np.float32)
+                assign_part[mi * self.mt + i] = s.assign.get((m, i), 0) / cap
+        # ④ hour 비율 (1 차원)
+        hour_part = [s.hour / max(1, p.horizon_hours)]
+        return np.asarray(plan_part + wip_part + assign_part + hour_part, dtype=np.float32)
 
     def action_masks(self) -> np.ndarray:
         valid = set(self.sim.valid_moves(self._state))
