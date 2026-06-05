@@ -106,14 +106,17 @@ def build_assign_rows(
                 if active > 0:
                     assignments.append((model, ti, active))
 
+        # 같은 hour 내에서 모델별 누적 unit 번호 (task마다 재시작하면 중복 EQP_ID 발생)
+        model_unit_offset: dict[str, int] = {}
         for model, ti, active in sorted(assignments):
             task = problem.tasks[ti]
             model_total = _split_hourly_produce(problem, stat, ti).get(model, 0)
             per_unit = model_total // active if active else 0
             remainder = model_total % active if active else 0
+            offset = model_unit_offset.get(model, 0)
             for u in range(active):
                 qty = per_unit + (1 if u < remainder else 0)
-                eqp_id = f"{model}-{u + 1:03d}"
+                eqp_id = f"{model}-{offset + u + 1:03d}"
                 seq_by_eqp[eqp_id] = seq_by_eqp.get(eqp_id, 0) + 1
                 rows.append({
                     "RULE_TIMEKEY": rule_timekey,
@@ -128,6 +131,7 @@ def build_assign_rows(
                     "PRODUCE_QTY": qty,
                     "CRT_USER_ID": crt_user_id,
                 })
+            model_unit_offset[model] = offset + active
     return rows
 
 
