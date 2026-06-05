@@ -7,6 +7,7 @@ dependencies = ["numpy"]
 [project.optional-dependencies]
 rl = ["gymnasium>=1.0", "stable-baselines3>=2.7", "sb3-contrib>=2.7", "torch"]
 oracle = ["oracledb", "python-dotenv"]
+web = ["streamlit>=1.30", "plotly>=5.18", "pandas>=2.0"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

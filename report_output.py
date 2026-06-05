@@ -174,6 +174,34 @@ def build_conv_rows(
     return rows
 
 
+def merge_assign_rows(rows: list[dict]) -> list[dict]:
+    """ASSIGN_INF rows에서 EQP_ID·EQP_MODEL_CD·PLAN_PROD_KEY가 같고
+    START_TIME/END_TIME만 다른 연속 행을 병합해 행수를 줄인다.
+    """
+    if not rows:
+        return rows
+    sorted_rows = sorted(rows, key=lambda r: (r["EQP_ID"], r["START_TIME"]))
+    merged: list[dict] = []
+    current: dict | None = None
+    for row in sorted_rows:
+        if current is None:
+            current = dict(row)
+        elif (
+            current["EQP_ID"] == row["EQP_ID"]
+            and current["EQP_MODEL_CD"] == row["EQP_MODEL_CD"]
+            and current["PLAN_PROD_KEY"] == row["PLAN_PROD_KEY"]
+            and current["RULE_TIMEKEY"] == row["RULE_TIMEKEY"]
+        ):
+            current["END_TIME"] = row["END_TIME"]
+            current["PRODUCE_QTY"] = current["PRODUCE_QTY"] + row["PRODUCE_QTY"]
+        else:
+            merged.append(current)
+            current = dict(row)
+    if current is not None:
+        merged.append(current)
+    return merged
+
+
 def avg_utilization(hourly_stats: list[dict]) -> float:
     if not hourly_stats:
         return 0.0
@@ -202,11 +230,11 @@ PLAN_ACHV_HEADERS = [
 ]
 
 ASSIGN_KEYS = [
-    "RULE_TIMEKEY", "EVENT_TM", "EQP_ID", "EQP_MODEL_CD", "SEQ_NO",
+    "RULE_TIMEKEY", "EQP_ID", "EQP_MODEL_CD", "EVENT_TM", "SEQ_NO",
     "START_TIME", "END_TIME", "PLAN_PROD_KEY", "PRODUCE_QTY", "CRT_USER_ID",
 ]
 ASSIGN_HEADERS = [
-    "RULE_TIMEKEY", "EVENT_TM", "EQP_ID", "EQP_MODEL_CD", "SEQ",
+    "RULE_TIMEKEY", "EQP_ID", "EQP_MODEL_CD", "EVENT_TM", "SEQ",
     "START_TIME", "END_TIME", "PLAN_PROD_KEY", "PRODUCE_QTY", "CRT_USER_ID",
 ]
 
@@ -312,6 +340,55 @@ def gantt_text(problem: ProblemInstance, trace) -> str:
     return "\n".join(lines)
 
 
+_GANTT_COLORS = [
+    "#4472C4", "#ED7D31", "#70AD47", "#FFC000", "#9E3891",
+    "#00B0F0", "#FF0000", "#00B050", "#7030A0", "#C55A11",
+]
+
+
+def gantt_html_table(problem: ProblemInstance, trace: list) -> str:
+    """장비 모델 × 시간 컬러 테이블 간트차트 (HTML)."""
+    task_keys = sorted({t.plan_prod_key for t in problem.tasks})
+    color_map = {k: _GANTT_COLORS[i % len(_GANTT_COLORS)] for i, k in enumerate(task_keys)}
+
+    hours = [h for h, _, _ in trace]
+    th_hours = "".join(
+        f"<th style='text-align:center;min-width:60px;white-space:nowrap'>H{h}</th>"
+        for h in hours
+    )
+    header = f"<tr><th>모델</th>{th_hours}</tr>"
+
+    body_rows = []
+    for model in problem.models():
+        cells = [f"<td><strong>{escape(model)}</strong></td>"]
+        for _h, _applied, snapshot in trace:
+            tally: dict[str, int] = {}
+            for ti in range(len(problem.tasks)):
+                cnt = snapshot.get((model, ti), 0)
+                if cnt > 0:
+                    ppk = problem.tasks[ti].plan_prod_key
+                    tally[ppk] = tally.get(ppk, 0) + cnt
+            if tally:
+                main = max(tally, key=lambda k: tally[k])
+                bg = color_map.get(main, "#ccc")
+                label = "<br>".join(f"{escape(k)}({v})" for k, v in sorted(tally.items()))
+                cells.append(
+                    f"<td style='background:{bg};color:#fff;text-align:center;"
+                    f"padding:4px 6px'>{label}</td>"
+                )
+            else:
+                cells.append("<td style='color:#aaa;text-align:center'>—</td>")
+        body_rows.append(f"<tr>{''.join(cells)}</tr>")
+
+    tbl_style = "border-collapse:collapse;font-size:0.85rem;margin:0.5rem 0"
+    return (
+        f"<table style='{tbl_style}'>"
+        f"<thead>{header}</thead>"
+        f"<tbody>{''.join(body_rows)}</tbody>"
+        f"</table>"
+    )
+
+
 def render_html_report(results: dict[str, tuple[ProblemInstance, dict]]) -> str:
     """벤치마크 평가 결과 HTML."""
     import numpy as np
@@ -380,11 +457,19 @@ def render_html_report(results: dict[str, tuple[ProblemInstance, dict]]) -> str:
                 f"<p>평균 장비 가동률 ({escape(label)}): <strong>{util_avg:.3f}</strong></p>"
             )
             tables = build_output_tables(p, hourly, trace)
+            parts.append(f"<h3>{escape(label)} — 간트차트</h3>")
+            parts.append(gantt_html_table(p, trace))
             parts.append(f"<h3>{escape(label)} — 출력 테이블</h3>")
             parts.append(f"<h4>{escape(config.PLAN_ACHV_TABLE)} / {escape(config.PLAN_ACHV_HIS_TABLE)}</h4>")
             parts.append(_html_table(PLAN_ACHV_HEADERS, tables[config.PLAN_ACHV_TABLE], PLAN_ACHV_KEYS))
-            parts.append(f"<h4>{escape(config.ASSIGN_TABLE)} / {escape(config.ASSIGN_HIS_TABLE)}</h4>")
-            parts.append(_html_table(ASSIGN_HEADERS, tables[config.ASSIGN_TABLE], ASSIGN_KEYS))
+            assign_merged = merge_assign_rows(tables[config.ASSIGN_TABLE])
+            orig_n = len(tables[config.ASSIGN_TABLE])
+            merged_n = len(assign_merged)
+            parts.append(
+                f"<h4>{escape(config.ASSIGN_TABLE)} / {escape(config.ASSIGN_HIS_TABLE)} "
+                f"<small>(병합 후 {merged_n}행 / 원래 {orig_n}행)</small></h4>"
+            )
+            parts.append(_html_table(ASSIGN_HEADERS, assign_merged, ASSIGN_KEYS))
             parts.append(f"<h4>{escape(config.CONV_TABLE)} / {escape(config.CONV_HIS_TABLE)}</h4>")
             parts.append(_html_table(CONV_HEADERS, tables[config.CONV_TABLE], CONV_KEYS))
         parts.append(f"<pre>{escape(gantt_text(p, trace))}</pre>")
