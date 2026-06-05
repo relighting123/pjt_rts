@@ -116,6 +116,9 @@ def build_assign_rows(
             offset = model_unit_offset.get(model, 0)
             for u in range(active):
                 qty = per_unit + (1 if u < remainder else 0)
+                if qty == 0:
+                    # 재공 없음(WIP=0) 또는 idle 전환 중 — 배치 행 생략
+                    continue
                 eqp_id = f"{model}-{offset + u + 1:03d}"
                 seq_by_eqp[eqp_id] = seq_by_eqp.get(eqp_id, 0) + 1
                 rows.append({
@@ -180,8 +183,10 @@ def build_conv_rows(
 
 
 def merge_assign_rows(rows: list[dict]) -> list[dict]:
-    """ASSIGN_INF rows에서 EQP_ID·EQP_MODEL_CD·PLAN_PROD_KEY가 같고
-    START_TIME/END_TIME만 다른 연속 행을 병합해 행수를 줄인다.
+    """ASSIGN_INF rows에서 EQP_ID·EQP_MODEL_CD·PLAN_PROD_KEY·OPER_ID가 같고
+    시간이 연속(현재 END_TIME == 다음 START_TIME)인 행만 병합.
+    재공 없는 구간(WIP=0·idle)은 build_assign_rows에서 이미 제외되므로
+    비연속 구간은 병합하지 않아 갭이 유지된다.
     """
     if not rows:
         return rows
@@ -197,6 +202,7 @@ def merge_assign_rows(rows: list[dict]) -> list[dict]:
             and current["PLAN_PROD_KEY"] == row["PLAN_PROD_KEY"]
             and current.get("OPER_ID") == row.get("OPER_ID")
             and current["RULE_TIMEKEY"] == row["RULE_TIMEKEY"]
+            and current["END_TIME"] == row["START_TIME"]   # 시간 연속인 경우만 병합
         ):
             current["END_TIME"] = row["END_TIME"]
             current["PRODUCE_QTY"] = current["PRODUCE_QTY"] + row["PRODUCE_QTY"]
