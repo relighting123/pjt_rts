@@ -139,9 +139,10 @@ with tab_gantt:
                     end = start + timedelta(hours=1)
             except Exception:
                 continue
+            task_label = f"{r['PLAN_PROD_KEY']}/{r.get('OPER_ID', '')}"
             gantt_data.append({
                 "장비ID": r["EQP_ID"],
-                "작업": r["PLAN_PROD_KEY"],
+                "작업": task_label,
                 "시작": start,
                 "종료": end,
                 "생산량": r["PRODUCE_QTY"],
