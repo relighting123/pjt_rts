@@ -124,6 +124,7 @@ def build_assign_rows(
                     "START_TIME": start_time,
                     "END_TIME": end_time,
                     "PLAN_PROD_KEY": task.plan_prod_key,
+                    "OPER_ID": task.oper_id,
                     "PRODUCE_QTY": qty,
                     "CRT_USER_ID": crt_user_id,
                 })
@@ -190,6 +191,7 @@ def merge_assign_rows(rows: list[dict]) -> list[dict]:
             current["EQP_ID"] == row["EQP_ID"]
             and current["EQP_MODEL_CD"] == row["EQP_MODEL_CD"]
             and current["PLAN_PROD_KEY"] == row["PLAN_PROD_KEY"]
+            and current.get("OPER_ID") == row.get("OPER_ID")
             and current["RULE_TIMEKEY"] == row["RULE_TIMEKEY"]
         ):
             current["END_TIME"] = row["END_TIME"]
@@ -230,12 +232,12 @@ PLAN_ACHV_HEADERS = [
 ]
 
 ASSIGN_KEYS = [
-    "RULE_TIMEKEY", "EQP_ID", "EQP_MODEL_CD", "EVENT_TM", "SEQ_NO",
-    "START_TIME", "END_TIME", "PLAN_PROD_KEY", "PRODUCE_QTY", "CRT_USER_ID",
+    "RULE_TIMEKEY", "EQP_ID", "EQP_MODEL_CD", "SEQ_NO",
+    "START_TIME", "END_TIME", "PLAN_PROD_KEY", "OPER_ID", "PRODUCE_QTY", "CRT_USER_ID",
 ]
 ASSIGN_HEADERS = [
-    "RULE_TIMEKEY", "EQP_ID", "EQP_MODEL_CD", "EVENT_TM", "SEQ",
-    "START_TIME", "END_TIME", "PLAN_PROD_KEY", "PRODUCE_QTY", "CRT_USER_ID",
+    "RULE_TIMEKEY", "EQP_ID", "EQP_MODEL_CD", "SEQ",
+    "START_TIME", "END_TIME", "PLAN_PROD_KEY", "OPER_ID", "PRODUCE_QTY", "CRT_USER_ID",
 ]
 
 CONV_KEYS = [
@@ -348,7 +350,7 @@ _GANTT_COLORS = [
 
 def gantt_html_table(problem: ProblemInstance, trace: list) -> str:
     """장비 모델 × 시간 컬러 테이블 간트차트 (HTML)."""
-    task_keys = sorted({t.plan_prod_key for t in problem.tasks})
+    task_keys = sorted({f"{t.plan_prod_key}/{t.oper_id}" for t in problem.tasks})
     color_map = {k: _GANTT_COLORS[i % len(_GANTT_COLORS)] for i, k in enumerate(task_keys)}
 
     hours = [h for h, _, _ in trace]
@@ -366,8 +368,9 @@ def gantt_html_table(problem: ProblemInstance, trace: list) -> str:
             for ti in range(len(problem.tasks)):
                 cnt = snapshot.get((model, ti), 0)
                 if cnt > 0:
-                    ppk = problem.tasks[ti].plan_prod_key
-                    tally[ppk] = tally.get(ppk, 0) + cnt
+                    t = problem.tasks[ti]
+                    key = f"{t.plan_prod_key}/{t.oper_id}"
+                    tally[key] = tally.get(key, 0) + cnt
             if tally:
                 main = max(tally, key=lambda k: tally[k])
                 bg = color_map.get(main, "#ccc")
