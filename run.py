@@ -8,14 +8,20 @@ from pathlib import Path
 import config
 
 
-def _load_problems(args):
+def _load_named_problems(args) -> list[tuple[str, object]]:
+    """(리포트용 이름, ProblemInstance) 목록."""
     from simulator import load_problem
     if args.benchmark_dataset:
-        return [load_problem(Path(args.benchmark_dataset).with_suffix(".json"))]
+        path = Path(args.benchmark_dataset).with_suffix(".json")
+        return [(path.stem, load_problem(path))]
     if getattr(args, "timekey", None):
         import db
-        return [db.fetch_problem(rule_timekey=args.timekey)]
-    return [load_problem(p) for p in sorted(config.BENCHMARKS_DIR.glob("benchmark_*.json"))]
+        return [(str(args.timekey), db.fetch_problem(rule_timekey=args.timekey))]
+    return [(p.stem, load_problem(p)) for p in sorted(config.BENCHMARKS_DIR.glob("benchmark_*.json"))]
+
+
+def _load_problems(args):
+    return [p for _, p in _load_named_problems(args)]
 
 
 def cmd_train(args):
@@ -50,15 +56,25 @@ def cmd_eval(args):
 
 def cmd_infer(args):
     import test as report
-    problems = _load_problems(args)
+    named = _load_named_problems(args)
+    problems = [p for _, p in named]
     model = None
     if Path(config.MODEL_PATH).exists():
         from sb3_contrib import MaskablePPO
         model = MaskablePPO.load(config.MODEL_PATH)
-    for p in problems:
+    results = {}
+    for name, p in named:
         res = report.evaluate_benchmark(p, model)
         rate = res.get("rl", res["heuristic"])
         print(f"{p.rule_timekey}: 평균 계획달성률 {rate:.3f}")
+        results[name] = (p, res)
+
+    md_default, html_default = report.default_infer_report_paths(problems, args)
+    report_path = Path(args.report) if getattr(args, "report", None) else md_default
+    html_path = Path(args.html) if getattr(args, "html", None) else html_default
+    _, html_written = report.write_report_files(results, report_path, html_path)
+    print(f"평가 리포트 → {report_path}")
+    print(f"HTML 리포트 → {html_written}")
 
 
 def build_parser():
@@ -71,9 +87,11 @@ def build_parser():
     pt.add_argument("--steps", type=int, default=config.DEFAULT_PPO_STEPS)
     pt.set_defaults(func=cmd_train)
 
-    pi = sub.add_parser("infer", help="추론(달성률 출력)")
+    pi = sub.add_parser("infer", help="추론 + MD/HTML 리포트")
     pi.add_argument("--benchmark-dataset", dest="benchmark_dataset")
     pi.add_argument("--timekey")
+    pi.add_argument("--report", help="MD 리포트 경로 (기본: artifacts/inference/<이름>.md)")
+    pi.add_argument("--html", dest="html", help="HTML 리포트 경로 (기본: artifacts/inference/<이름>.html)")
     pi.set_defaults(func=cmd_infer)
 
     pe = sub.add_parser("eval", help="전체 벤치마크 평가 + md 리포트")

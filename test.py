@@ -134,6 +134,38 @@ def render_markdown(results: dict[str, tuple[ProblemInstance, dict]]) -> str:
     return "\n".join(lines)
 
 
+def write_report_files(
+    results: dict[str, tuple[ProblemInstance, dict]],
+    report_path: Path,
+    html_report_path: Path | None = None,
+) -> tuple[Path, Path]:
+    """results dict → MD/HTML 파일 저장. (md_path, html_path) 반환."""
+    report_path = Path(report_path)
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(render_markdown(results), encoding="utf-8")
+    if html_report_path is None:
+        html_report_path = report_path.with_suffix(".html")
+    html_report_path = Path(html_report_path)
+    html_report_path.parent.mkdir(parents=True, exist_ok=True)
+    html_report_path.write_text(render_html_report(results), encoding="utf-8")
+    return report_path, html_report_path
+
+
+def default_infer_report_paths(problems, args) -> tuple[Path, Path]:
+    """infer 결과 MD/HTML 기본 경로."""
+    out_dir = config.ARTIFACTS_DIR / "inference"
+    if getattr(args, "benchmark_dataset", None):
+        stem = Path(args.benchmark_dataset).with_suffix("").name
+        return out_dir / f"{stem}.md", out_dir / f"{stem}.html"
+    if getattr(args, "timekey", None):
+        key = str(args.timekey)
+        return out_dir / f"{key}.md", out_dir / f"{key}.html"
+    if len(problems) == 1:
+        key = problems[0].rule_timekey
+        return out_dir / f"{key}.md", out_dir / f"{key}.html"
+    return config.REPORT_PATH, config.HTML_REPORT_PATH
+
+
 def run_eval(benchmarks_dir: Path = config.BENCHMARKS_DIR, model=None,
              report_path: Path = config.REPORT_PATH,
              html_report_path: Path | None = None) -> str:
@@ -142,14 +174,5 @@ def run_eval(benchmarks_dir: Path = config.BENCHMARKS_DIR, model=None,
     for path in sorted(Path(benchmarks_dir).glob("benchmark_*.json")):
         p = load_problem(path)
         results[path.stem] = (p, evaluate_benchmark(p, model))
-    md = render_markdown(results)
-    report_path = Path(report_path)
-    Path(report_path).write_text(md, encoding="utf-8")
-    if html_report_path is None:
-        html_report_path = (
-            config.HTML_REPORT_PATH
-            if report_path == config.REPORT_PATH
-            else report_path.with_suffix(".html")
-        )
-    Path(html_report_path).write_text(render_html_report(results), encoding="utf-8")
-    return md
+    md_path, html_path = write_report_files(results, report_path, html_report_path)
+    return Path(md_path).read_text(encoding="utf-8")
