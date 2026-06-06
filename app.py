@@ -38,10 +38,21 @@ def _parse_tm(s: str) -> datetime:
     return datetime.strptime(s[:14].ljust(14, "0"), "%Y%m%d%H%M%S")
 
 
+@st.cache_resource(show_spinner="모델 로딩 중…")
+def _load_model():
+    if not Path(config.MODEL_PATH).exists():
+        return None
+    try:
+        from sb3_contrib import MaskablePPO
+        return MaskablePPO.load(config.MODEL_PATH)
+    except Exception:
+        return None
+
+
 @st.cache_data(show_spinner="시뮬레이션 실행 중…")
 def _load_and_eval(path_str: str):
     p = load_problem(path_str)
-    res = evaluate_benchmark(p, model=None)
+    res = evaluate_benchmark(p, model=_load_model())
     return p, res
 
 
@@ -53,18 +64,23 @@ def compute_total_move(hourly_stats: list[dict]) -> int:
 
 def render_kpi_row(problem, result, total_move: int) -> None:
     util_avg = result.get("avg_utilization", avg_utilization(result["hourly_stats"]))
-    achievement = result["heuristic"]
+    heuristic = result["heuristic"]
+    rl = result.get("rl")
     optimal = result.get("optimal")
 
-    c1, c2, c3, c4 = st.columns(4)
+    c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("move량 (총 생산)", f"{total_move:,}")
     c2.metric("장비 가동률", f"{util_avg:.1%}")
     if optimal is not None:
-        c3.metric("계획 달성률", f"{achievement:.1%}", delta=f"{achievement - optimal:+.1%}")
-        c4.metric("최적 달성률 (기준)", f"{optimal:.1%}")
+        c3.metric("휴리스틱 달성률", f"{heuristic:.1%}", delta=f"{heuristic - optimal:+.1%}")
     else:
-        c3.metric("계획 달성률", f"{achievement:.1%}")
-        c4.metric("최적 달성률 (기준)", "N/A")
+        c3.metric("휴리스틱 달성률", f"{heuristic:.1%}")
+    if rl is not None:
+        delta = f"{rl - optimal:+.1%}" if optimal is not None else None
+        c4.metric("RL 달성률", f"{rl:.1%}", delta=delta)
+    else:
+        c4.metric("RL 달성률", "N/A (모델 미적용)")
+    c5.metric("최적 달성률 (기준)", f"{optimal:.1%}" if optimal is not None else "N/A")
 
     note = problem.ground_truth.get("note", "")
     if note:
@@ -82,6 +98,7 @@ def render_charts(bm_name: str, result: dict, problem) -> None:
     assign_rows = result["assign_rows"]
     assign_merged = merge_assign_rows(assign_rows)
     per_task = result.get("heuristic_per_task", {})
+    rl_per_task = result.get("rl_per_task")
 
     if not _HAS_PLOTLY:
         st.warning("`pip install plotly pandas` 설치 후 재시작하면 차트가 표시됩니다.")
@@ -117,27 +134,48 @@ def render_charts(bm_name: str, result: dict, problem) -> None:
 
     with col_r:
         if per_task:
-            rows_pt = [
-                {
-                    "Task": k,
-                    "계획(plan_qty)": v["plan"],
-                    "생산(produced)": v["produced"],
-                    "달성률": v["rate"],
-                }
-                for k, v in per_task.items()
-            ]
-            df_pt = pd.DataFrame(rows_pt)
-            fig_bar = px.bar(
-                df_pt,
-                x="Task",
-                y="달성률",
-                color="달성률",
-                color_continuous_scale="RdYlGn",
-                range_color=[0, 1],
-                text=df_pt["달성률"].apply(lambda x: f"{x:.1%}"),
-                title="Task별 계획달성률",
-                hover_data=["계획(plan_qty)", "생산(produced)"],
-            )
+            if rl_per_task:
+                rows_pt = []
+                for k, v in per_task.items():
+                    rows_pt.append({"Task": k, "구분": "휴리스틱", "달성률": v["rate"],
+                                    "계획(plan_qty)": v["plan"], "생산(produced)": v["produced"]})
+                for k, v in rl_per_task.items():
+                    rows_pt.append({"Task": k, "구분": "RL", "달성률": v["rate"],
+                                    "계획(plan_qty)": v["plan"], "생산(produced)": v["produced"]})
+                df_pt = pd.DataFrame(rows_pt)
+                fig_bar = px.bar(
+                    df_pt,
+                    x="Task",
+                    y="달성률",
+                    color="구분",
+                    barmode="group",
+                    text=df_pt["달성률"].apply(lambda x: f"{x:.1%}"),
+                    title="Task별 계획달성률 (휴리스틱 vs RL)",
+                    color_discrete_map={"휴리스틱": "#636EFA", "RL": "#00CC96"},
+                    hover_data=["계획(plan_qty)", "생산(produced)"],
+                )
+            else:
+                rows_pt = [
+                    {
+                        "Task": k,
+                        "계획(plan_qty)": v["plan"],
+                        "생산(produced)": v["produced"],
+                        "달성률": v["rate"],
+                    }
+                    for k, v in per_task.items()
+                ]
+                df_pt = pd.DataFrame(rows_pt)
+                fig_bar = px.bar(
+                    df_pt,
+                    x="Task",
+                    y="달성률",
+                    color="달성률",
+                    color_continuous_scale="RdYlGn",
+                    range_color=[0, 1],
+                    text=df_pt["달성률"].apply(lambda x: f"{x:.1%}"),
+                    title="Task별 계획달성률",
+                    hover_data=["계획(plan_qty)", "생산(produced)"],
+                )
             fig_bar.update_yaxes(range=[0, 1.05], tickformat=".0%")
             fig_bar.update_layout(height=300, margin=dict(l=10, r=10, t=50, b=10))
             st.plotly_chart(fig_bar, use_container_width=True, key=f"per_task_{bm_name}")
@@ -283,39 +321,54 @@ for i, (tab, bm_name) in enumerate(zip(all_tabs[:-1], benchmark_names)):
 with all_tabs[-1]:
     st.subheader("전체 벤치마크 비교")
 
+    has_rl = False
     summary_rows = []
     for i, bm_name in enumerate(benchmark_names):
         bm_path = config.BENCHMARKS_DIR / f"{bm_name}.json"
         p, r = _load_and_eval(str(bm_path))
         util_avg = r.get("avg_utilization", avg_utilization(r["hourly_stats"]))
-        achievement = r["heuristic"]
+        rl_util_avg = r.get("rl_avg_utilization")
+        heuristic = r["heuristic"]
+        rl = r.get("rl")
         optimal = r.get("optimal")
+        if rl is not None:
+            has_rl = True
         total_move = compute_total_move(r["hourly_stats"])
-        gap = achievement - optimal if optimal is not None else None
+        gap = (rl if rl is not None else heuristic) - optimal if optimal is not None else None
         summary_rows.append({
             "벤치마크": tab_labels[i],
-            "계획달성률": achievement,
+            "휴리스틱달성률": heuristic,
+            "RL달성률": rl,
             "최적달성률": optimal,
             "Gap": gap,
-            "장비가동률": util_avg,
+            "휴리스틱가동률": util_avg,
+            "RL가동률": rl_util_avg,
             "move량": total_move,
             "horizon(h)": p.horizon_hours,
             "tasks": len(p.tasks),
         })
 
-    # 상단 요약 KPI
-    valid_achievements = [r["계획달성률"] for r in summary_rows]
-    valid_optims = [r["최적달성률"] for r in summary_rows if r["최적달성률"] is not None]
-    valid_gaps = [r["Gap"] for r in summary_rows if r["Gap"] is not None]
-    valid_utils = [r["장비가동률"] for r in summary_rows]
+    if not has_rl:
+        st.info("ℹ️ 학습된 모델(saved_models/ppo_dispatch.zip)이 없거나 현재 벤치마크와 관측·액션 공간이 맞지 않아 RL 결과 없이 휴리스틱·최적 기준으로만 비교합니다.")
 
-    km1, km2, km3 = st.columns(3)
-    km1.metric("평균 계획달성률", f"{sum(valid_achievements)/len(valid_achievements):.1%}")
-    km2.metric("평균 장비가동률", f"{sum(valid_utils)/len(valid_utils):.1%}")
+    # 상단 요약 KPI
+    valid_heuristics = [r["휴리스틱달성률"] for r in summary_rows]
+    valid_rls = [r["RL달성률"] for r in summary_rows if r["RL달성률"] is not None]
+    valid_gaps = [r["Gap"] for r in summary_rows if r["Gap"] is not None]
+    valid_utils = [r["휴리스틱가동률"] for r in summary_rows]
+
+    km1, km2, km3, km4 = st.columns(4)
+    km1.metric("평균 휴리스틱 달성률", f"{sum(valid_heuristics)/len(valid_heuristics):.1%}")
+    km2.metric(
+        "평균 RL 달성률",
+        f"{sum(valid_rls)/len(valid_rls):.1%}" if valid_rls else "N/A",
+    )
+    km3.metric("평균 장비가동률 (휴리스틱)", f"{sum(valid_utils)/len(valid_utils):.1%}")
     if valid_gaps:
-        km3.metric("평균 Gap (휴리스틱−최적)", f"{sum(valid_gaps)/len(valid_gaps):+.1%}")
+        gap_label = "평균 Gap (RL−최적)" if has_rl else "평균 Gap (휴리스틱−최적)"
+        km4.metric(gap_label, f"{sum(valid_gaps)/len(valid_gaps):+.1%}")
     else:
-        km3.metric("평균 Gap (휴리스틱−최적)", "N/A")
+        km4.metric("평균 Gap (−최적)", "N/A")
 
     st.divider()
 
@@ -324,10 +377,11 @@ with all_tabs[-1]:
         cc_l, cc_r = st.columns(2)
 
         with cc_l:
-            df_cmp = pd.DataFrame(summary_rows)
             bar_rows = []
             for row in summary_rows:
-                bar_rows.append({"벤치마크": row["벤치마크"], "구분": "휴리스틱", "달성률": row["계획달성률"]})
+                bar_rows.append({"벤치마크": row["벤치마크"], "구분": "휴리스틱", "달성률": row["휴리스틱달성률"]})
+                if row["RL달성률"] is not None:
+                    bar_rows.append({"벤치마크": row["벤치마크"], "구분": "RL", "달성률": row["RL달성률"]})
                 if row["최적달성률"] is not None:
                     bar_rows.append({"벤치마크": row["벤치마크"], "구분": "최적", "달성률": row["최적달성률"]})
             df_bar = pd.DataFrame(bar_rows)
@@ -337,23 +391,28 @@ with all_tabs[-1]:
                 y="달성률",
                 color="구분",
                 barmode="group",
-                title="계획달성률 비교 (휴리스틱 vs 최적)",
-                color_discrete_map={"휴리스틱": "#636EFA", "최적": "#EF553B"},
+                title="계획달성률 비교 (휴리스틱 vs RL vs 최적)",
+                color_discrete_map={"휴리스틱": "#636EFA", "RL": "#00CC96", "최적": "#EF553B"},
             )
             fig_cmp.update_yaxes(range=[0, 1.05], tickformat=".0%")
             fig_cmp.update_layout(height=320, margin=dict(l=10, r=10, t=50, b=10))
             st.plotly_chart(fig_cmp, use_container_width=True, key="cmp_achievement")
 
         with cc_r:
-            df_util = pd.DataFrame(summary_rows)
+            util_rows = []
+            for row in summary_rows:
+                util_rows.append({"벤치마크": row["벤치마크"], "구분": "휴리스틱", "가동률": row["휴리스틱가동률"]})
+                if row["RL가동률"] is not None:
+                    util_rows.append({"벤치마크": row["벤치마크"], "구분": "RL", "가동률": row["RL가동률"]})
+            df_util = pd.DataFrame(util_rows)
             fig_util = px.bar(
                 df_util,
                 x="벤치마크",
-                y="장비가동률",
-                title="벤치마크별 평균 장비가동률",
-                color="장비가동률",
-                color_continuous_scale="Blues",
-                text=df_util["장비가동률"].apply(lambda x: f"{x:.1%}"),
+                y="가동률",
+                color="구분",
+                barmode="group",
+                title="벤치마크별 평균 장비가동률 (휴리스틱 vs RL)",
+                color_discrete_map={"휴리스틱": "#636EFA", "RL": "#00CC96"},
             )
             fig_util.update_yaxes(range=[0, 1.05], tickformat=".0%")
             fig_util.update_layout(height=320, margin=dict(l=10, r=10, t=50, b=10))
@@ -365,21 +424,28 @@ with all_tabs[-1]:
         st.subheader("벤치마크 요약 테이블")
         df_summary = pd.DataFrame(summary_rows)
         df_display = df_summary.copy()
-        df_display["계획달성률"] = df_display["계획달성률"].map(lambda x: f"{x:.1%}")
+        df_display["휴리스틱달성률"] = df_display["휴리스틱달성률"].map(lambda x: f"{x:.1%}")
+        df_display["RL달성률"] = df_display["RL달성률"].map(
+            lambda x: f"{x:.1%}" if x is not None else "N/A"
+        )
         df_display["최적달성률"] = df_display["최적달성률"].map(
             lambda x: f"{x:.1%}" if x is not None else "N/A"
         )
         df_display["Gap"] = df_display["Gap"].map(
             lambda x: f"{x:+.1%}" if x is not None else "N/A"
         )
-        df_display["장비가동률"] = df_display["장비가동률"].map(lambda x: f"{x:.1%}")
+        df_display["휴리스틱가동률"] = df_display["휴리스틱가동률"].map(lambda x: f"{x:.1%}")
+        df_display["RL가동률"] = df_display["RL가동률"].map(
+            lambda x: f"{x:.1%}" if x is not None else "N/A"
+        )
         df_display["move량"] = df_display["move량"].map(lambda x: f"{x:,}")
         st.dataframe(df_display, use_container_width=True, hide_index=True)
 
     else:
         st.warning("`pip install plotly pandas` 설치 후 재시작하면 차트가 표시됩니다.")
         for row in summary_rows:
+            rl_str = f", RL {row['RL달성률']:.1%}" if row["RL달성률"] is not None else ""
             st.write(
-                f"**{row['벤치마크']}**: 달성률 {row['계획달성률']:.1%}, "
-                f"가동률 {row['장비가동률']:.1%}, move {row['move량']:,}"
+                f"**{row['벤치마크']}**: 휴리스틱 {row['휴리스틱달성률']:.1%}{rl_str}, "
+                f"가동률 {row['휴리스틱가동률']:.1%}, move {row['move량']:,}"
             )
