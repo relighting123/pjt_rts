@@ -17,7 +17,7 @@ import config
 def _model_matches(model, problem: ProblemInstance) -> bool:
     """학습된 모델의 관측/액션 공간이 이 문제의 env와 같은 shape인지."""
     from env import DispatchEnv
-    env = DispatchEnv(problem)
+    env = DispatchEnv(problem, max_tasks=config.MAX_TASKS, max_models=config.MAX_MODELS)
     try:
         obs_ok = tuple(model.observation_space.shape) == tuple(env.observation_space.shape)
         act_ok = int(model.action_space.n) == int(env.action_space.n)
@@ -29,7 +29,7 @@ def _model_matches(model, problem: ProblemInstance) -> bool:
 def _rl_policy_factory(model, problem: ProblemInstance):
     """model을 사용해 매 시간 이동 목록을 반환하는 policy_fn."""
     from env import DispatchEnv
-    env = DispatchEnv(problem)
+    env = DispatchEnv(problem, max_tasks=config.MAX_TASKS, max_models=config.MAX_MODELS)
 
     def policy_fn(sim: Simulator, s):
         env._state = s

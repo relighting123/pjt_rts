@@ -3,6 +3,12 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).resolve().parent / ".env")
+except Exception:
+    pass
+
 ROOT = Path(__file__).resolve().parent
 BENCHMARKS_DIR = ROOT / "benchmarks"
 SAVED_MODELS_DIR = ROOT / "saved_models"
@@ -19,6 +25,10 @@ DEFAULT_PPO_STEPS = 50_000
 BC_EPOCHS = 300
 BC_LR = 1e-3
 DEFAULT_SWITCH_TIME_HOURS = 1
+
+# obs·action 차원 고정값 (.env의 MAX_TASKS/MAX_MODELS). 미설정 시 None → 문제 크기 그대로 사용
+MAX_TASKS = int(os.environ["MAX_TASKS"]) if os.getenv("MAX_TASKS") else None
+MAX_MODELS = int(os.environ["MAX_MODELS"]) if os.getenv("MAX_MODELS") else None
 
 # --- DB 테이블 (INF=현행, HIS=이력) ---
 INPUT_TABLE = "RTS_LINEDSDB_INF"
