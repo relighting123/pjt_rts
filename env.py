@@ -30,12 +30,17 @@ class DispatchEnv(gym.Env):
             raise ValueError(f"max_tasks({self.mt}) < 실제 tasks({self.n_tasks})")
         if self.mm < self.n_models:
             raise ValueError(f"max_models({self.mm}) < 실제 models({self.n_models})")
-        # 가능한 모든 (model, from, to) 조합 — 고정 max 기준으로 인덱싱
+        # 가능한 모든 (model, from, to) 조합 — 고정 mt/mm 기준으로 인덱싱
+        # (실제 model/task 수가 적으면 더미로 채워 액션 차원을 고정한다.
+        #  더미 조합은 sim.valid_moves()에 절대 나타나지 않으므로 항상 마스킹된다)
+        padded_models = self.models + [
+            f"__pad_model_{i}__" for i in range(self.mm - self.n_models)
+        ]
         self.move_list: list[Move] = [
             Move(m, fi, ti)
-            for m in self.models
-            for fi in range(self.n_tasks)
-            for ti in range(self.n_tasks)
+            for m in padded_models
+            for fi in range(self.mt)
+            for ti in range(self.mt)
             if fi != ti
         ]
         self.action_space = spaces.Discrete(len(self.move_list) + 1)  # 0=commit
