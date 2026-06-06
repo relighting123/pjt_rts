@@ -184,11 +184,23 @@ def render_charts(bm_name: str, result: dict, problem) -> None:
 
     # 전체 폭: 장비 배치 간트차트
     st.subheader("장비 배치 간트차트")
-    if not assign_merged:
-        st.info("ASSIGN 데이터가 없습니다.")
-    else:
-        gantt_data = []
-        for r in assign_merged:
+
+    algo_options = ["휴리스틱"]
+    if result.get("rl_assign_rows") is not None:
+        algo_options.append("RL")
+    algo_options.append("최적해")
+
+    selected_algos = st.multiselect(
+        "비교할 알고리즘 선택 (복수 선택 시 행으로 나란히 비교)",
+        options=algo_options,
+        default=["휴리스틱"],
+        key=f"gantt_algo_{bm_name}",
+    )
+
+    def _to_gantt_rows(rows, algo_label):
+        merged = merge_assign_rows(rows)
+        out = []
+        for r in merged:
             try:
                 start = _parse_tm(r["START_TIME"])
                 end = _parse_tm(r["END_TIME"])
@@ -197,7 +209,8 @@ def render_charts(bm_name: str, result: dict, problem) -> None:
             except Exception:
                 continue
             task_label = f"{r['PLAN_PROD_KEY']}/{r.get('OPER_ID', '')}"
-            gantt_data.append({
+            out.append({
+                "알고리즘": algo_label,
                 "장비ID": r["EQP_ID"],
                 "작업": task_label,
                 "시작": start,
@@ -205,31 +218,47 @@ def render_charts(bm_name: str, result: dict, problem) -> None:
                 "생산량": r["PRODUCE_QTY"],
                 "모델": r["EQP_MODEL_CD"],
             })
+        return out
 
-        if not gantt_data:
-            st.info("간트 표시 데이터가 없습니다.")
-        else:
-            df_g = pd.DataFrame(gantt_data)
-            n_eqp = df_g["장비ID"].nunique()
-            fig = px.timeline(
-                df_g,
-                x_start="시작",
-                x_end="종료",
-                y="장비ID",
-                color="작업",
-                hover_data=["생산량", "모델"],
-                title=f"{bm_name} — 장비 배치 타임라인",
-                labels={"장비ID": "장비", "작업": "PLAN_PROD_KEY"},
-                color_discrete_sequence=px.colors.qualitative.Set2,
-            )
-            fig.update_yaxes(autorange="reversed", title_text="장비")
-            fig.update_xaxes(title_text="시간")
-            fig.update_layout(
-                height=max(380, 80 * n_eqp + 160),
-                legend_title_text="작업(PLAN_PROD_KEY)",
-                margin=dict(l=10, r=10, t=60, b=10),
-            )
-            st.plotly_chart(fig, use_container_width=True, key=f"gantt_{bm_name}")
+    gantt_data = []
+    if "휴리스틱" in selected_algos:
+        gantt_data += _to_gantt_rows(assign_rows, "휴리스틱")
+    if "RL" in selected_algos:
+        rl_assign_rows = result.get("rl_assign_rows")
+        if rl_assign_rows is not None:
+            gantt_data += _to_gantt_rows(rl_assign_rows, "RL")
+    if "최적해" in selected_algos:
+        st.info("ℹ️ 최적해는 시간대별 장비배치 trace가 없어(달성률 수치만 보유) 간트차트로 표시할 수 없습니다.")
+
+    if not selected_algos:
+        st.info("비교할 알고리즘을 선택해주세요.")
+    elif not gantt_data:
+        st.info("간트 표시 데이터가 없습니다.")
+    else:
+        df_g = pd.DataFrame(gantt_data)
+        n_eqp = df_g["장비ID"].nunique()
+        n_rows = df_g["알고리즘"].nunique()
+        fig = px.timeline(
+            df_g,
+            x_start="시작",
+            x_end="종료",
+            y="장비ID",
+            color="작업",
+            facet_row="알고리즘" if n_rows > 1 else None,
+            hover_data=["생산량", "모델"],
+            title=f"{bm_name} — 장비 배치 타임라인 ({' / '.join(selected_algos)})",
+            labels={"장비ID": "장비", "작업": "PLAN_PROD_KEY"},
+            color_discrete_sequence=px.colors.qualitative.Set2,
+        )
+        fig.update_yaxes(autorange="reversed", title_text="장비")
+        fig.update_xaxes(title_text="시간")
+        fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
+        fig.update_layout(
+            height=max(380, 80 * n_eqp * n_rows + 160),
+            legend_title_text="작업(PLAN_PROD_KEY)",
+            margin=dict(l=10, r=10, t=60, b=10),
+        )
+        st.plotly_chart(fig, use_container_width=True, key=f"gantt_{bm_name}")
 
 
 def render_tables(result: dict) -> None:
