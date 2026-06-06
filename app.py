@@ -62,218 +62,174 @@ def compute_total_move(hourly_stats: list[dict]) -> int:
     return sum(hourly_stats[-1]["cumulative_produced"].values())
 
 
-def render_kpi_row(problem, result, total_move: int) -> None:
-    util_avg = result.get("avg_utilization", avg_utilization(result["hourly_stats"]))
-    heuristic = result["heuristic"]
-    rl = result.get("rl")
+ALGO_LABELS = ["휴리스틱", "RL", "최적해"]
+
+
+def _algo_view(result: dict, algo: str):
+    """algo별로 정규화된 결과 묶음. 데이터가 없으면 None."""
+    if algo == "휴리스틱":
+        return {
+            "achievement": result["heuristic"],
+            "per_task": result.get("heuristic_per_task", {}),
+            "hourly_stats": result["hourly_stats"],
+            "avg_utilization": result.get("avg_utilization", avg_utilization(result["hourly_stats"])),
+            "plan_achv_rows": result.get("plan_achv_rows", []),
+            "assign_rows": result.get("assign_rows", []),
+            "conv_rows": result.get("conv_rows", []),
+            "has_detail": True,
+        }
+    if algo == "RL":
+        if result.get("rl") is None:
+            return None
+        return {
+            "achievement": result["rl"],
+            "per_task": result.get("rl_per_task", {}),
+            "hourly_stats": result.get("rl_hourly_stats", []),
+            "avg_utilization": result.get("rl_avg_utilization"),
+            "plan_achv_rows": result.get("rl_plan_achv_rows", []),
+            "assign_rows": result.get("rl_assign_rows", []),
+            "conv_rows": result.get("rl_conv_rows", []),
+            "has_detail": True,
+        }
+    if algo == "최적해":
+        if result.get("optimal") is None:
+            return None
+        return {
+            "achievement": result["optimal"],
+            "per_task": None,
+            "hourly_stats": None,
+            "avg_utilization": None,
+            "plan_achv_rows": None,
+            "assign_rows": None,
+            "conv_rows": None,
+            "has_detail": False,
+        }
+    return None
+
+
+def render_kpi_row(result, view, algo: str) -> None:
     optimal = result.get("optimal")
+    achievement = view["achievement"]
 
-    c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("move량 (총 생산)", f"{total_move:,}")
-    c2.metric("장비 가동률", f"{util_avg:.1%}")
-    if optimal is not None:
-        c3.metric("휴리스틱 달성률", f"{heuristic:.1%}", delta=f"{heuristic - optimal:+.1%}")
-    else:
-        c3.metric("휴리스틱 달성률", f"{heuristic:.1%}")
-    if rl is not None:
-        delta = f"{rl - optimal:+.1%}" if optimal is not None else None
-        c4.metric("RL 달성률", f"{rl:.1%}", delta=delta)
-    else:
-        c4.metric("RL 달성률", "N/A (모델 미적용)")
-    c5.metric("최적 달성률 (기준)", f"{optimal:.1%}" if optimal is not None else "N/A")
-
-    note = problem.ground_truth.get("note", "")
-    if note:
-        st.info(f"ℹ️ {note}")
-    st.caption(
-        f"RULE_TIMEKEY: **{problem.rule_timekey}** │ "
-        f"Horizon: **{problem.horizon_hours}h** │ "
-        f"Tasks: **{len(problem.tasks)}** │ "
-        f"장비 합계: **{sum(problem.eqp_qty.values())}대**"
+    c1, c2, c3 = st.columns(3)
+    delta = None
+    if optimal is not None and algo != "최적해":
+        delta = f"{achievement - optimal:+.1%} (vs 최적)"
+    c1.metric(f"{algo} 계획달성률", f"{achievement:.1%}", delta=delta)
+    c2.metric(
+        f"{algo} 장비 가동률",
+        f"{view['avg_utilization']:.1%}" if view["avg_utilization"] is not None else "N/A",
+    )
+    c3.metric(
+        f"{algo} move량 (총 생산)",
+        f"{compute_total_move(view['hourly_stats']):,}" if view["hourly_stats"] else "N/A",
     )
 
 
-def render_charts(bm_name: str, result: dict, problem) -> None:
-    hourly_stats = result["hourly_stats"]
-    assign_rows = result["assign_rows"]
-    assign_merged = merge_assign_rows(assign_rows)
-    per_task = result.get("heuristic_per_task", {})
-    rl_per_task = result.get("rl_per_task")
-
+def render_charts(bm_name: str, algo: str, view) -> None:
     if not _HAS_PLOTLY:
         st.warning("`pip install plotly pandas` 설치 후 재시작하면 차트가 표시됩니다.")
         return
 
-    # 상단 2열: 시간별 생산량 | Task별 달성률
+    hourly_stats = view["hourly_stats"]
+    per_task = view["per_task"]
+    assign_rows = view["assign_rows"]
+    assign_merged = merge_assign_rows(assign_rows) if assign_rows else []
+    key_prefix = f"{bm_name}_{algo}"
+
     col_l, col_r = st.columns(2)
 
     with col_l:
-        hourly_data = []
-        for stat in hourly_stats:
-            hourly_data.append({
+        if hourly_stats:
+            hourly_data = [{
                 "Hour": stat["hour"],
                 "시간대 생산량": sum(stat["hourly_produce"].values()),
                 "누적 생산량": sum(stat["cumulative_produced"].values()),
                 "가동률": stat["util_rate"],
-            })
-        if hourly_data:
+            } for stat in hourly_stats]
             df_h = pd.DataFrame(hourly_data)
             fig_h = px.bar(
-                df_h,
-                x="Hour",
-                y="시간대 생산량",
-                title="시간별 생산량",
-                text="시간대 생산량",
-                color="가동률",
-                color_continuous_scale="Blues",
+                df_h, x="Hour", y="시간대 생산량", title=f"{algo} — 시간별 생산량",
+                text="시간대 생산량", color="가동률", color_continuous_scale="Blues",
             )
             fig_h.update_layout(height=300, margin=dict(l=10, r=10, t=50, b=10))
-            st.plotly_chart(fig_h, use_container_width=True, key=f"hourly_{bm_name}")
+            st.plotly_chart(fig_h, use_container_width=True, key=f"hourly_{key_prefix}")
         else:
             st.info("시간별 통계 데이터 없음")
 
     with col_r:
         if per_task:
-            if rl_per_task:
-                rows_pt = []
-                for k, v in per_task.items():
-                    rows_pt.append({"Task": k, "구분": "휴리스틱", "달성률": v["rate"],
-                                    "계획(plan_qty)": v["plan"], "생산(produced)": v["produced"]})
-                for k, v in rl_per_task.items():
-                    rows_pt.append({"Task": k, "구분": "RL", "달성률": v["rate"],
-                                    "계획(plan_qty)": v["plan"], "생산(produced)": v["produced"]})
-                df_pt = pd.DataFrame(rows_pt)
-                fig_bar = px.bar(
-                    df_pt,
-                    x="Task",
-                    y="달성률",
-                    color="구분",
-                    barmode="group",
-                    text=df_pt["달성률"].apply(lambda x: f"{x:.1%}"),
-                    title="Task별 계획달성률 (휴리스틱 vs RL)",
-                    color_discrete_map={"휴리스틱": "#636EFA", "RL": "#00CC96"},
-                    hover_data=["계획(plan_qty)", "생산(produced)"],
-                )
-            else:
-                rows_pt = [
-                    {
-                        "Task": k,
-                        "계획(plan_qty)": v["plan"],
-                        "생산(produced)": v["produced"],
-                        "달성률": v["rate"],
-                    }
-                    for k, v in per_task.items()
-                ]
-                df_pt = pd.DataFrame(rows_pt)
-                fig_bar = px.bar(
-                    df_pt,
-                    x="Task",
-                    y="달성률",
-                    color="달성률",
-                    color_continuous_scale="RdYlGn",
-                    range_color=[0, 1],
-                    text=df_pt["달성률"].apply(lambda x: f"{x:.1%}"),
-                    title="Task별 계획달성률",
-                    hover_data=["계획(plan_qty)", "생산(produced)"],
-                )
+            rows_pt = [{
+                "Task": k, "계획(plan_qty)": v["plan"], "생산(produced)": v["produced"], "달성률": v["rate"],
+            } for k, v in per_task.items()]
+            df_pt = pd.DataFrame(rows_pt)
+            fig_bar = px.bar(
+                df_pt, x="Task", y="달성률", color="달성률", color_continuous_scale="RdYlGn",
+                range_color=[0, 1], text=df_pt["달성률"].apply(lambda x: f"{x:.1%}"),
+                title=f"{algo} — Task별 계획달성률", hover_data=["계획(plan_qty)", "생산(produced)"],
+            )
             fig_bar.update_yaxes(range=[0, 1.05], tickformat=".0%")
             fig_bar.update_layout(height=300, margin=dict(l=10, r=10, t=50, b=10))
-            st.plotly_chart(fig_bar, use_container_width=True, key=f"per_task_{bm_name}")
+            st.plotly_chart(fig_bar, use_container_width=True, key=f"per_task_{key_prefix}")
         else:
             st.info("Task별 달성률 데이터 없음")
 
-    # 전체 폭: 장비 배치 간트차트
-    st.subheader("장비 배치 간트차트")
-
-    algo_options = ["휴리스틱"]
-    if result.get("rl_assign_rows") is not None:
-        algo_options.append("RL")
-    algo_options.append("최적해")
-
-    selected_algos = st.multiselect(
-        "비교할 알고리즘 선택 (복수 선택 시 행으로 나란히 비교)",
-        options=algo_options,
-        default=["휴리스틱"],
-        key=f"gantt_algo_{bm_name}",
-    )
-
-    def _to_gantt_rows(rows, algo_label):
-        merged = merge_assign_rows(rows)
-        out = []
-        for r in merged:
-            try:
-                start = _parse_tm(r["START_TIME"])
-                end = _parse_tm(r["END_TIME"])
-                if end <= start:
-                    end = start + timedelta(hours=1)
-            except Exception:
-                continue
-            task_label = f"{r['PLAN_PROD_KEY']}/{r.get('OPER_ID', '')}"
-            out.append({
-                "알고리즘": algo_label,
-                "장비ID": r["EQP_ID"],
-                "작업": task_label,
-                "시작": start,
-                "종료": end,
-                "생산량": r["PRODUCE_QTY"],
-                "모델": r["EQP_MODEL_CD"],
-            })
-        return out
+    st.subheader(f"{algo} — 장비 배치 간트차트")
+    if not assign_merged:
+        st.info("ASSIGN 데이터가 없습니다.")
+        return
 
     gantt_data = []
-    if "휴리스틱" in selected_algos:
-        gantt_data += _to_gantt_rows(assign_rows, "휴리스틱")
-    if "RL" in selected_algos:
-        rl_assign_rows = result.get("rl_assign_rows")
-        if rl_assign_rows is not None:
-            gantt_data += _to_gantt_rows(rl_assign_rows, "RL")
-    if "최적해" in selected_algos:
-        st.info("ℹ️ 최적해는 시간대별 장비배치 trace가 없어(달성률 수치만 보유) 간트차트로 표시할 수 없습니다.")
+    for r in assign_merged:
+        try:
+            start = _parse_tm(r["START_TIME"])
+            end = _parse_tm(r["END_TIME"])
+            if end <= start:
+                end = start + timedelta(hours=1)
+        except Exception:
+            continue
+        task_label = f"{r['PLAN_PROD_KEY']}/{r.get('OPER_ID', '')}"
+        gantt_data.append({
+            "장비ID": r["EQP_ID"], "작업": task_label, "시작": start, "종료": end,
+            "생산량": r["PRODUCE_QTY"], "모델": r["EQP_MODEL_CD"],
+        })
 
-    if not selected_algos:
-        st.info("비교할 알고리즘을 선택해주세요.")
-    elif not gantt_data:
+    if not gantt_data:
         st.info("간트 표시 데이터가 없습니다.")
-    else:
-        df_g = pd.DataFrame(gantt_data)
-        n_eqp = df_g["장비ID"].nunique()
-        n_rows = df_g["알고리즘"].nunique()
-        fig = px.timeline(
-            df_g,
-            x_start="시작",
-            x_end="종료",
-            y="장비ID",
-            color="작업",
-            facet_row="알고리즘" if n_rows > 1 else None,
-            hover_data=["생산량", "모델"],
-            title=f"{bm_name} — 장비 배치 타임라인 ({' / '.join(selected_algos)})",
-            labels={"장비ID": "장비", "작업": "PLAN_PROD_KEY"},
-            color_discrete_sequence=px.colors.qualitative.Set2,
-        )
-        fig.update_yaxes(autorange="reversed", title_text="장비")
-        fig.update_xaxes(title_text="시간")
-        fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
-        fig.update_layout(
-            height=max(380, 80 * n_eqp * n_rows + 160),
-            legend_title_text="작업(PLAN_PROD_KEY)",
-            margin=dict(l=10, r=10, t=60, b=10),
-        )
-        st.plotly_chart(fig, use_container_width=True, key=f"gantt_{bm_name}")
+        return
+
+    df_g = pd.DataFrame(gantt_data)
+    n_eqp = df_g["장비ID"].nunique()
+    fig = px.timeline(
+        df_g, x_start="시작", x_end="종료", y="장비ID", color="작업",
+        hover_data=["생산량", "모델"], title=f"{bm_name} · {algo} — 장비 배치 타임라인",
+        labels={"장비ID": "장비", "작업": "PLAN_PROD_KEY"},
+        color_discrete_sequence=px.colors.qualitative.Set2,
+    )
+    fig.update_yaxes(autorange="reversed", title_text="장비")
+    fig.update_xaxes(title_text="시간")
+    fig.update_layout(
+        height=max(380, 80 * n_eqp + 160),
+        legend_title_text="작업(PLAN_PROD_KEY)",
+        margin=dict(l=10, r=10, t=60, b=10),
+    )
+    st.plotly_chart(fig, use_container_width=True, key=f"gantt_{key_prefix}")
 
 
-def render_tables(result: dict) -> None:
-    plan_achv_rows = result["plan_achv_rows"]
-    assign_rows = result["assign_rows"]
-    assign_merged = merge_assign_rows(assign_rows)
-    conv_rows = result["conv_rows"]
+def render_tables(bm_name: str, algo: str, view) -> None:
+    plan_achv_rows = view["plan_achv_rows"]
+    assign_rows = view["assign_rows"]
+    assign_merged = merge_assign_rows(assign_rows) if assign_rows else []
+    conv_rows = view["conv_rows"]
+    key_prefix = f"{bm_name}_{algo}"
 
-    with st.expander(f"📋 PLAN_ACHV_INF ({len(plan_achv_rows)}행)", expanded=False):
+    with st.expander(f"📋 {algo} — PLAN_ACHV_INF ({len(plan_achv_rows)}행)", expanded=False):
         if plan_achv_rows and _HAS_PLOTLY:
             df_pa = pd.DataFrame(plan_achv_rows)[PLAN_ACHV_KEYS].copy()
             df_pa.columns = PLAN_ACHV_HEADERS
             df_pa["ACHIEVE_RATE"] = df_pa["ACHIEVE_RATE"].map(lambda x: f"{float(x):.1%}")
             df_pa["EQP_UTIL_RATE"] = df_pa["EQP_UTIL_RATE"].map(lambda x: f"{float(x):.1%}")
-            st.dataframe(df_pa, use_container_width=True, hide_index=True)
+            st.dataframe(df_pa, use_container_width=True, hide_index=True, key=f"tbl_pa_{key_prefix}")
         elif plan_achv_rows:
             st.json(plan_achv_rows[:10])
         else:
@@ -282,27 +238,47 @@ def render_tables(result: dict) -> None:
     orig_n = len(assign_rows)
     mrgd_n = len(assign_merged)
     with st.expander(
-        f"🔧 ASSIGN_INF — 병합 후 {mrgd_n}행 (원래 {orig_n}행, {orig_n - mrgd_n}행 절감)",
+        f"🔧 {algo} — ASSIGN_INF — 병합 후 {mrgd_n}행 (원래 {orig_n}행, {orig_n - mrgd_n}행 절감)",
         expanded=False,
     ):
         if assign_merged and _HAS_PLOTLY:
             df_as = pd.DataFrame(assign_merged)[ASSIGN_KEYS].copy()
             df_as.columns = ASSIGN_HEADERS
-            st.dataframe(df_as, use_container_width=True, hide_index=True)
+            st.dataframe(df_as, use_container_width=True, hide_index=True, key=f"tbl_as_{key_prefix}")
         elif assign_merged:
             st.json(assign_merged[:10])
         else:
             st.info("데이터 없음")
 
-    with st.expander(f"🔄 CONV_INF ({len(conv_rows)}행)", expanded=False):
+    with st.expander(f"🔄 {algo} — CONV_INF ({len(conv_rows)}행)", expanded=False):
         if conv_rows and _HAS_PLOTLY:
             df_cv = pd.DataFrame(conv_rows)[CONV_KEYS].copy()
             df_cv.columns = CONV_HEADERS
-            st.dataframe(df_cv, use_container_width=True, hide_index=True)
+            st.dataframe(df_cv, use_container_width=True, hide_index=True, key=f"tbl_cv_{key_prefix}")
         elif conv_rows:
             st.json(conv_rows)
         else:
             st.info("전환(Conversion) 이벤트 없음")
+
+
+def render_algo_section(bm_name: str, algo: str, result: dict, problem) -> None:
+    view = _algo_view(result, algo)
+    if view is None:
+        if algo == "RL":
+            st.info("ℹ️ 학습된 모델(saved_models/ppo_dispatch.zip)이 없거나 현재 벤치마크와 관측·액션 공간이 맞지 않아 RL 결과가 없습니다.")
+        else:
+            st.info("ℹ️ 최적해 데이터가 없습니다.")
+        return
+
+    render_kpi_row(result, view, algo)
+    st.divider()
+
+    if view["has_detail"]:
+        render_charts(bm_name, algo, view)
+        st.divider()
+        render_tables(bm_name, algo, view)
+    else:
+        st.info("ℹ️ 최적해는 시간대별 장비배치 trace 없이 계획달성률 수치(정답)만 보유하고 있어 차트·테이블은 표시되지 않습니다.")
 
 
 # ────────────────────────────────────────────────────────────────
@@ -324,25 +300,28 @@ st.title("🏭 RTS 장비 스케줄링 대시보드")
 all_tabs = st.tabs(tab_labels)
 
 # ────────────────────────────────────────────────────────────────
-# 벤치마크별 탭 (BM-01 ~ BM-09)
+# 벤치마크별 탭 (BM-01 ~ BM-09): 휴리스틱/RL/최적해 알고리즘별 서브탭
 # ────────────────────────────────────────────────────────────────
 for i, (tab, bm_name) in enumerate(zip(all_tabs[:-1], benchmark_names)):
     with tab:
         bm_path = config.BENCHMARKS_DIR / f"{bm_name}.json"
         problem, result = _load_and_eval(str(bm_path))
 
-        total_move = compute_total_move(result["hourly_stats"])
+        st.caption(
+            f"RULE_TIMEKEY: **{problem.rule_timekey}** │ "
+            f"Horizon: **{problem.horizon_hours}h** │ "
+            f"Tasks: **{len(problem.tasks)}** │ "
+            f"장비 합계: **{sum(problem.eqp_qty.values())}대**"
+        )
+        note = problem.ground_truth.get("note", "")
+        if note:
+            st.info(f"ℹ️ {note}")
 
-        # Zone A: KPI 수치 (상단)
-        render_kpi_row(problem, result, total_move)
-        st.divider()
+        algo_tabs = st.tabs(ALGO_LABELS)
+        for algo, atab in zip(ALGO_LABELS, algo_tabs):
+            with atab:
+                render_algo_section(tab_labels[i], algo, result, problem)
 
-        # Zone B: 차트 (중간)
-        render_charts(tab_labels[i], result, problem)
-        st.divider()
-
-        # Zone C: 세부 데이터 (하단)
-        render_tables(result)
 
 # ────────────────────────────────────────────────────────────────
 # 전체 비교 탭
