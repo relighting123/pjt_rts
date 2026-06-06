@@ -233,11 +233,12 @@ def heuristic_actions(sim: "Simulator", s: SimState) -> list[Move]:
 
 
 def _active_eqp_count(p: ProblemInstance, s: SimState) -> int:
-    """Idle 제외 가동 중인 장비 대수 합."""
+    """Idle 제외, 처리할 WIP가 남아 실제로 생산에 기여 중인 장비 대수 합."""
     return sum(
         max(0, s.assign.get((m, ti), 0) - s.idle.get((m, ti), 0))
         for m in p.models()
         for ti in range(len(p.tasks))
+        if s.wip[ti] > 0 and p.uph_of(m, ti)
     )
 
 
