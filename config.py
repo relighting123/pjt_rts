@@ -40,6 +40,33 @@ RESULT_TABLE = ASSIGN_TABLE
 RESULT_HIS_TABLE = ASSIGN_HIS_TABLE
 
 
+def _build_dsn() -> str:
+    """ORACLE_DSN이 있으면 그대로 사용.
+
+    없으면 ORACLE_HOST1(/ORACLE_HOST2)·ORACLE_PORT·ORACLE_SERVICE로
+    TNS connect descriptor를 조립한다 (HOST2 지정 시 ADDRESS_LIST 페일오버).
+    """
+    dsn = os.getenv("ORACLE_DSN")
+    if dsn:
+        return dsn
+
+    host1 = os.getenv("ORACLE_HOST1")
+    if not host1:
+        return "localhost:1521/XEPDB1"
+
+    port = os.getenv("ORACLE_PORT", "1521")
+    service = os.getenv("ORACLE_SERVICE", "XEPDB1")
+    host2 = os.getenv("ORACLE_HOST2")
+
+    addresses = f"(ADDRESS=(PROTOCOL=TCP)(HOST={host1})(PORT={port}))"
+    if host2:
+        addresses += f"(ADDRESS=(PROTOCOL=TCP)(HOST={host2})(PORT={port}))"
+    return (
+        f"(DESCRIPTION=(ADDRESS_LIST={addresses})"
+        f"(CONNECT_DATA=(SERVICE_NAME={service})))"
+    )
+
+
 def load_config() -> dict:
     """.env(있으면)와 환경변수에서 DB 설정을 읽는다."""
     try:
@@ -50,6 +77,6 @@ def load_config() -> dict:
     return {
         "user": os.getenv("ORACLE_USER", "dispatcher"),
         "password": os.getenv("ORACLE_PASSWORD", "dispatcher"),
-        "dsn": os.getenv("ORACLE_DSN", "localhost:1521/XEPDB1"),
+        "dsn": _build_dsn(),
         "crt_user_id": os.getenv("RTS_CRT_USER_ID", "RL_AGENT"),
     }
