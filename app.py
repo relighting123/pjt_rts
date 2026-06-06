@@ -111,7 +111,7 @@ def render_charts(bm_name: str, result: dict, problem) -> None:
                 color_continuous_scale="Blues",
             )
             fig_h.update_layout(height=300, margin=dict(l=10, r=10, t=50, b=10))
-            st.plotly_chart(fig_h, use_container_width=True)
+            st.plotly_chart(fig_h, use_container_width=True, key=f"hourly_{bm_name}")
         else:
             st.info("시간별 통계 데이터 없음")
 
@@ -140,7 +140,7 @@ def render_charts(bm_name: str, result: dict, problem) -> None:
             )
             fig_bar.update_yaxes(range=[0, 1.05], tickformat=".0%")
             fig_bar.update_layout(height=300, margin=dict(l=10, r=10, t=50, b=10))
-            st.plotly_chart(fig_bar, use_container_width=True)
+            st.plotly_chart(fig_bar, use_container_width=True, key=f"per_task_{bm_name}")
         else:
             st.info("Task별 달성률 데이터 없음")
 
@@ -191,7 +191,7 @@ def render_charts(bm_name: str, result: dict, problem) -> None:
                 legend_title_text="작업(PLAN_PROD_KEY)",
                 margin=dict(l=10, r=10, t=60, b=10),
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key=f"gantt_{bm_name}")
 
 
 def render_tables(result: dict) -> None:
@@ -342,7 +342,7 @@ with all_tabs[-1]:
             )
             fig_cmp.update_yaxes(range=[0, 1.05], tickformat=".0%")
             fig_cmp.update_layout(height=320, margin=dict(l=10, r=10, t=50, b=10))
-            st.plotly_chart(fig_cmp, use_container_width=True)
+            st.plotly_chart(fig_cmp, use_container_width=True, key="cmp_achievement")
 
         with cc_r:
             df_util = pd.DataFrame(summary_rows)
@@ -357,7 +357,7 @@ with all_tabs[-1]:
             )
             fig_util.update_yaxes(range=[0, 1.05], tickformat=".0%")
             fig_util.update_layout(height=320, margin=dict(l=10, r=10, t=50, b=10))
-            st.plotly_chart(fig_util, use_container_width=True)
+            st.plotly_chart(fig_util, use_container_width=True, key="cmp_utilization")
 
         st.divider()
 
