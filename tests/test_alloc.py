@@ -21,4 +21,4 @@ def test_train_alloc_model_saves_and_respects_caps(tmp_path):
     for (m, ti), c in alloc.items():
         per_model[m] = per_model.get(m, 0) + c
     for m, total in per_model.items():
-        assert total <= p.eqp_qty[m]
+        assert total == p.eqp_qty[m]
