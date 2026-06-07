@@ -93,11 +93,19 @@ def test_run_eval_writes_html(tmp_path):
 
 
 def test_evaluate_benchmark_includes_guide_allocation():
-    from simulator import load_problem
-    from config import BENCHMARKS_DIR
-    import test as report
     p = load_problem(BENCHMARKS_DIR / "benchmark_02.json")
     res = report.evaluate_benchmark(p, model=None)
     assert "guide_allocation" in res
     assert isinstance(res["guide_allocation"], dict)
     assert len(res["guide_allocation"]) > 0
+
+
+def test_render_guide_table_output():
+    from report_output import render_guide_table
+    p = load_problem(BENCHMARKS_DIR / "benchmark_02.json")
+    res = report.evaluate_benchmark(p, model=None)
+    md = render_guide_table(p, res["guide_allocation"])
+    assert "가이드 수량" in md
+    rows = [l for l in md.splitlines() if l.startswith("|") and "---" not in l]
+    assert len(rows) >= 2  # 헤더 + 최소 1개 데이터 행
+    assert render_guide_table(p, {}) == ""

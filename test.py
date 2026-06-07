@@ -15,23 +15,43 @@ from report_output import (
 import config
 
 
+_ALLOC_MODEL_CACHE: dict = {}
+
+
+def _load_alloc_model(path):
+    """ppo_alloc.zip을 (경로, mtime) 기준 1회만 로드해 캐시. 실패 시 None+경고."""
+    key = (str(path), path.stat().st_mtime)
+    if key in _ALLOC_MODEL_CACHE:
+        return _ALLOC_MODEL_CACHE[key]
+    model = None
+    try:
+        import stable_baselines3 as sb3
+        model = sb3.PPO.load(path)
+    except Exception as e:  # 손상/비호환 zip, sb3 미설치 등 → 해석식 폴백
+        import warnings
+        warnings.warn(f"ppo_alloc.zip load 실패 ({e!r}); 해석식 가이드로 폴백.")
+    _ALLOC_MODEL_CACHE[key] = model
+    return model
+
+
 def _guide_allocation(problem: ProblemInstance) -> dict:
     """가이드 수량(Mode 1). USE_ALLOC_MODEL이면 RL, 아니면 해석식."""
     if config.USE_ALLOC_MODEL:
         path = config.SAVED_MODELS_DIR / "ppo_alloc.zip"
         if path.exists():
-            try:
-                import stable_baselines3 as sb3
-                from alloc_env import AllocationEnv
-                env = AllocationEnv(problem, max_tasks=config.MAX_TASKS,
-                                    max_models=config.MAX_MODELS)
-                m = sb3.PPO.load(path)
-                obs, _ = env.reset()
-                action, _ = m.predict(obs, deterministic=True)
-                env.step(action)
-                return env.get_float_target()
-            except Exception:
-                pass
+            model = _load_alloc_model(path)
+            if model is not None:
+                try:
+                    from alloc_env import AllocationEnv
+                    env = AllocationEnv(problem, max_tasks=config.MAX_TASKS,
+                                        max_models=config.MAX_MODELS)
+                    obs, _ = env.reset()
+                    action, _ = model.predict(obs, deterministic=True)
+                    env.step(action)
+                    return env.get_float_target()
+                except Exception as e:
+                    import warnings
+                    warnings.warn(f"AllocationEnv 추론 실패 ({e!r}); 해석식 가이드로 폴백.")
     return problem.plan_target_allocation()
 
 
