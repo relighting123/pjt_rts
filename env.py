@@ -8,7 +8,7 @@ import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
 
-from simulator import Simulator, Move, ProblemInstance
+from simulator import Simulator, Move, ProblemInstance, _active_eqp_count
 
 
 class DispatchEnv(gym.Env):
@@ -139,7 +139,6 @@ class DispatchEnv(gym.Env):
         return self.dwell_lambda * shaping
 
     def _current_util(self) -> float:
-        from simulator import _active_eqp_count
         total = sum(self.p.eqp_qty.values()) or 1
         return _active_eqp_count(self.p, self._state) / total
 
