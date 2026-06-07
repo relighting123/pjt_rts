@@ -141,7 +141,7 @@ class AllocationEnv(gym.Env):
 
             counts = _largest_remainder(raw, eqp)
             for ti, cnt in enumerate(counts):
-                if cnt > 0:
+                if ti < self.n_tasks and p.uph_of(model, ti) is not None:
                     alloc[(model, ti)] = cnt
         return alloc
 
@@ -194,4 +194,4 @@ class AllocationEnv(gym.Env):
 
     def get_float_target(self) -> dict[tuple[str, int], float]:
         """정수 배분을 float으로 변환 (DispatchEnv target_allocation 주입용)."""
-        return {k: float(v) for k, v in self._last_allocation.items()}
+        return self.p.complete_guide_allocation(self._last_allocation)

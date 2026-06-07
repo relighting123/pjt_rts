@@ -48,11 +48,11 @@ def _guide_allocation(problem: ProblemInstance) -> dict:
                     obs, _ = env.reset()
                     action, _ = model.predict(obs, deterministic=True)
                     env.step(action)
-                    return env.get_float_target()
+                    return problem.complete_guide_allocation(env.get_float_target())
                 except Exception as e:
                     import warnings
                     warnings.warn(f"AllocationEnv 추론 실패 ({e!r}); 해석식 가이드로 폴백.")
-    return problem.plan_target_allocation()
+    return problem.complete_guide_allocation(problem.plan_target_allocation())
 
 
 def _model_matches(model, problem: ProblemInstance) -> bool:
@@ -202,8 +202,11 @@ def write_report_files(
 def default_infer_report_paths(problems, args) -> tuple[Path, Path]:
     """infer 결과 MD/HTML 기본 경로."""
     out_dir = config.ARTIFACTS_DIR / "inference"
+    if getattr(args, "dataset", None):
+        stem = _resolve_infer_stem(args.dataset)
+        return out_dir / f"{stem}.md", out_dir / f"{stem}.html"
     if getattr(args, "benchmark_dataset", None):
-        stem = Path(args.benchmark_dataset).with_suffix("").name
+        stem = _resolve_infer_stem(args.benchmark_dataset)
         return out_dir / f"{stem}.md", out_dir / f"{stem}.html"
     if getattr(args, "timekey", None):
         key = str(args.timekey)
@@ -214,12 +217,16 @@ def default_infer_report_paths(problems, args) -> tuple[Path, Path]:
     return config.REPORT_PATH, config.HTML_REPORT_PATH
 
 
-def run_eval(benchmarks_dir: Path = config.BENCHMARKS_DIR, model=None,
+def _resolve_infer_stem(path_str: str) -> str:
+    return Path(path_str).with_suffix("").name
+
+
+def run_eval(benchmarks_dir: Path = config.TEST_DATA_DIR, model=None,
              report_path: Path = config.REPORT_PATH,
              html_report_path: Path | None = None) -> str:
     from simulator import load_problem
     results = {}
-    for path in sorted(Path(benchmarks_dir).glob("benchmark_*.json")):
+    for path in sorted(Path(benchmarks_dir).glob("*.json")):
         p = load_problem(path)
         results[path.stem] = (p, evaluate_benchmark(p, model))
     md_path, html_path = write_report_files(results, report_path, html_report_path)

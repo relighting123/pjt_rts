@@ -10,10 +10,27 @@ except Exception:
     pass
 
 ROOT = Path(__file__).resolve().parent
-BENCHMARKS_DIR = ROOT / "benchmarks"
-BENCHMARKS_TRAIN_DIR = ROOT / "benchmarks_train"
-SAVED_MODELS_DIR = ROOT / "saved_models"
 DATA_DIR = ROOT / "data"
+TRAIN_DATA_DIR = DATA_DIR / "train"
+TEST_DATA_DIR = DATA_DIR / "test"
+INFERENCE_DATA_DIR = DATA_DIR / "inference"
+# 입력 {RULE_TIMEKEY}.json · 결과 {RULE_TIMEKEY}_result.json — 동일 디렉터리
+INFERENCE_INPUT_DIR = INFERENCE_DATA_DIR
+INFERENCE_RESULT_DIR = INFERENCE_DATA_DIR
+TRAIN_DB_EXPORT_DIR = TRAIN_DATA_DIR  # 하위호환 alias (from_db 제거)
+DEFAULT_TRAIN_LOOKBACK_DAYS = int(os.getenv("TRAIN_LOOKBACK_DAYS", "30"))
+
+
+def replace_file(path: str | Path) -> Path:
+    """동일 경로 파일이 있으면 삭제 후 새로 쓸 수 있게 한다."""
+    p = Path(path)
+    if p.is_file():
+        p.unlink()
+    return p
+# 하위호환 alias
+BENCHMARKS_DIR = TEST_DATA_DIR
+BENCHMARKS_TRAIN_DIR = TRAIN_DATA_DIR
+SAVED_MODELS_DIR = ROOT / "saved_models"
 ARTIFACTS_DIR = ROOT / "artifacts"
 REPORT_PATH = ROOT / "MODEL_REPORT.md"
 HTML_REPORT_PATH = ROOT / "MODEL_REPORT.html"
@@ -58,6 +75,10 @@ ASSIGN_HIS_TABLE = "RTS_ASSIGN_HIS"
 # batch(tool) 전환 이벤트
 CONV_TABLE = "RTS_CONV_INF"
 CONV_HIS_TABLE = "RTS_CONV_HIS"
+
+# 가이드 배분 (Mode 1 · 재공 무한 목표 장비 대수)
+GUIDE_TABLE = "RTS_GUIDE_INF"
+GUIDE_HIS_TABLE = "RTS_GUIDE_HIS"
 
 # db.write_assign_results 하위호환 alias
 RESULT_TABLE = ASSIGN_TABLE

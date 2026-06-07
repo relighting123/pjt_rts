@@ -113,9 +113,9 @@ def _get_target_allocation(problem: ProblemInstance) -> dict:
             obs, _ = alloc_env.reset()
             action, _ = alloc_model.predict(obs, deterministic=True)
             alloc_env.step(action)
-            return alloc_env.get_float_target()
+            return problem.complete_guide_allocation(alloc_env.get_float_target())
     # fallback: 비례공식
-    return problem.plan_target_allocation()
+    return problem.complete_guide_allocation(problem.plan_target_allocation())
 
 
 def make_env(problem: ProblemInstance) -> ActionMasker:
@@ -231,5 +231,5 @@ def train_model(problems: list[ProblemInstance], ppo_steps: int = config.DEFAULT
 def load_problems_from_dir(directory: Path | None = None) -> list[ProblemInstance]:
     from simulator import load_problem
     if directory is None:
-        directory = config.BENCHMARKS_TRAIN_DIR
-    return [load_problem(p) for p in sorted(Path(directory).glob("benchmark_*.json"))]
+        directory = config.TRAIN_DATA_DIR
+    return [load_problem(p) for p in sorted(Path(directory).glob("*.json"))]

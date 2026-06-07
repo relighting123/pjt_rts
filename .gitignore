@@ -5,5 +5,7 @@ saved_models/*.zip
 saved_models/*.pt
 data/*
 !data/.gitkeep
+!data/test/
+!data/test/**
 artifacts/
 .pytest_cache/

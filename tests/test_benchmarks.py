@@ -2,7 +2,7 @@ import pytest
 from simulator import load_problem, evaluate
 from config import BENCHMARKS_DIR
 
-BENCHES = sorted(BENCHMARKS_DIR.glob("benchmark_*.json"))
+BENCHES = sorted(BENCHMARKS_DIR.glob("*.json"))
 
 
 @pytest.mark.parametrize("path", BENCHES, ids=lambda p: p.stem)

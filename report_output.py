@@ -8,6 +8,7 @@
 from __future__ import annotations
 from datetime import datetime, timedelta
 from html import escape
+from pathlib import Path
 
 import config
 from simulator import ProblemInstance, Move
@@ -220,6 +221,88 @@ def avg_utilization(hourly_stats: list[dict]) -> float:
     return round(sum(s["util_rate"] for s in hourly_stats) / len(hourly_stats), 4)
 
 
+def build_guide_rows(
+    problem: ProblemInstance,
+    guide_allocation: dict,
+    guide_source: str = "ANALYTIC",
+    crt_user_id: str | None = None,
+) -> list[dict]:
+    """RTS_GUIDE_INF/HIS — 공정×모델 목표 장비 대수 (0 포함)."""
+    crt_user_id = crt_user_id or config.load_config()["crt_user_id"]
+    rows = []
+    for row in guide_allocation_rows(problem, guide_allocation):
+        ppk, oper = row["task"].split("/", 1)
+        rows.append({
+            "RULE_TIMEKEY": problem.rule_timekey,
+            "PLAN_PROD_KEY": ppk,
+            "OPER_ID": oper,
+            "EQP_MODEL_CD": row["model"],
+            "TARGET_EQP_CNT": round(row["target_count"], 4),
+            "GUIDE_SOURCE": guide_source,
+            "CRT_USER_ID": crt_user_id,
+        })
+    return rows
+
+
+def detect_guide_source() -> str:
+    """가이드 산출 방식: ANALYTIC | ALLOC_RL."""
+    alloc_path = config.SAVED_MODELS_DIR / "ppo_alloc.zip"
+    if config.USE_ALLOC_MODEL and alloc_path.exists():
+        return "ALLOC_RL"
+    return "ANALYTIC"
+
+
+def build_inference_result_document(
+    problem: ProblemInstance,
+    eval_result: dict,
+    policy: str = "RL",
+    crt_user_id: str | None = None,
+) -> dict:
+    """추론 결과 JSON (가이드 + 동적 운영). schema_version=1."""
+    crt_user_id = crt_user_id or config.load_config()["crt_user_id"]
+    use_rl = policy == "RL" and eval_result.get("rl") is not None
+    plan_achv_key = "rl_plan_achv_rows" if use_rl else "plan_achv_rows"
+    assign_key = "rl_assign_rows" if use_rl else "assign_rows"
+    conv_key = "rl_conv_rows" if use_rl else "conv_rows"
+    achievement = eval_result.get("rl" if use_rl else "heuristic", 0.0)
+    util = eval_result.get("rl_avg_utilization" if use_rl else "avg_utilization", 0.0)
+    guide_src = detect_guide_source()
+    guide_rows = build_guide_rows(
+        problem, eval_result.get("guide_allocation", {}), guide_src, crt_user_id,
+    )
+    return {
+        "schema_version": 1,
+        "rule_timekey": problem.rule_timekey,
+        "policy": "RL" if use_rl else "HEURISTIC",
+        "plan_achievement": float(achievement),
+        "eqp_util_rate": float(util or 0.0),
+        "guide": {
+            "source": guide_src,
+            "rows": guide_rows,
+        },
+        "dynamic": {
+            "plan_achv_rows": eval_result.get(plan_achv_key, []),
+            "assign_rows": eval_result.get(assign_key, []),
+            "conv_rows": eval_result.get(conv_key, []),
+        },
+    }
+
+
+def save_inference_result_document(doc: dict, path: str | Path) -> Path:
+    import json
+    import config
+
+    path = config.replace_file(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(doc, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    return path
+
+
+def load_inference_result_document(path: str | Path) -> dict:
+    import json
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
 def _markdown_table(headers: list[str], rows: list[dict], keys: list[str]) -> str:
     if not rows:
         return "_데이터 없음_"
@@ -263,6 +346,15 @@ CONV_HEADERS = [
     "FROM_BATCH", "TO_BATCH",
     "FROM_PLAN_PROD_KEY", "TO_PLAN_PROD_KEY", "FROM_OPER", "TO_OPER",
     "CRT_USER_ID",
+]
+
+GUIDE_KEYS = [
+    "RULE_TIMEKEY", "PLAN_PROD_KEY", "OPER_ID", "EQP_MODEL_CD",
+    "TARGET_EQP_CNT", "GUIDE_SOURCE", "CRT_USER_ID",
+]
+GUIDE_HEADERS = [
+    "RULE_TIMEKEY", "PLAN_PROD_KEY", "OPER", "EQP_MODEL_CD",
+    "TARGET_EQP_CNT", "GUIDE_SOURCE", "CRT_USER_ID",
 ]
 
 # 하위호환 alias
@@ -491,15 +583,29 @@ def render_html_report(results: dict[str, tuple[ProblemInstance, dict]]) -> str:
     return "\n".join(parts)
 
 
+def guide_allocation_rows(problem, guide_allocation: dict) -> list[dict]:
+    """Streamlit/HTML용 가이드 배분 행 목록 (미배분 공정은 0)."""
+    complete = problem.complete_guide_allocation(guide_allocation)
+    rows = []
+    for (model, ti), cnt in sorted(complete.items(), key=lambda x: (x[0][1], x[0][0])):
+        t = problem.tasks[ti]
+        rows.append({
+            "task": f"{t.plan_prod_key}/{t.oper_id}",
+            "model": model,
+            "target_count": float(cnt),
+        })
+    return rows
+
+
 def render_guide_table(problem, guide_allocation: dict) -> str:
     """가이드 수량(Mode 1)을 공정×모델 대수 표(markdown)로."""
-    if not guide_allocation:
+    rows = guide_allocation_rows(problem, guide_allocation)
+    if not rows:
         return ""
     lines = ["**가이드 수량 (재공 무한 기준 목표 배치)**", "",
              "| 공정(PLAN_PROD_KEY/OPER) | 모델 | 목표 대수 |", "|---|---|---|"]
-    for (model, ti), cnt in sorted(guide_allocation.items(), key=lambda x: (x[0][1], x[0][0])):
-        t = problem.tasks[ti]
-        lines.append(f"| {t.plan_prod_key}/{t.oper_id} | {model} | {cnt:.1f} |")
+    for row in guide_allocation_rows(problem, guide_allocation):
+        lines.append(f"| {row['task']} | {row['model']} | {row['target_count']:.1f} |")
     return "\n".join(lines)
 
 

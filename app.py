@@ -6,6 +6,18 @@ from datetime import datetime, timedelta
 
 sys.path.insert(0, str(Path(__file__).parent))
 
+if __name__ == "__main__":
+    try:
+        from streamlit.runtime.scriptrunner import get_script_run_ctx
+        if get_script_run_ctx() is None:
+            print("app.py는 Streamlit UI 전용입니다.")
+            print("  streamlit run app.py")
+            print("CLI 추론/학습은: python run.py infer | train | eval")
+            raise SystemExit(1)
+    except ImportError:
+        print("streamlit 미설치. pip install -e \".[web]\" 후 streamlit run app.py")
+        raise SystemExit(1)
+
 import streamlit as st
 
 st.set_page_config(
@@ -27,6 +39,7 @@ from test import evaluate_benchmark
 from report_output import (
     avg_utilization,
     merge_assign_rows,
+    guide_allocation_rows,
     PLAN_ACHV_HEADERS, PLAN_ACHV_KEYS,
     ASSIGN_HEADERS, ASSIGN_KEYS,
     CONV_HEADERS, CONV_KEYS,
@@ -261,6 +274,64 @@ def render_tables(bm_name: str, algo: str, view) -> None:
             st.info("전환(Conversion) 이벤트 없음")
 
 
+def _guide_source_label() -> str:
+    alloc_path = config.SAVED_MODELS_DIR / "ppo_alloc.zip"
+    if config.USE_ALLOC_MODEL and alloc_path.exists():
+        return "AllocationEnv RL (ppo_alloc.zip)"
+    return "해석식 (plan_target_allocation)"
+
+
+def render_guide_section(bm_name: str, problem, result: dict) -> None:
+    guide_allocation = result.get("guide_allocation", {})
+    if not guide_allocation and not guide_allocation_rows(problem, {}):
+        st.info("가이드 배분 데이터 없음")
+        return
+
+    st.subheader("가이드 수량 (재공 무한 기준 목표 배치)")
+    st.caption(f"출처: **{_guide_source_label()}**")
+
+    rows = guide_allocation_rows(problem, guide_allocation)
+    col_table, col_chart = st.columns(2)
+
+    with col_table:
+        if _HAS_PLOTLY:
+            df_guide = pd.DataFrame(rows)
+            df_guide = df_guide.rename(columns={
+                "task": "공정(PLAN_PROD_KEY/OPER)",
+                "model": "모델",
+                "target_count": "목표 대수",
+            })
+            df_guide["목표 대수"] = df_guide["목표 대수"].map(lambda x: f"{x:.1f}")
+            st.dataframe(
+                df_guide,
+                use_container_width=True,
+                hide_index=True,
+                key=f"guide_tbl_{bm_name}",
+            )
+        else:
+            for row in rows:
+                st.write(f"{row['task']} · {row['model']}: **{row['target_count']:.1f}**대")
+
+    with col_chart:
+        if not _HAS_PLOTLY:
+            st.caption("차트는 plotly/pandas 설치 후 표시됩니다.")
+            return
+        pivot = pd.DataFrame(rows).pivot(index="task", columns="model", values="target_count").fillna(0)
+        if pivot.empty:
+            st.info("차트 데이터 없음")
+            return
+        fig = px.imshow(
+            pivot,
+            text_auto=".1f",
+            color_continuous_scale="Blues",
+            aspect="auto",
+            title="모델×공정 목표 대수",
+            labels={"x": "모델", "y": "공정", "color": "목표 대수"},
+        )
+        fig.update_layout(height=max(260, 60 * len(pivot) + 120), margin=dict(l=10, r=10, t=50, b=10))
+        st.plotly_chart(fig, use_container_width=True, key=f"guide_heat_{bm_name}")
+
+
 def render_algo_section(bm_name: str, algo: str, result: dict, problem) -> None:
     view = _algo_view(result, algo)
     if view is None:
@@ -284,9 +355,9 @@ def render_algo_section(bm_name: str, algo: str, result: dict, problem) -> None:
 # ────────────────────────────────────────────────────────────────
 # Benchmark 파일 탐색
 # ────────────────────────────────────────────────────────────────
-benchmark_files = sorted(config.BENCHMARKS_DIR.glob("benchmark_*.json"))
+benchmark_files = sorted(config.TEST_DATA_DIR.glob("*.json"))
 if not benchmark_files:
-    st.error("benchmarks/ 폴더에 JSON 파일이 없습니다.")
+    st.error("data/test/ 폴더에 JSON 파일이 없습니다.")
     st.stop()
 
 benchmark_names = [f.stem for f in benchmark_files]
@@ -304,7 +375,7 @@ all_tabs = st.tabs(tab_labels)
 # ────────────────────────────────────────────────────────────────
 for i, (tab, bm_name) in enumerate(zip(all_tabs[:-1], benchmark_names)):
     with tab:
-        bm_path = config.BENCHMARKS_DIR / f"{bm_name}.json"
+        bm_path = config.TEST_DATA_DIR / f"{bm_name}.json"
         problem, result = _load_and_eval(str(bm_path))
 
         st.caption(
@@ -316,6 +387,9 @@ for i, (tab, bm_name) in enumerate(zip(all_tabs[:-1], benchmark_names)):
         note = problem.ground_truth.get("note", "")
         if note:
             st.info(f"ℹ️ {note}")
+
+        render_guide_section(tab_labels[i], problem, result)
+        st.divider()
 
         algo_tabs = st.tabs(ALGO_LABELS)
         for algo, atab in zip(ALGO_LABELS, algo_tabs):
@@ -332,7 +406,7 @@ with all_tabs[-1]:
     has_rl = False
     summary_rows = []
     for i, bm_name in enumerate(benchmark_names):
-        bm_path = config.BENCHMARKS_DIR / f"{bm_name}.json"
+        bm_path = config.TEST_DATA_DIR / f"{bm_name}.json"
         p, r = _load_and_eval(str(bm_path))
         util_avg = r.get("avg_utilization", avg_utilization(r["hourly_stats"]))
         rl_util_avg = r.get("rl_avg_utilization")

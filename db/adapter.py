@@ -4,6 +4,9 @@ oracledb 미설치/미접속이어도 rows_to_problem(순수 변환)은 동작�
 """
 from __future__ import annotations
 from collections import defaultdict
+from datetime import datetime, timedelta
+from pathlib import Path
+
 import config
 from simulator import Task, ProblemInstance
 
@@ -63,31 +66,94 @@ def rows_to_problem(rows, horizon_hours: int, conv_groups: dict[str, list[str]],
     )
 
 
-# --- 아래는 실제 Oracle 접속이 있을 때만 사용 (oracledb 필요) ---
-
 def _connect():
     import oracledb  # 지연 import
     cfg = config.load_config()
     return oracledb.connect(user=cfg["user"], password=cfg["password"], dsn=cfg["dsn"])
 
 
-def fetch_problem(rule_timekey: str | None = None, horizon_hours: int = 12,
-                  conv_groups: dict | None = None) -> ProblemInstance:
-    """RTS_LINEDSDB_INF에서 스냅샷을 읽어 ProblemInstance로 변환."""
+def parse_timekey(rule_timekey: str) -> datetime:
+    s = str(rule_timekey).ljust(16, "0")[:16]
+    return datetime.strptime(s[:14], "%Y%m%d%H%M%S")
+
+
+def format_timekey(dt: datetime, suffix: str = "0000") -> str:
+    return dt.strftime("%Y%m%d%H%M%S") + suffix[:4].ljust(4, "0")
+
+
+def fetch_max_timekey(table: str = config.INPUT_TABLE) -> str:
     conn = _connect()
     try:
         cur = conn.cursor()
-        if rule_timekey is None:
-            cur.execute("SELECT MAX(RULE_TIMEKEY) FROM RTS_LINEDSDB_INF")
-            rule_timekey = cur.fetchone()[0]
-        cur.execute(
-            "SELECT RULE_TIMEKEY, FAC_ID, BATCH_ID, PLAN_PROD_KEY, OPER_ID, OPER_SEQ, "
-            "EQP_MODEL_CD, GBN_CD, ATTR_VAL FROM RTS_LINEDSDB_INF WHERE RULE_TIMEKEY = :rk",
-            rk=rule_timekey)
-        rows = cur.fetchall()
-        return rows_to_problem(rows, horizon_hours, conv_groups or {}, rule_timekey=rule_timekey)
+        cur.execute(f"SELECT MAX(RULE_TIMEKEY) FROM {table}")
+        row = cur.fetchone()
+        if not row or row[0] is None:
+            raise RuntimeError(f"{table}에 RULE_TIMEKEY 없음")
+        return str(row[0])
     finally:
         conn.close()
+
+
+def resolve_timekey(rule_timekey: str | None = None) -> str:
+    """미지정 시 MAX(RULE_TIMEKEY)."""
+    return rule_timekey if rule_timekey else fetch_max_timekey()
+
+
+def list_timekeys_in_range(
+    from_timekey: str | None = None,
+    to_timekey: str | None = None,
+    lookback_days: int | None = None,
+    table: str = config.INPUT_TABLE,
+) -> list[str]:
+    """학습용 스냅샷 RULE_TIMEKEY 목록. from/to 미지정 시 최근 lookback_days(기본 30일)."""
+    lookback = lookback_days if lookback_days is not None else config.DEFAULT_TRAIN_LOOKBACK_DAYS
+    conn = _connect()
+    try:
+        cur = conn.cursor()
+        if from_timekey is None and to_timekey is None:
+            cur.execute(f"SELECT MAX(RULE_TIMEKEY) FROM {table}")
+            row = cur.fetchone()
+            if not row or row[0] is None:
+                return []
+            max_tk = str(row[0])
+            to_dt = parse_timekey(max_tk)
+            from_dt = to_dt - timedelta(days=lookback)
+            suffix = max_tk[14:] if len(max_tk) >= 16 else "0000"
+            from_timekey = format_timekey(from_dt, suffix)
+            to_timekey = max_tk
+        elif from_timekey is None or to_timekey is None:
+            raise ValueError("from_timekey와 to_timekey는 함께 지정하거나 둘 다 생략해야 합니다.")
+        cur.execute(
+            f"SELECT DISTINCT RULE_TIMEKEY FROM {table} "
+            "WHERE RULE_TIMEKEY >= :f AND RULE_TIMEKEY <= :t ORDER BY RULE_TIMEKEY",
+            f=from_timekey, t=to_timekey,
+        )
+        return [str(r[0]) for r in cur.fetchall()]
+    finally:
+        conn.close()
+
+
+def fetch_rows(rule_timekey: str, table: str = config.INPUT_TABLE) -> list[tuple]:
+    conn = _connect()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT RULE_TIMEKEY, FAC_ID, BATCH_ID, PLAN_PROD_KEY, OPER_ID, OPER_SEQ, "
+            "EQP_MODEL_CD, GBN_CD, ATTR_VAL FROM "
+            f"{table} WHERE RULE_TIMEKEY = :rk",
+            rk=rule_timekey,
+        )
+        return cur.fetchall()
+    finally:
+        conn.close()
+
+
+def fetch_problem(rule_timekey: str | None = None, horizon_hours: int = 12,
+                  conv_groups: dict | None = None) -> ProblemInstance:
+    """RTS_LINEDSDB_INF에서 스냅샷을 읽어 ProblemInstance로 변환."""
+    rk = resolve_timekey(rule_timekey)
+    rows = fetch_rows(rk)
+    return rows_to_problem(rows, horizon_hours, conv_groups or {}, rule_timekey=rk)
 
 
 def write_assign_results(rule_timekey: str, assign_rows: list[dict]) -> None:
@@ -106,11 +172,25 @@ def write_conv_results(rule_timekey: str, conv_rows: list[dict]) -> None:
     _write_table_pair(config.CONV_TABLE, config.CONV_HIS_TABLE, rule_timekey, conv_rows, _CONV_INSERT_SQL)
 
 
+def write_guide_results(rule_timekey: str, guide_rows: list[dict]) -> None:
+    """RTS_GUIDE_INF/HIS 삭제 후 insert."""
+    _write_table_pair(config.GUIDE_TABLE, config.GUIDE_HIS_TABLE, rule_timekey, guide_rows, _GUIDE_INSERT_SQL)
+
+
+def write_inference_result(rule_timekey: str, result_doc: dict) -> None:
+    """추론 결과 JSON document → Oracle (가이드 + 동적 3종)."""
+    write_guide_results(rule_timekey, result_doc.get("guide", {}).get("rows", []))
+    dynamic = result_doc.get("dynamic", {})
+    write_plan_achv_results(rule_timekey, dynamic.get("plan_achv_rows", []))
+    write_assign_results(rule_timekey, dynamic.get("assign_rows", []))
+    write_conv_results(rule_timekey, dynamic.get("conv_rows", []))
+
+
 _ASSIGN_INSERT_SQL = (
     "INSERT INTO {table} (RULE_TIMEKEY, EQP_ID, EQP_MODEL_CD, SEQ_NO, "
-    "START_TIME, END_TIME, PLAN_PROD_KEY, PRODUCE_QTY, CRT_TM, CRT_USER_ID) "
+    "START_TIME, END_TIME, PLAN_PROD_KEY, OPER_ID, PRODUCE_QTY, CRT_TM, CRT_USER_ID) "
     "VALUES (:RULE_TIMEKEY, :EQP_ID, :EQP_MODEL_CD, :SEQ_NO, :START_TIME, "
-    ":END_TIME, :PLAN_PROD_KEY, :PRODUCE_QTY, SYSTIMESTAMP, :CRT_USER_ID)"
+    ":END_TIME, :PLAN_PROD_KEY, :OPER_ID, :PRODUCE_QTY, SYSTIMESTAMP, :CRT_USER_ID)"
 )
 
 _PLAN_ACHV_INSERT_SQL = (
@@ -129,6 +209,13 @@ _CONV_INSERT_SQL = (
     ":START_TIME, :END_TIME, :FROM_BATCH_ID, :TO_BATCH_ID, "
     ":FROM_PLAN_PROD_KEY, :TO_PLAN_PROD_KEY, :FROM_OPER_ID, :TO_OPER_ID, "
     "SYSTIMESTAMP, :CRT_USER_ID)"
+)
+
+_GUIDE_INSERT_SQL = (
+    "INSERT INTO {table} (RULE_TIMEKEY, PLAN_PROD_KEY, OPER_ID, EQP_MODEL_CD, "
+    "TARGET_EQP_CNT, GUIDE_SOURCE, CRT_TM, CRT_USER_ID) "
+    "VALUES (:RULE_TIMEKEY, :PLAN_PROD_KEY, :OPER_ID, :EQP_MODEL_CD, "
+    ":TARGET_EQP_CNT, :GUIDE_SOURCE, SYSTIMESTAMP, :CRT_USER_ID)"
 )
 
 

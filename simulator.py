@@ -71,6 +71,17 @@ class ProblemInstance:
                 return i
         return None
 
+    def complete_guide_allocation(
+        self, guide: dict[tuple[str, int], float | int],
+    ) -> dict[tuple[str, int], float]:
+        """UPH 가능한 모든 (model, task) 슬롯을 포함. 미배분은 0."""
+        result: dict[tuple[str, int], float] = {}
+        for model in self.models():
+            for ti in range(len(self.tasks)):
+                if self.uph_of(model, ti) is not None:
+                    result[(model, ti)] = float(guide.get((model, ti), 0))
+        return result
+
     def plan_target_allocation(self) -> dict[tuple[str, int], float]:
         """계획달성율 극대화를 위한 공정별 목표 장비 수(실수).
 
@@ -380,3 +391,66 @@ def load_problem(path: str | Path) -> ProblemInstance:
         conv_groups={k: list(v) for k, v in data["conv_groups"].items()},
         ground_truth=data.get("ground_truth", {}),
     )
+
+
+def problem_to_dict(problem: ProblemInstance, include_ground_truth: bool = True) -> dict:
+    """ProblemInstance → benchmark/inference JSON dict."""
+    tasks = [
+        {
+            "plan_prod_key": t.plan_prod_key,
+            "oper_id": t.oper_id,
+            "oper_seq": t.oper_seq,
+            "batch_id": t.batch_id,
+            "plan_qty": t.plan_qty,
+            "init_wip": t.init_wip,
+        }
+        for t in problem.tasks
+    ]
+    uph = []
+    for (model, ti), val in sorted(problem._uph.items()):
+        t = problem.tasks[ti]
+        uph.append({
+            "plan_prod_key": t.plan_prod_key,
+            "oper_id": t.oper_id,
+            "eqp_model": model,
+            "uph": val,
+        })
+    init_assign = []
+    for (model, ti), cnt in sorted(problem.init_assign.items()):
+        t = problem.tasks[ti]
+        init_assign.append({
+            "eqp_model": model,
+            "plan_prod_key": t.plan_prod_key,
+            "oper_id": t.oper_id,
+            "count": cnt,
+        })
+    tool_qty = [
+        {"batch_id": b, "eqp_model": m, "tool_qty": q}
+        for (b, m), q in sorted(problem.tool_qty.items())
+    ]
+    data = {
+        "rule_timekey": problem.rule_timekey,
+        "horizon_hours": problem.horizon_hours,
+        "switch_time_hours": problem.switch_time_hours,
+        "tasks": tasks,
+        "uph": uph,
+        "eqp_qty": dict(problem.eqp_qty),
+        "init_assign": init_assign,
+        "tool_qty": tool_qty,
+        "conv_groups": {k: list(v) for k, v in problem.conv_groups.items()},
+    }
+    if include_ground_truth and problem.ground_truth:
+        data["ground_truth"] = problem.ground_truth
+    return data
+
+
+def save_problem(problem: ProblemInstance, path: str | Path,
+                 include_ground_truth: bool = True) -> Path:
+    """ProblemInstance를 JSON 파일로 저장 (data/inference · data/train 형식)."""
+    import config
+
+    path = config.replace_file(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    text = json.dumps(problem_to_dict(problem, include_ground_truth), indent=2, ensure_ascii=False)
+    path.write_text(text + "\n", encoding="utf-8")
+    return path

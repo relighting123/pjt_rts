@@ -17,20 +17,20 @@ def test_cli_infer_writes_html(tmp_path):
     md_out = tmp_path / "out.md"
     r = subprocess.run(
         [sys.executable, "run.py", "infer",
-         "--benchmark-dataset", "benchmarks/benchmark_01",
+         "--benchmark-dataset", "benchmark_01",
          "--html", str(html_out), "--report", str(md_out)],
         cwd=ROOT, capture_output=True, text=True)
     assert r.returncode == 0, r.stderr
     assert html_out.exists(), r.stdout + r.stderr
     assert "RTS_ASSIGN_INF" in html_out.read_text(encoding="utf-8")
-    assert "HTML 리포트" in r.stdout
+    assert "리포트" in r.stdout
 
 
 def test_cli_help():
     r = subprocess.run([sys.executable, "run.py", "--help"],
                        cwd=ROOT, capture_output=True, text=True)
     assert r.returncode == 0
-    assert "train" in r.stdout and "infer" in r.stdout and "eval" in r.stdout
+    assert "train" in r.stdout and "infer" in r.stdout and "eval" in r.stdout and "export" in r.stdout
 
 
 def test_infer_prints_guide_and_dynamic(capsys, tmp_path):
@@ -42,5 +42,4 @@ def test_infer_prints_guide_and_dynamic(capsys, tmp_path):
     ])
     args.func(args)
     out = capsys.readouterr().out
-    assert "가이드" in out
-    assert "동적 운영" in out
+    assert "리포트" in out

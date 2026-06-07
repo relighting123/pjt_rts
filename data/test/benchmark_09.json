@@ -4,18 +4,18 @@
   "switch_time_hours": 1,
   "tasks": [
     {"plan_prod_key": "P1", "oper_id": "OP10", "oper_seq": 1, "batch_id": "B1", "plan_qty": 100, "init_wip": 100},
-    {"plan_prod_key": "P2", "oper_id": "OP20", "oper_seq": 1, "batch_id": "B2", "plan_qty": 100, "init_wip": 100},
-    {"plan_prod_key": "P3", "oper_id": "OP30", "oper_seq": 1, "batch_id": "B3", "plan_qty": 200, "init_wip": 200}
+    {"plan_prod_key": "P1", "oper_id": "OP20", "oper_seq": 1, "batch_id": "B2", "plan_qty": 100, "init_wip": 100},
+    {"plan_prod_key": "P1", "oper_id": "OP30", "oper_seq": 1, "batch_id": "B3", "plan_qty": 200, "init_wip": 200}
   ],
   "uph": [
     {"plan_prod_key": "P1", "oper_id": "OP10", "eqp_model": "M1", "uph": 100},
-    {"plan_prod_key": "P2", "oper_id": "OP20", "eqp_model": "M1", "uph": 100},
-    {"plan_prod_key": "P3", "oper_id": "OP30", "eqp_model": "M1", "uph": 100}
+    {"plan_prod_key": "P1", "oper_id": "OP20", "eqp_model": "M1", "uph": 100},
+    {"plan_prod_key": "P1", "oper_id": "OP30", "eqp_model": "M1", "uph": 100}
   ],
   "eqp_qty": {"M1": 2},
   "init_assign": [
     {"eqp_model": "M1", "plan_prod_key": "P1", "oper_id": "OP10", "count": 1},
-    {"eqp_model": "M1", "plan_prod_key": "P2", "oper_id": "OP20", "count": 1}
+    {"eqp_model": "M1", "plan_prod_key": "P1", "oper_id": "OP20", "count": 1}
   ],
   "tool_qty": [
     {"batch_id": "B1", "eqp_model": "M1", "tool_qty": 1},
@@ -25,6 +25,6 @@
   "conv_groups": {"G1": ["B1", "B2", "B3"]},
   "ground_truth": {
     "plan_achievement": 1.0,
-    "note": "3배치 2대 fan-in: P1(OP10)+P2(OP20) 각 1h → 동시 전환(1h idle) → P3(OP30) 1h 완료 = 3h 100%"
+    "note": "3배치 2대 fan-in: P1(OP10)+P1(OP20) 각 1h → 동시 전환(1h idle) → P1(OP30) 1h 완료 = 3h 100%"
   }
 }
