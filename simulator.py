@@ -357,6 +357,8 @@ def evaluate(problem: ProblemInstance) -> dict:
 
 
 def load_problem(path: str | Path) -> ProblemInstance:
+    import config
+
     data = json.loads(Path(path).read_text(encoding="utf-8"))
     tasks = [
         Task(t["plan_prod_key"], t["oper_id"], int(t["oper_seq"]),
@@ -388,7 +390,7 @@ def load_problem(path: str | Path) -> ProblemInstance:
         eqp_qty={k: int(v) for k, v in data["eqp_qty"].items()},
         init_assign=init_assign,
         tool_qty=tool_qty,
-        conv_groups={k: list(v) for k, v in data["conv_groups"].items()},
+        conv_groups=config.load_conv_groups(),
         ground_truth=data.get("ground_truth", {}),
     )
 
@@ -437,7 +439,6 @@ def problem_to_dict(problem: ProblemInstance, include_ground_truth: bool = True)
         "eqp_qty": dict(problem.eqp_qty),
         "init_assign": init_assign,
         "tool_qty": tool_qty,
-        "conv_groups": {k: list(v) for k, v in problem.conv_groups.items()},
     }
     if include_ground_truth and problem.ground_truth:
         data["ground_truth"] = problem.ground_truth

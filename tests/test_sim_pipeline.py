@@ -1,4 +1,5 @@
 from simulator import Task, ProblemInstance, Simulator
+import config
 
 
 def _three_oper_chain() -> ProblemInstance:
@@ -17,7 +18,7 @@ def _three_oper_chain() -> ProblemInstance:
         eqp_qty={"M1": 3},
         init_assign={("M1", 0): 1, ("M1", 1): 1, ("M1", 2): 1},
         tool_qty={("B1", "M1"): 3},
-        conv_groups={"G1": ["B1"]},
+        conv_groups=config.load_conv_groups(),
     )
 
 

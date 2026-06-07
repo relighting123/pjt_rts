@@ -3,21 +3,62 @@
   "horizon_hours": 4,
   "switch_time_hours": 1,
   "tasks": [
-    {"plan_prod_key": "PA", "oper_id": "OP10", "oper_seq": 1, "batch_id": "B1", "plan_qty": 100, "init_wip": 1000},
-    {"plan_prod_key": "PB", "oper_id": "OP10", "oper_seq": 1, "batch_id": "B2", "plan_qty": 100, "init_wip": 1000}
+    {
+      "plan_prod_key": "PA",
+      "oper_id": "OP10",
+      "oper_seq": 1,
+      "batch_id": "B1",
+      "plan_qty": 100,
+      "init_wip": 1000
+    },
+    {
+      "plan_prod_key": "PB",
+      "oper_id": "OP10",
+      "oper_seq": 1,
+      "batch_id": "B2",
+      "plan_qty": 100,
+      "init_wip": 1000
+    }
   ],
   "uph": [
-    {"plan_prod_key": "PA", "oper_id": "OP10", "eqp_model": "M1", "uph": 100},
-    {"plan_prod_key": "PB", "oper_id": "OP10", "eqp_model": "M1", "uph": 100}
+    {
+      "plan_prod_key": "PA",
+      "oper_id": "OP10",
+      "eqp_model": "M1",
+      "uph": 100
+    },
+    {
+      "plan_prod_key": "PB",
+      "oper_id": "OP10",
+      "eqp_model": "M1",
+      "uph": 100
+    }
   ],
-  "eqp_qty": {"M1": 1},
+  "eqp_qty": {
+    "M1": 1
+  },
   "init_assign": [
-    {"eqp_model": "M1", "plan_prod_key": "PA", "oper_id": "OP10", "count": 1}
+    {
+      "eqp_model": "M1",
+      "plan_prod_key": "PA",
+      "oper_id": "OP10",
+      "count": 1
+    }
   ],
   "tool_qty": [
-    {"batch_id": "B1", "eqp_model": "M1", "tool_qty": 1},
-    {"batch_id": "B2", "eqp_model": "M1", "tool_qty": 1}
+    {
+      "batch_id": "B1",
+      "eqp_model": "M1",
+      "tool_qty": 1
+    },
+    {
+      "batch_id": "B2",
+      "eqp_model": "M1",
+      "tool_qty": 1
+    }
   ],
-  "conv_groups": {"G1": ["B1", "B2"]},
-  "ground_truth": {"plan_achievement": 1.0, "note": "PA 1h(100)→전환1h→PB 1h(100): 3h, 1회 전환으로 둘 다 100%."}
+  "ground_truth": {
+    "plan_achievement": 1.0,
+    "note": "PA 1h(100)→전환1h→PB 1h(100): 3h, 1회 전환으로 둘 다 100%."
+  }
 }

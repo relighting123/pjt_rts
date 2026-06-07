@@ -3,18 +3,43 @@
   "horizon_hours": 3,
   "switch_time_hours": 1,
   "tasks": [
-    {"plan_prod_key": "P1", "oper_id": "OP10", "oper_seq": 1, "batch_id": "B1", "plan_qty": 300, "init_wip": 50}
+    {
+      "plan_prod_key": "P1",
+      "oper_id": "OP10",
+      "oper_seq": 1,
+      "batch_id": "B1",
+      "plan_qty": 300,
+      "init_wip": 50
+    }
   ],
   "uph": [
-    {"plan_prod_key": "P1", "oper_id": "OP10", "eqp_model": "M1", "uph": 100}
+    {
+      "plan_prod_key": "P1",
+      "oper_id": "OP10",
+      "eqp_model": "M1",
+      "uph": 100
+    }
   ],
-  "eqp_qty": {"M1": 2},
+  "eqp_qty": {
+    "M1": 2
+  },
   "init_assign": [
-    {"eqp_model": "M1", "plan_prod_key": "P1", "oper_id": "OP10", "count": 2}
+    {
+      "eqp_model": "M1",
+      "plan_prod_key": "P1",
+      "oper_id": "OP10",
+      "count": 2
+    }
   ],
   "tool_qty": [
-    {"batch_id": "B1", "eqp_model": "M1", "tool_qty": 2}
+    {
+      "batch_id": "B1",
+      "eqp_model": "M1",
+      "tool_qty": 2
+    }
   ],
-  "conv_groups": {"G1": ["B1"]},
-  "ground_truth": {"plan_achievement": 0.1667, "note": "WIP 50개 한계 → 50/300=0.1667."}
+  "ground_truth": {
+    "plan_achievement": 0.1667,
+    "note": "WIP 50개 한계 → 50/300=0.1667."
+  }
 }

@@ -3,22 +3,60 @@
   "horizon_hours": 3,
   "switch_time_hours": 1,
   "tasks": [
-    {"plan_prod_key": "PA", "oper_id": "OP10", "oper_seq": 1, "batch_id": "B1", "plan_qty": 800, "init_wip": 1000},
-    {"plan_prod_key": "PB", "oper_id": "OP10", "oper_seq": 1, "batch_id": "B2", "plan_qty": 200, "init_wip": 1000}
+    {
+      "plan_prod_key": "PA",
+      "oper_id": "OP10",
+      "oper_seq": 1,
+      "batch_id": "B1",
+      "plan_qty": 800,
+      "init_wip": 1000
+    },
+    {
+      "plan_prod_key": "PB",
+      "oper_id": "OP10",
+      "oper_seq": 1,
+      "batch_id": "B2",
+      "plan_qty": 200,
+      "init_wip": 1000
+    }
   ],
   "uph": [
-    {"plan_prod_key": "PA", "oper_id": "OP10", "eqp_model": "M1", "uph": 100},
-    {"plan_prod_key": "PB", "oper_id": "OP10", "eqp_model": "M1", "uph": 100}
+    {
+      "plan_prod_key": "PA",
+      "oper_id": "OP10",
+      "eqp_model": "M1",
+      "uph": 100
+    },
+    {
+      "plan_prod_key": "PB",
+      "oper_id": "OP10",
+      "eqp_model": "M1",
+      "uph": 100
+    }
   ],
-  "eqp_qty": {"M1": 4},
+  "eqp_qty": {
+    "M1": 4
+  },
   "init_assign": [
-    {"eqp_model": "M1", "plan_prod_key": "PA", "oper_id": "OP10", "count": 4}
+    {
+      "eqp_model": "M1",
+      "plan_prod_key": "PA",
+      "oper_id": "OP10",
+      "count": 4
+    }
   ],
   "tool_qty": [
-    {"batch_id": "B1", "eqp_model": "M1", "tool_qty": 4},
-    {"batch_id": "B2", "eqp_model": "M1", "tool_qty": 4}
+    {
+      "batch_id": "B1",
+      "eqp_model": "M1",
+      "tool_qty": 4
+    },
+    {
+      "batch_id": "B2",
+      "eqp_model": "M1",
+      "tool_qty": 4
+    }
   ],
-  "conv_groups": {"G1": ["B1", "B2"]},
   "ground_truth": {
     "plan_achievement": 1.0,
     "note": "목표배분: PA weight=8, PB weight=2 → 3:1(PA:3대/PB:1대). h0에 M1 1대 PA→PB 전환(1h idle) → h0:PA300, h1~h2:PA300+PB100 → PA=900≥800, PB=200≥200. 휴리스틱은 PA 잔여>0 동안 이동 거부 → PB=0 달성율=0.5. RL 에이전트가 선제적 배분으로 1.0 달성해야 함."

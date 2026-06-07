@@ -44,9 +44,20 @@ BC_EPOCHS = 300
 BC_LR = 1e-3
 DEFAULT_SWITCH_TIME_HOURS = 1
 
-# obs·action 차원 고정값 (.env의 MAX_TASKS/MAX_MODELS). 미설정 시 None → 문제 크기 그대로 사용
-MAX_TASKS = int(os.environ["MAX_TASKS"]) if os.getenv("MAX_TASKS") else None
-MAX_MODELS = int(os.environ["MAX_MODELS"]) if os.getenv("MAX_MODELS") else None
+# RL obs/action 패딩 상한 · batch(tool) 전환 그룹 — 여기서만 수정
+MAX_TASKS = 5
+MAX_MODELS = 3
+CONV_GROUPS: dict[str, list[str]] = {"G1": ["B1", "B2", "B3"]}
+SYS_ID = "RL_AGENT"
+
+
+def load_conv_groups() -> dict[str, list[str]]:
+    """CONV_GROUPS 설정값 반환 (호출마다 복사본)."""
+    return {k: list(v) for k, v in CONV_GROUPS.items()}
+
+
+# 하위호환 alias
+resolve_conv_groups = load_conv_groups
 
 # WIP 체류시간 성형 계수 (0.0 = 비활성)
 DWELL_LAMBDA = float(os.getenv("DWELL_LAMBDA", "0.3"))
@@ -123,5 +134,5 @@ def load_config() -> dict:
         "user": os.getenv("ORACLE_USER", "dispatcher"),
         "password": os.getenv("ORACLE_PASSWORD", "dispatcher"),
         "dsn": _build_dsn(),
-        "crt_user_id": os.getenv("RTS_CRT_USER_ID", "RL_AGENT"),
+        "sys_id": SYS_ID,
     }

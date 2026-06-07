@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>pjt_rts — 학습·추론 소스 아키텍처 가이드</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #181b24;
+      --border: #2a3040;
+      --text: #e6e8ef;
+      --muted: #9aa3b5;
+      --accent: #6ea8fe;
+      --accent2: #7ee787;
+      --warn: #f0b429;
+      --code-bg: #12151c;
+      --sidebar-w: 280px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .layout { display: flex; min-height: 100vh; }
+    nav.sidebar {
+      width: var(--sidebar-w);
+      flex-shrink: 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      border-right: 1px solid var(--border);
+      background: var(--surface);
+      padding: 1rem 0.75rem;
+    }
+    nav.sidebar h2 {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin: 1rem 0.5rem 0.4rem;
+    }
+    nav.sidebar a {
+      display: block;
+      padding: 0.35rem 0.5rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+      border-radius: 4px;
+    }
+    nav.sidebar a:hover, nav.sidebar a.active {
+      background: var(--code-bg);
+      color: var(--text);
+      text-decoration: none;
+    }
+    main {
+      flex: 1;
+      max-width: 960px;
+      padding: 2rem 2.5rem 4rem;
+    }
+    h1 { font-size: 1.75rem; margin: 0 0 0.5rem; }
+    .subtitle { color: var(--muted); margin-bottom: 2rem; }
+    h2 {
+      font-size: 1.35rem;
+      margin: 2.5rem 0 1rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 1px solid var(--border);
+    }
+    h3 { font-size: 1.05rem; margin: 1.5rem 0 0.6rem; color: var(--accent2); }
+    h4 { font-size: 0.95rem; margin: 1rem 0 0.4rem; }
+    p, li { color: var(--text); }
+    .muted { color: var(--muted); font-size: 0.9rem; }
+    .search {
+      width: 100%;
+      padding: 0.5rem 0.65rem;
+      margin-bottom: 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--code-bg);
+      color: var(--text);
+      font-size: 0.85rem;
+    }
+    .flow-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      margin: 1rem 0;
+      overflow-x: auto;
+    }
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.85rem 1rem;
+      overflow-x: auto;
+      font-size: 0.8rem;
+      line-height: 1.45;
+    }
+    code { font-family: Consolas, "Courier New", monospace; font-size: 0.85em; }
+    .fn-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin: 0.75rem 0;
+      overflow: hidden;
+    }
+    .fn-head {
+      padding: 0.65rem 1rem;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 1rem;
+    }
+    .fn-head:hover { background: var(--code-bg); }
+    .fn-name { font-family: Consolas, monospace; color: var(--accent); font-size: 0.9rem; }
+    .fn-brief { font-size: 0.82rem; color: var(--muted); text-align: right; }
+    .fn-body {
+      display: none;
+      padding: 0 1rem 1rem;
+      border-top: 1px solid var(--border);
+    }
+    .fn-card.open .fn-body { display: block; }
+    table.io {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+      margin: 0.5rem 0;
+    }
+    table.io th, table.io td {
+      border: 1px solid var(--border);
+      padding: 0.4rem 0.55rem;
+      text-align: left;
+      vertical-align: top;
+    }
+    table.io th { background: var(--code-bg); color: var(--muted); width: 22%; }
+    .tag {
+      display: inline-block;
+      font-size: 0.7rem;
+      padding: 0.1rem 0.45rem;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      margin-right: 0.25rem;
+    }
+    .tag.entry { border-color: var(--accent); color: var(--accent); }
+    .tag.db { border-color: var(--warn); color: var(--warn); }
+    .tree { font-size: 0.82rem; line-height: 1.6; }
+    .pill-row { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.75rem 0; }
+    .pill {
+      font-size: 0.78rem;
+      padding: 0.2rem 0.55rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--code-bg);
+    }
+    @media (max-width: 900px) {
+      .layout { flex-direction: column; }
+      nav.sidebar { position: relative; width: 100%; height: auto; }
+      main { padding: 1.25rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <nav class="sidebar" id="nav">
+    <input type="search" class="search" id="search" placeholder="함수·모듈 검색…" />
+    <h2>개요</h2>
+    <a href="#overview">전체 구조</a>
+    <a href="#flow-train">학습 파이프라인</a>
+    <a href="#flow-infer">추론 파이프라인</a>
+    <h2>RL · IL</h2>
+    <a href="#rl-il">모방학습 &amp; 강화학습</a>
+    <a href="#rl-teacher">↳ Teacher</a>
+    <a href="#rl-alloc">↳ 상위 Allocation</a>
+    <a href="#rl-dispatch">↳ 하위 Dispatch</a>
+    <a href="#rl-hyper">↳ 하이퍼파라미터</a>
+    <a href="#rl-infer-diff">↳ 학습 vs 추론</a>
+    <a href="#rl-mdp">↳ MDP 정의</a>
+    <a href="#rl-mdp-pipeline">↳ MDP 데이터 파이프</a>
+    <a href="#config">config.py</a>
+    <h2>코어</h2>
+    <a href="#simulator">simulator.py</a>
+    <a href="#env">env.py / alloc_env.py</a>
+    <a href="#train">train.py</a>
+    <a href="#test">test.py</a>
+    <a href="#report">report_output.py</a>
+    <h2>DB · CLI</h2>
+    <a href="#db">db/*</a>
+    <a href="#run">run.py</a>
+    <a href="#app">app.py (Streamlit)</a>
+    <h2>데이터</h2>
+    <a href="#data">경로 · JSON 스키마</a>
+  </nav>
+
+  <main>
+    <h1>pjt_rts 소스 아키텍처 가이드</h1>
+    <p class="subtitle">학습(train)부터 운영 추론(infer)까지 — 모듈 구조, 함수별 입·출력, 내부 로직 (현재 main 브랜치 기준)
+      · <a href="debug-trace-walkthrough.html">실행 추적 디버거</a> (<a href="debug-trace-walkthrough.html#mdp">MDP 전이 모드</a>)</p>
+
+    <section id="overview">
+      <h2>1. 전체 구조</h2>
+      <p>장비 전환 스케줄링 RL 시스템. <strong>2-모드</strong> 구조:</p>
+      <ul>
+        <li><strong>Mode 1 (가이드)</strong> — 공정×모델별 목표 장비 대수 (<code>AllocationEnv</code> / 해석식) → <code>RTS_GUIDE_*</code></li>
+        <li><strong>Mode 2 (동적 배치)</strong> — 시간당 장비 이동 결정 (<code>DispatchEnv</code> + MaskablePPO) → <code>RTS_ASSIGN_*</code>, <code>RTS_CONV_*</code>, <code>RTS_PLAN_ACHV_*</code></li>
+      </ul>
+      <div class="flow-box tree"><pre>
+pjt_rts/
+├── config.py          전역 경로·RL·DB 테이블·CONV_GROUPS·SYS_ID
+├── run.py             CLI: train | infer | eval | export
+├── train.py           BC → PPO 학습 (dispatch + alloc)
+├── test.py            평가·리포트·RL policy 래퍼
+├── simulator.py       순수 도메인 + 1시간 시뮬레이터 (Gym/DB 무의존)
+├── env.py             DispatchEnv (MaskablePPO 하위)
+├── alloc_env.py       AllocationEnv (상위 가이드)
+├── report_output.py   Oracle 행 빌더 + MD/HTML + 추론 JSON
+├── app.py             Streamlit 벤치마크 UI
+├── db/
+│   ├── adapter.py     Oracle ↔ ProblemInstance, 결과 INSERT
+│   ├── export.py      DB/rows → JSON
+│   └── pipeline.py    infer/train 오케스트레이션
+└── data/
+    ├── train/{RULE_TIMEKEY}.json     학습 스냅샷
+    ├── test/benchmark_*.json         평가·UI
+    └── inference/{timekey}.json      추론 입·출력
+      </pre></div>
+      <div class="pill-row">
+        <span class="pill">saved_models/ppo_dispatch.zip</span>
+        <span class="pill">saved_models/ppo_alloc.zip</span>
+        <span class="pill">Oracle RTS_LINEDSDB_INF</span>
+      </div>
+    </section>
+
+    <section id="flow-train">
+      <h2>2. 학습 파이프라인</h2>
+      <div class="flow-box"><pre>
+python run.py train [--use-db] [--from-timekey …] [--steps 50000]
+
+  (1) [선택] export_train_range()
+        Oracle DISTINCT RULE_TIMEKEY → data/train/{RULE_TIMEKEY}.json
+
+  (2) load_problem() × N  (data/train/*.json)
+
+  (3) train.train_model(problems)
+        ├─ shape 필터 (MAX_TASKS/MAX_MODELS/DWELL_OBS 동일 문제만)
+        ├─ [USE_ALLOC_MODEL] train_alloc_model() → ppo_alloc.zip
+        │     AllocationEnv + BC(해석식 logit) + PPO
+        ├─ collect_teacher_dataset()
+        │     DispatchEnv + heuristic_actions → (obs, action, mask)
+        ├─ behavior_clone() → MaskablePPO 정책 BC
+        └─ PPO.learn() → saved_models/ppo_dispatch.zip
+
+  (4) test.run_eval() → MODEL_REPORT.md / .html
+      </pre></div>
+    </section>
+
+    <section id="flow-infer">
+      <h2>3. 추론 파이프라인</h2>
+      <div class="flow-box"><pre>
+python run.py infer [--timekey …] [--skip-export] [--no-db]
+
+  db.pipeline.run_inference()
+    ├─ export_input_json()  [unless --skip-export]
+    │     fetch_problem(Oracle) → data/inference/{timekey}.json
+    ├─ load_problem(input_json) → ProblemInstance
+    ├─ MaskablePPO.load(ppo_dispatch.zip)
+    ├─ test.evaluate_benchmark(problem, model)
+    │     ├─ _guide_allocation()  (alloc RL or plan_target_allocation)
+    │     ├─ Simulator + heuristic_actions  → plan_achv/assign/conv rows
+    │     └─ Simulator + _rl_policy_factory → RL rows (shape 일치 시)
+    ├─ build_inference_result_document() → result JSON
+    ├─ save data/inference/{timekey}_result.json
+    ├─ write_inference_result() → Oracle 4테이블 INF+HIS
+    └─ write_report_files() → artifacts/inference/{timekey}.md/html
+
+로컬: python run.py infer --dataset data/test/benchmark_01.json
+      </pre></div>
+    </section>
+
+    <section id="rl-il">
+      <h2>4. 모방학습 &amp; 강화학습 (상세)</h2>
+      <p>본 프로젝트는 <strong>2단계 계층 RL</strong> + <strong>휴리스틱 Teacher 모방학습(BC)</strong> + <strong>PPO 미세조정</strong> 구조입니다. 라이브러리: <code>stable-baselines3</code>(상위 PPO), <code>sb3-contrib</code>(하위 MaskablePPO).</p>
+
+      <div class="flow-box"><pre>
+train_model(problems)
+  │
+  ├─ [Phase 0] shape 필터: (obs_shape, action_n) 동일 문제만
+  │
+  ├─ [Phase A] train_alloc_model()  ─ USE_ALLOC_MODEL ∧ ALLOC_LAMBDA&gt;0
+  │     BC(MSE→해석식 logit) → PPO → ppo_alloc.zip
+  │     역할: Mode1 가이드 (공정×모델 목표 장비 대수)
+  │
+  └─ [Phase B] MaskablePPO dispatch
+        collect_teacher_dataset(heuristic) → BC(마스킹 CE) → PPO → ppo_dispatch.zip
+        역할: Mode2 시간당 장비 이동 (실시간 배치)
+      </pre></div>
+
+      <h3 id="rl-teacher">4.1 Teacher — heuristic_actions (모방학습 레이블)</h3>
+      <p><code>simulator.heuristic_actions(sim, s)</code>는 BC 데이터의 “정답 행동”을 만듭니다. Oracle이 아니라 <strong>그리디 휴리스틱</strong>입니다.</p>
+      <table class="io">
+        <tr><th>입력</th><td><code>Simulator</code>, <code>SimState</code> (현재 시간·배치·WIP·idle)</td></tr>
+        <tr><th>알고리즘</th><td>
+          <ol style="margin:0;padding-left:1.2rem">
+            <li><code>valid_moves(s)</code> 후보 중, 이번 1시간에 잔여계획을 가장 많이 줄이는 Move 1개 선택</li>
+            <li>gain = min(to_rem, wip[to], UPH[to] × 남은시간) — batch 전환 시 switch_time 차감</li>
+            <li>from이 아직 생산 가능(from_rem&gt;0, wip&gt;0)이면: 같은 batch 무료 이동만 허용 (UPH 개선 or 빈 task 충원)</li>
+            <li>최대 <code>sum(eqp_qty)+1</code>회 반복 → substep 이동 리스트</li>
+          </ol>
+        </td></tr>
+        <tr><th>출력</th><td><code>list[Move]</code> — DispatchEnv에서 action 1..N으로 매핑 후 마지막에 action 0(commit)</td></tr>
+      </table>
+
+      <h3 id="rl-alloc">4.2 상위 — AllocationEnv (Mode 1 가이드)</h3>
+      <h4>환경 특성</h4>
+      <table class="io">
+        <tr><th>에피소드</th><td><strong>1 step</strong> — reset → step → terminated (horizon 동안 고정 배분 결정)</td></tr>
+        <tr><th>관측 (Box [0,1])</th><td>
+          dim = mt + 2·mm·mt + mm &nbsp;(mt=MAX_TASKS, mm=MAX_MODELS)<br>
+          ① plan_qty 정규화 × mt<br>
+          ② UPH 행렬 / max_uph × mm·mt<br>
+          ③ eqp_qty / max_eqp × mm<br>
+          ④ tool_qty / max_tool × mm·mt (batch×model)
+        </td></tr>
+        <tr><th>액션 (Box [-3,3])</th><td>shape = mm×mt — 모델별 task logit (연속)</td></tr>
+        <tr><th>내부 변환</th><td>
+          model별 softmax → eqp_qty 비례 raw 배분 → tool 상한 clip → 합계 eqp_qty 스케일 →
+          <strong>최대잉여법(largest remainder)</strong>으로 정수화 → <code>alloc[(model,ti)]</code>
+        </td></tr>
+        <tr><th>보상</th><td>task별 이론 계획달성률 평균<br>
+          cap = Σ alloc[m,t]×UPH[m,t]<br>
+          switches_in = max(0, alloc − init_assign) 합<br>
+          eff_h = horizon − switches_in × switch_time_hours<br>
+          rate_t = min(cap×eff_h, plan_qty) / plan_qty<br>
+          reward = mean(rate_t)
+        </td></tr>
+        <tr><th>출력 (추론)</th><td><code>get_float_target()</code> → <code>complete_guide_allocation</code> → DispatchEnv <code>target_allocation</code></td></tr>
+      </table>
+
+      <h4>모방학습 — behavior_clone_alloc</h4>
+      <table class="io">
+        <tr><th>Teacher</th><td><code>plan_target_allocation()</code> 해석식 (plan_qty/UPH 비례, eqp_qty 스케일)</td></tr>
+        <tr><th>타깃 logit</th><td><code>_analytic_target_logits(env)</code>: frac = analytic/(model,ti)/eqp_qty → log(frac)+3, clip [-3,3], UPH 없는 슬롯 -3</td></tr>
+        <tr><th>손실</th><td>MSE( policy.mean − target ) × mask / sum(mask) — UPH 있는 (model,task)만</td></tr>
+        <tr><th>옵티마</th><td>Adam, lr=<code>BC_LR</code>(1e-3), epochs=<code>BC_EPOCHS</code>(300)</td></tr>
+        <tr><th>데이터</th><td>문제당 obs 1개 (1-step env) — problems 리스트 전체</td></tr>
+      </table>
+
+      <h4>강화학습 — train_alloc_model PPO</h4>
+      <table class="io">
+        <tr><th>알고리즘</th><td><code>sb3.PPO("MlpPolicy")</code> (Maskable 아님 — 연속 Box action)</td></tr>
+        <tr><th>하이퍼</th><td>n_steps=64, batch_size=32, total_timesteps=max(2000, ppo_steps//10)</td></tr>
+        <tr><th>env 샘플링</th><td>매 rollout마다 <code>random.choice(same_shape_problems)</code></td></tr>
+        <tr><th>저장</th><td><code>saved_models/ppo_alloc.zip</code></td></tr>
+      </table>
+
+      <h3 id="rl-dispatch">4.3 하위 — DispatchEnv + MaskablePPO (Mode 2 동적 배치)</h3>
+      <h4>시간 구조 (에피소드)</h4>
+      <pre>1 시간 = 여러 substep(장비 Move) + commit(action=0)
+  substep: apply_move (생산 없음, idle/tool 상태만 변화)
+  commit: advance_hour() → UPH×배치 생산, WIP 유입, hour++
+  max_substeps = sum(eqp_qty) + 1  (초과 시 강제 commit)</pre>
+
+      <h4>관측 벡터 (DispatchEnv._obs)</h4>
+      <p class="muted">기본 dim = 2·mt + 2·mm·mt + 1. <code>DWELL_OBS=true</code>이면 +mt (체류시간 슬롯).</p>
+      <table class="io">
+        <tr><th>슬롯</th><th>크기</th><th>의미 · 정규화</th></tr>
+        <tr><td>plan_part</td><td>mt</td><td>잔여계획 / plan_qty (task별)</td></tr>
+        <tr><td>wip_part</td><td>mt</td><td>현재 WIP / max(init_wip)</td></tr>
+        <tr><td>assign_part</td><td>mm×mt</td><td>배치대수 / eqp_qty[model]</td></tr>
+        <tr><td>change_part</td><td>mm×mt</td><td>idle(전환중) / (switch_time×eqp_qty) — 목적지 task 인코딩</td></tr>
+        <tr><td>hour_part</td><td>1</td><td>hour / horizon_hours</td></tr>
+        <tr><td>dwell_part</td><td>mt (옵션)</td><td>wip_dwell_time / horizon (WIP 체류 추정)</td></tr>
+      </table>
+      <p>예: mt=5, mm=3, DWELL_OBS=true → obs_dim = 10 + 30 + 30 + 1 + 5 = <strong>76</strong></p>
+
+      <h4>액션 공간 &amp; 마스킹</h4>
+      <table class="io">
+        <tr><th>action 0</th><td><strong>commit</strong> — 1시간 경과 (항상 mask=True)</td></tr>
+        <tr><th>action 1..N</th><td>사전 열거 <code>Move(model, from, to)</code> — padded mm×mt×(mt−1) 조합</td></tr>
+        <tr><th>마스크</th><td><code>sim.valid_moves(s)</code>에 있는 Move만 True (tool·conv_group·UPH·assign 검사)</td></tr>
+        <tr><th>래퍼</th><td><code>ActionMasker(env, _mask_fn)</code> → MaskablePPO 호환</td></tr>
+      </table>
+
+      <h4>보상 함수 (step마다 dense + 종료 보너스)</h4>
+      <pre>reward = (achievement_gain / total_plan) + dwell_r + alloc_r  [+ terminal bonus]
+
+achievement_gain = Δ min(produced, plan_qty) 합  (commit/substep 후 생산 증가분)
+
+dwell_r (commit 시, DWELL_LAMBDA&gt;0):
+  Σ weight_i × min(dwell_i, H)/H
+  weight_i = remaining_plan_i / total_plan
+
+alloc_r (commit 시, ALLOC_LAMBDA&gt;0, target_allocation 있음):
+  가동률 ≥ GUIDE_UTIL_THRESHOLD 일 때만
+  task별 WIP&gt;0 슬롯: assign이 target±GUIDE_BAND_PCT 밴드 밖이면 페널티
+  alloc_r = ALLOC_LAMBDA × (1 − mean_penalty)
+
+terminated 시: reward += plan_achievement  (에피소드 종료 보너스)</pre>
+
+      <h4>모방학습 — collect_teacher_dataset + behavior_clone</h4>
+      <table class="io">
+        <tr><th>데이터 수집</th><td>
+          문제마다 DispatchEnv + 동일 target_allocation(Phase A 결과)<br>
+          매 substep: obs 저장 → teacher move를 action index로 변환 → env.step<br>
+          invalid action이면 0(commit)으로 대체<br>
+          guard: horizon×(eqp+2)+5 로 무한루프 방지
+        </td></tr>
+        <tr><th>출력 텐서</th><td><code>obs</code> float32[], <code>acts</code> int[], <code>masks</code> bool[] — 전 문제·전 substep 누적</td></tr>
+        <tr><th>BC 손실</th><td>CrossEntropy( masked_logits, teacher_action )<br>
+          invalid action logit = −1e8 (mask False)</td></tr>
+        <tr><th>옵티마</th><td>Adam lr=BC_LR, BC_EPOCHS=300, 전체 배치 1-pass/epoch</td></tr>
+      </table>
+
+      <h4>강화학습 — MaskablePPO (train_model)</h4>
+      <table class="io">
+        <tr><th>알고리즘</th><td><code>MaskablePPO("MlpPolicy")</code> + <code>ActionMasker</code></td></tr>
+        <tr><th>하이퍼</th><td>n_steps=256, batch_size=64, total_timesteps=<code>DEFAULT_PPO_STEPS</code>(50_000) 또는 CLI --steps</td></tr>
+        <tr><th>env</th><td><code>make_env(random.choice(problems))</code> — 매 rollout 다른 ProblemInstance</td></tr>
+        <tr><th>순서</th><td>① BC 사전학습 ② <code>model.learn(ppo_steps)</code> on-policy 미세조정</td></tr>
+        <tr><th>저장</th><td><code>saved_models/ppo_dispatch.zip</code></td></tr>
+      </table>
+
+      <h3 id="rl-hyper">4.4 하이퍼파라미터 &amp; shape 제약</h3>
+      <table class="io">
+        <tr><th>파라미터</th><th>기본값</th><th>영향</th></tr>
+        <tr><td>MAX_TASKS / MAX_MODELS</td><td>5 / 3</td><td>obs·action 고정 차원 (작은 문제는 0 패딩)</td></tr>
+        <tr><td>BC_EPOCHS / BC_LR</td><td>300 / 1e-3</td><td>상·하위 BC 공통</td></tr>
+        <tr><td>DEFAULT_PPO_STEPS</td><td>50_000</td><td>dispatch PPO timesteps (≠ 에피소드 수)</td></tr>
+        <tr><td>ALLOC_LAMBDA</td><td>0.3 (.env)</td><td>0이면 가이드 shaping·alloc 학습 비활성</td></tr>
+        <tr><td>DWELL_LAMBDA</td><td>0.3</td><td>0이면 dwell shaping 비활성</td></tr>
+        <tr><td>DWELL_OBS</td><td>true</td><td>false면 obs 차원 변경 → 기존 모델 비호환</td></tr>
+        <tr><td>USE_ALLOC_MODEL</td><td>true</td><td>false면 해석식 plan_target_allocation만 사용</td></tr>
+        <tr><td>GUIDE_UTIL_THRESHOLD</td><td>0.70</td><td>이하 가동률에서 alloc guide reward=0</td></tr>
+        <tr><td>GUIDE_BAND_PCT</td><td>0.20</td><td>target ±20% 밴드</td></tr>
+      </table>
+      <p><strong>Shape 필터:</strong> 첫 문제의 <code>(obs.shape, action.n)</code>과 다른 ProblemInstance는 학습에서 제외. 추론 시 <code>_model_matches()</code>로 RL 평가 skip → heuristic만 사용.</p>
+
+      <h3 id="rl-infer-diff">4.5 학습 vs 추론 차이</h3>
+      <table class="io">
+        <tr><th>항목</th><th>학습 (train.py)</th><th>추론 (test.py / infer)</th></tr>
+        <tr><td>보상</td><td>PPO/BC loss 계산에 사용</td><td>사용 안 함 — Simulator만 실행</td></tr>
+        <tr><td>정책</td><td>stochastic rollout (PPO)</td><td><code>predict(..., deterministic=True)</code></td></tr>
+        <tr><td>가이드</td><td>학습 중 ppo_alloc 또는 해석식 → target_allocation 주입</td><td><code>_guide_allocation()</code> → RTS_GUIDE rows</td></tr>
+        <tr><td>RL 실행</td><td>env.step 루프로 학습</td><td><code>_rl_policy_factory</code>: sim 상태를 env에 주입, substep predict 후 sim.apply_move</td></tr>
+        <tr><td>산출</td><td>.zip 모델 파일</td><td>plan_achv/assign/conv rows + plan_achievement KPI</td></tr>
+        <tr><td>alloc BC teacher</td><td>plan_target_allocation 해석식</td><td>동일 (추론 시 RL alloc 모델 predict)</td></tr>
+        <tr><td>dispatch BC teacher</td><td>heuristic_actions</td><td>추론 미사용 (학습 전용)</td></tr>
+      </table>
+
+      <h4>추론 시 RL policy 루프 (_rl_policy_factory)</h4>
+      <pre>매 시뮬레이션 1시간:
+  env._state = sim state (공유)
+  moves = []
+  repeat up to max_substeps:
+    obs = env._obs()
+    mask = env.action_masks()
+    action = model.predict(obs, action_masks=mask, deterministic=True)
+    if action==0: break
+    mv = move_list[action-1]
+    if mv valid: sim.apply_move(s, mv); moves.append(mv)
+    else: break
+  return moves  → run_policy가 advance_hour 전까지 적용</pre>
+
+      <h3 id="rl-mdp">4.6 MDP 정식 정의 (강화학습 관점)</h3>
+      <p>본 프로젝트는 <strong>계층 MDP</strong>입니다. 고정 파라미터 <code>ξ = ProblemInstance</code> 위에서 두 개의 Gym 환경이 순차 실행됩니다. 실제 물리 상태는 <code>SimState</code>이고, 정책이 보는 것은 정규화된 관측 <code>o = f(s, ξ)</code>입니다.</p>
+
+      <div class="flow-box"><pre>
+계층 구조 (에피소드 1개 = ProblemInstance ξ 하나)
+
+  [상위 MDP] AllocationEnv  — 1 transition 후 종료
+       │  출력: target_allocation (가이드) + RTS_GUIDE rows
+       ▼
+  [하위 MDP] DispatchEnv     — horizon×(substeps) transitions
+       │  내부: Simulator SimState s
+       ▼
+  산출: trace, hourly_stats → PLAN_ACHV / ASSIGN / CONV rows
+      </pre></div>
+
+      <h4>상위 MDP — AllocationEnv (Mode 1)</h4>
+      <table class="io">
+        <tr><th>요소</th><th>정의</th></tr>
+        <tr><td><strong>S</strong> (실질)</td><td>정적 문제 파라미터만 — <code>ξ</code> (plan, UPH, eqp, tool). 에피소드 중 변하지 않음.</td></tr>
+        <tr><td><strong>O</strong> (관측)</td><td><code>o ∈ [0,1]^{mt + 2·mm·mt + mm}</code> — plan, UPH행렬, eqp, tool 정규화 (<code>_build_obs</code>)</td></tr>
+        <tr><td><strong>A</strong> (행동)</td><td><code>a ∈ [-3,3]^{mm×mt}</code> 연속 logit. 내부 결정론적 디코더 <code>g(a)→alloc ∈ ℤ^{mm×mt}</code> (softmax→tool clip→largest remainder)</td></tr>
+        <tr><td><strong>T</strong> (전이)</td><td><strong>1-step terminal.</strong> <code>step(a)</code> 후 <code>done=True</code>. SimState 없음 — 이론 생산량만 계산.</td></tr>
+        <tr><td><strong>R</strong> (보상)</td><td><code>R = mean_t min(cap_t·eff_h, plan_t) / plan_t</code><br>
+          cap_t = Σ_m alloc[m,t]·UPH[m,t]<br>
+          eff_h = H − (Σ_m max(0,alloc−init_assign))·switch_time</td></tr>
+        <tr><td><strong>γ</strong></td><td>사실상 1 (1-step) — SB3 PPO 기본 γ≈0.99 적용되나 에피소드 길이=1</td></tr>
+        <tr><td><strong>정책</strong></td><td>학습: <code>π_alloc(a|o)</code> Gaussian (PPO). 추론: <code>a = π(o)</code> deterministic → guide rows</td></tr>
+      </table>
+
+      <h4>하위 MDP — DispatchEnv (Mode 2)</h4>
+      <table class="io">
+        <tr><th>요소</th><th>정의</th></tr>
+        <tr><td><strong>S</strong> (hidden)</td><td><code>s = SimState(hour, produced, wip, assign, idle, tool_used)</code> — Simulator가 관리</td></tr>
+        <tr><td><strong>O</strong> (관측)</td><td><code>o = _obs(s)</code> ∈ [0,1]^d, d = 2·mt + 2·mm·mt + 1 (+mt if DWELL_OBS). <strong>POMDP에 가까움</strong> — idle·전환 의도가 change_part에 부분 노출.</td></tr>
+        <tr><td><strong>A</strong> (행동)</td><td>이산 <code>a ∈ {0,1,…,|move_list|}</code>. 0=commit(1h 경과), k&gt;0=미리 열거된 Move.</td></tr>
+        <tr><td><strong>마스크</strong></td><td><code>M(s) ⊂ A</code>: commit 항상 True + <code>valid_moves(s)</code> (tool·conv_group·UPH·assign&gt;0)</td></tr>
+        <tr><td><strong>T</strong> (전이)</td><td>
+          • <code>a=0</code> 또는 substep 한도: <code>s' = advance_hour(s)</code> — 생산·WIP유입·hour++<br>
+          • <code>a=k</code> valid move: <code>s' = apply_move(s, Move_k)</code> — assign/idle/tool 변화, <strong>생산 없음</strong><br>
+          • invalid move: 상태 유지 (substep만 증가)
+        </td></tr>
+        <tr><td><strong>R</strong> (보상, 학습만)</td><td>매 env.step:<br>
+          <code>r = Δachievement/total_plan + dwell_r·𝟙_commit + alloc_r·𝟙_commit</code><br>
+          종료 시: <code>r += plan_achievement(s)</code></td></tr>
+        <tr><td><strong>종료</strong></td><td><code>hour ≥ horizon_hours</code> → terminated</td></tr>
+        <tr><td><strong>옵션 구조</strong></td><td>1 “거시 step” = substep들(move) + commit. BC/PPO는 <strong>미시 step</strong>마다 (o,a,r) 기록.</td></tr>
+      </table>
+
+      <h4>benchmark_01에서의 MDP 스냅샷 (실측)</h4>
+      <table class="io">
+        <tr><th>t</th><th>SimState (요약)</th><th>valid actions</th><th>대표 a</th><th>Δproduced</th></tr>
+        <tr><td>reset</td><td>h=0, wip=1000, assign M1→t0=1</td><td>mask True=1 (commit만)</td><td>a=0</td><td>—</td></tr>
+        <tr><td>commit h0→1</td><td>h=1, produced=100, wip=900</td><td>동일</td><td>a=0</td><td>+100</td></tr>
+        <tr><td>commit h1→2</td><td>h=2, produced=200</td><td>동일</td><td>a=0</td><td>+100</td></tr>
+        <tr><td>commit h2→3</td><td>h=3, produced=300, done</td><td>—</td><td>a=0</td><td>+100, R_terminal=1.0</td></tr>
+      </table>
+      <p class="muted">obs_dim=46 (mt=5,mm=3,DWELL_OBS), action_n=61. 이동 없으면 매 micro-step이 commit만 반복되는 degenerate case.</p>
+
+      <h3 id="rl-mdp-pipeline">4.7 MDP 기준 데이터 변경 파이프라인</h3>
+      <p>“데이터”는 세 층으로 흐릅니다: <strong>정적 ξ</strong> → <strong>MDP 전이 (s,o,a,r)</strong> → <strong>운영 산출 (Oracle rows)</strong>.</p>
+
+      <h4>A. 학습 (train) — MDP rollout → 정책 갱신</h4>
+      <div class="flow-box"><pre>
+[정적 입력 ξ]
+  DB/JSON → ProblemInstance
+  필드: tasks[], uph{}, eqp_qty{}, init_assign{}, tool_qty{}, horizon, switch_time
+  + config.CONV_GROUPS (ξ에 주입)
+
+[상위 MDP — AllocationEnv]  (선택, USE_ALLOC_MODEL)
+  o_alloc = _build_obs(ξ)                    … 고정 특징 벡터
+  BC: target a* = analytic_logit(plan_target_allocation(ξ))
+  PPO rollout: (o_alloc, a, r_alloc) × N problems
+  g(a) → alloc → complete_guide_allocation → target_allocation (ξ에 결합, dispatch용)
+
+[하위 MDP — DispatchEnv + MaskablePPO]
+  reset: s₀ ~ T_reset(ξ), o₀ = _obs(s₀)
+  BC dataset (teacher π_H = heuristic):
+    repeat until done:
+      mask_t = M(s_t)
+      a_t = index(π_H(s_t))  … move indices + commit
+      store (o_t, a_t, mask_t)
+      (s_{t+1}, r_t) = env.step(a_t)   … Simulator 전이 + reward
+
+  PPO learn:
+    rollouts: (o_t, a_t, mask_t, r_t, done) ~ π_θ
+    advantage / policy gradient → θ update
+  save π_θ → ppo_dispatch.zip
+
+[학습 산출물 — MDP 밖]
+  ppo_alloc.zip, ppo_dispatch.zip (정책 파라미터 θ)
+      </pre></div>
+
+      <h4>B. 추론 (infer) — MDP 전이는 실행, 보상·역전파 없음</h4>
+      <div class="flow-box"><pre>
+[정적 입력 ξ]  (train과 동일 경로)
+  Oracle fetch_rows → rows_to_problem → save/load JSON
+
+[상위 — 가이드 only, reward 없음]
+  o_alloc = _build_obs(ξ)
+  a = π_alloc(o) deterministic  (또는 analytic fallback)
+  alloc = g(a)
+  guide_rows = build_guide_rows(complete_guide_allocation(alloc))
+  target_allocation → DispatchEnv 생성 시 주입 (ALLOC_LAMBDA&gt;0)
+
+[하위 — 시뮬레이션 두 경로]
+
+  (1) Heuristic path (항상):
+    s ← reset(ξ)
+    each hour h:
+      moves = heuristic_actions(sim, s)   … MDP 밖 teacher, sim 직접 조작
+      apply moves on sim
+      advance_hour(s)                   … T_commit
+    → trace_h, hourly_stats_h
+
+  (2) RL path (shape match 시):
+    s ← reset(ξ)  (sim에 주입)
+    each hour:
+      repeat micro-step:
+        o = _obs(s), mask = M(s)
+        a = π_dispatch(o, mask) deterministic
+        if a=0: break
+        else apply_move(s, Move_a) on sim
+    → trace_rl, hourly_stats_rl
+
+[ξ + trace → Oracle 행]  (MDP 상태 s의 집계)
+  hourly_stats: assign_snapshot, hourly_produce, util_rate
+  trace: applied_moves per hour
+  → PLAN_ACHV rows (task×hour)
+  → ASSIGN rows (eqp×hour, UPH split)
+  → CONV rows (batch change moves)
+  + guide_rows (상위 alloc)
+
+  result JSON + DB write
+      </pre></div>
+
+      <h4>C. MDP 변수 ↔ 코드 ↔ 파일 매핑</h4>
+      <table class="io">
+        <tr><th>MDP 개념</th><th>코드 객체</th><th>학습 시 변화</th><th>추론 시 변화</th></tr>
+        <tr><td>환경 파라미터 ξ</td><td><code>ProblemInstance</code></td><td>매 rollout random.choice(problems)</td><td>timekey당 1개 고정</td></tr>
+        <tr><td>hidden state s</td><td><code>SimState</code> in Simulator</td><td>step마다 assign/wip/produced/hour</td><td>동일 (reward만 없음)</td></tr>
+        <tr><td>관측 o</td><td><code>DispatchEnv._obs()</code></td><td>BC/PPO 입력 텐서</td><td><code>model.predict(o, mask)</code></td></tr>
+        <tr><td>행동 a</td><td>int action index</td><td>teacher 또는 π_θ sample</td><td>π_θ deterministic</td></tr>
+        <tr><td>보상 r</td><td><code>env.step</code> return</td><td>PPO advantage</td><td><strong>계산 안 함</strong></td></tr>
+        <tr><td>가이드 g</td><td><code>target_allocation</code></td><td>alloc_r shaping</td><td>RTS_GUIDE + alloc_r=0</td></tr>
+        <tr><td>에피소드 로그</td><td>trace, hourly_stats</td><td>학습 리포트용 eval</td><td>Oracle INSERT 데이터</td></tr>
+        <tr><td>정책 θ</td><td>.zip weights</td><td>매 learn() 갱신</td><td>load only</td></tr>
+      </table>
+
+      <h4>D. BC vs PPO — MDP 데이터 관점</h4>
+      <table class="io">
+        <tr><th></th><th>모방학습 (BC)</th><th>강화학습 (PPO)</th></tr>
+        <tr><td>데이터</td><td>(o, a*, mask) — r 미사용</td><td>(o, a, r, mask, done) rollout</td></tr>
+        <tr><td>Alloc teacher</td><td>analytic logit (plan_target_allocation)</td><td>env reward (이론 plan rate)</td></tr>
+        <tr><td>Dispatch teacher</td><td>heuristic_actions → action index</td><td>π 자체 rollout + env reward</td></tr>
+        <tr><td>목적</td><td>π_θ ≈ π_teacher warm-start</td><td>π_θ가 r 최대화 (shaping 포함)</td></tr>
+      </table>
+
+      <div id="fn-rl-mdp"></div>
+      <div id="fn-rl-detail"></div>
+    </section>
+
+    <section id="config">
+      <h2>5. config.py</h2>
+      <table class="io">
+        <tr><th>상수</th><th>값 / 설명</th></tr>
+        <tr><td>MAX_TASKS / MAX_MODELS</td><td>5 / 3 — Obs·Action 패딩 (단일 정책 shape 고정)</td></tr>
+        <tr><td>CONV_GROUPS</td><td>{"G1":["B1","B2","B3"]} — batch(tool) 전환 그룹 (JSON·DB export 공통)</td></tr>
+        <tr><td>SYS_ID</td><td>"RL_AGENT" — DB CRT_USER_ID 기록값</td></tr>
+        <tr><td>DEFAULT_PPO_STEPS</td><td>50_000</td></tr>
+        <tr><td>ALLOC_LAMBDA / DWELL_LAMBDA</td><td>.env 또는 0.3 — 가이드·체류 shaping</td></tr>
+        <tr><td>USE_ALLOC_MODEL</td><td>true — ppo_alloc.zip으로 가이드 주입</td></tr>
+        <tr><td>TRAIN/TEST/INFERENCE_DATA_DIR</td><td>data/train · data/test · data/inference</td></tr>
+        <tr><td>INPUT_TABLE … GUIDE_TABLE</td><td>RTS_LINEDSDB_INF, RTS_PLAN_ACHV_*, RTS_ASSIGN_*, RTS_CONV_*, RTS_GUIDE_*</td></tr>
+      </table>
+      <div id="fn-config"></div>
+    </section>
+
+    <section id="simulator">
+      <h2>6. simulator.py — 도메인 &amp; 시뮬레이터</h2>
+      <p class="muted">Gym·Oracle·RL 라이브러리에 의존하지 않는 순수 코어. 1 step = 1시간 진행(commit) 또는 그 전 substep 이동.</p>
+      <div id="fn-simulator"></div>
+    </section>
+
+    <section id="env">
+      <h2>7. env.py · alloc_env.py</h2>
+      <div id="fn-env"></div>
+    </section>
+
+    <section id="train">
+      <h2>8. train.py</h2>
+      <div id="fn-train"></div>
+    </section>
+
+    <section id="test">
+      <h2>9. test.py</h2>
+      <div id="fn-test"></div>
+    </section>
+
+    <section id="report">
+      <h2>10. report_output.py</h2>
+      <div id="fn-report"></div>
+    </section>
+
+    <section id="db">
+      <h2>11. db/* — Oracle &amp; JSON</h2>
+      <h3>입력 행 (RTS_LINEDSDB_INF)</h3>
+      <pre>tuple: (RULE_TIMEKEY, FAC_ID, BATCH_ID, PLAN_PROD_KEY, OPER_ID, OPER_SEQ,
+        EQP_MODEL_CD, GBN_CD, ATTR_VAL)
+GBN_CD: UPH | ASSIGN_EQUIP_CNT | TOOL_QTY | D0_TARGET_QTY | WIP_QTY
+Target/WIP → (ppk, oper_id) 키 (모델 무관). UPH/ASSIGN → 모델별.</pre>
+      <div id="fn-db"></div>
+    </section>
+
+    <section id="run">
+      <h2>12. run.py — CLI</h2>
+      <div id="fn-run"></div>
+    </section>
+
+    <section id="app">
+      <h2>13. app.py — Streamlit</h2>
+      <div id="fn-app"></div>
+    </section>
+
+    <section id="data">
+      <h2>14. 데이터 경로 &amp; JSON</h2>
+      <table class="io">
+        <tr><th>경로</th><th>용도</th></tr>
+        <tr><td>data/train/{RULE_TIMEKEY}.json</td><td>DB export 학습 스냅샷</td></tr>
+        <tr><td>data/test/benchmark_*.json</td><td>평가·Streamlit (ground_truth optional)</td></tr>
+        <tr><td>data/inference/{timekey}.json</td><td>추론 입력 ProblemInstance</td></tr>
+        <tr><td>data/inference/{timekey}_result.json</td><td>guide + dynamic rows (schema_version=1)</td></tr>
+      </table>
+      <h3>ProblemInstance JSON 필드</h3>
+      <pre>rule_timekey, horizon_hours, switch_time_hours,
+tasks[{plan_prod_key, oper_id, oper_seq, batch_id, plan_qty, init_wip}],
+uph[{plan_prod_key, oper_id, eqp_model, uph}],
+eqp_qty{model: count}, init_assign[{eqp_model, plan_prod_key, oper_id, count}],
+tool_qty[{batch_id, eqp_model, tool_qty}]
+※ conv_groups는 JSON에 없음 → config.CONV_GROUPS 사용</pre>
+    </section>
+  </main>
+</div>
+
+<script>
+const FUNCTIONS = {
+  "fn-rl-mdp": [
+    { name: "ProblemInstance ξ", brief: "MDP 고정 파라미터", in: "DB rows or JSON", logic: "tasks, uph, eqp, assign, tool, horizon — 에피소드 동안 불변", out: "AllocationEnv + DispatchEnv 공유" },
+    { name: "AllocationEnv (상위 MDP)", brief: "1-step terminal", in: "ξ", logic: "o=_build_obs(ξ), a=logits, T→done, R=theoretical plan rate", out: "target_allocation via g(a)" },
+    { name: "DispatchEnv (하위 MDP)", brief: "multi-step SimState", in: "ξ, target_allocation", logic: "reset→s₀; step: move or commit; R=Δachv+dwell+guide+terminal", out: "obs, reward, done" },
+    { name: "Simulator T(s,a)", brief: "전이 함수", in: "SimState, action", logic: "apply_move: assign/idle/tool | advance_hour: produce/wip/hour", out: "s'" },
+    { name: "collect_teacher_dataset", brief: "BC MDP 데이터", in: "problems[]", logic: "(o_t,a_t,mask_t) from π_H replay — r 미저장", out: "numpy tensors" },
+    { name: "MaskablePPO.learn", brief: "PPO MDP 데이터", in: "make_env(problem)", logic: "rollout (o,a,r,mask,done) → advantage → θ", out: "ppo_dispatch.zip" },
+    { name: "evaluate_benchmark (infer)", brief: "무보상 전이", in: "ξ, π_θ", logic: "sim 직접 조작 + predict — env.step reward 생략", out: "trace, hourly_stats → Oracle rows" },
+  ],
+  "fn-rl-detail": [
+    { name: "behavior_clone_alloc(model, problems, epochs, lr)", brief: "상위 BC", in: "PPO model, problems[], BC_EPOCHS, BC_LR", logic: "문제별 obs 1개 + analytic target logit → MSE on policy Gaussian mean (masked)", out: "in-place policy weights" },
+    { name: "_analytic_target_logits(env)", brief: "alloc BC target", in: "AllocationEnv", logic: "plan_target_allocation → log(frac/eqp) per UPH slot, clip [-3,3]", out: "float32[mm×mt]" },
+    { name: "collect_teacher_dataset(problems)", brief: "dispatch BC data", in: "problems with target_allocation", logic: "heuristic on deepcopy state → replay in DispatchEnv, store obs/act/mask per substep", out: "(obs ndarray, acts ndarray, masks ndarray)" },
+    { name: "behavior_clone(model, obs, acts, masks, …)", brief: "dispatch BC", in: "MaskablePPO, teacher tensors", logic: "extract_features→logits, mask invalid -1e8, cross_entropy vs teacher", out: "in-place policy weights" },
+    { name: "DispatchEnv._dwell_shaping_reward()", brief: "체류 shaping", in: "SimState at commit", logic: "remaining_plan weighted dwell/H sum × DWELL_LAMBDA", out: "float reward term" },
+    { name: "DispatchEnv._alloc_guide_reward()", brief: "가이드 shaping", in: "SimState, target_allocation", logic: "util≥threshold, WIP>0 slots, band penalty × ALLOC_LAMBDA", out: "float reward term" },
+    { name: "AllocationEnv._logits_to_allocation(logits)", brief: "연속→정수 배분", in: "float[mm×mt]", logic: "per-model softmax, tool clip, eqp scale, largest remainder", out: "dict[(model,ti), int]" },
+    { name: "AllocationEnv._compute_reward(alloc)", brief: "alloc RL reward", in: "integer allocation", logic: "per-task cap×eff_h vs plan_qty, mean rate", out: "float [0,1]" },
+    { name: "_rl_policy_factory(model, problem)", brief: "추론 RL", in: "MaskablePPO, ProblemInstance", logic: "sync sim state to env, masked predict substeps until commit", out: "policy_fn(sim,s)→list[Move]" },
+    { name: "_model_matches(model, problem)", brief: "shape guard", in: "loaded model, problem", logic: "compare obs.shape and action.n with DispatchEnv", out: "bool" },
+  ],
+  "fn-config": [
+    { name: "load_conv_groups()", brief: "전환 그룹 복사본", in: "—", logic: "config.CONV_GROUPS deep copy", out: "dict[str, list[str]]" },
+    { name: "load_config()", brief: "Oracle 접속 dict", in: ".env ORACLE_*", logic: "user/password/dsn 조립, SYS_ID 포함", out: "{user, password, dsn, sys_id}" },
+    { name: "replace_file(path)", brief: "덮어쓰기 전 삭제", in: "Path", logic: "exists → unlink", out: "Path" },
+  ],
+  "fn-simulator": [
+    { name: "Task", brief: "공정 1개", in: "ppk, oper_id, oper_seq, batch_id, plan_qty, init_wip", logic: "frozen dataclass", out: "—" },
+    { name: "ProblemInstance", brief: "문제 전체", in: "tasks, uph, eqp_qty, init_assign, tool_qty, conv_groups, …", logic: "uph_of, batch_of, conv_group_of, plan_target_allocation, complete_guide_allocation", out: "—" },
+    { name: "Simulator.reset()", brief: "초기 SimState", in: "—", logic: "init_assign 복사, tool_used 계산, produced/wip 초기화", out: "SimState" },
+    { name: "Simulator.advance_hour(s)", brief: "1시간 생산", in: "SimState", logic: "UPH×배치 생산 → WIP 차감, 다음 oper 유입, idle decay, hour++", out: "None (in-place)" },
+    { name: "Simulator.valid_moves(s)", brief: "가능 이동", in: "SimState", logic: "assign>0, UPH 존재, conv_group, tool_qty cap 검사", out: "list[Move]" },
+    { name: "Simulator.apply_move(s, mv)", brief: "이동 적용", in: "SimState, Move(model,from,to)", logic: "assign 이동, batch 변경 시 idle+=switch_time, tool_used 갱신", out: "None" },
+    { name: "heuristic_actions(sim, s)", brief: "Teacher 정책", in: "Simulator, SimState", logic: "valid_moves 중 plan 달성 gain 최대 greedy 반복", out: "list[Move]" },
+    { name: "run_policy(sim, policy_fn)", brief: "전체 horizon", in: "sim, (sim,s)→moves", logic: "substep moves → commit(advance_hour) 반복, trace·hourly_stats 수집", out: "(final_state, trace, hourly_stats)" },
+    { name: "load_problem(path)", brief: "JSON → Problem", in: "JSON path", logic: "tasks/uph/assign/tool 파싱, conv_groups=config.load_conv_groups()", out: "ProblemInstance" },
+    { name: "save_problem(problem, path)", brief: "Problem → JSON", in: "ProblemInstance, path", logic: "problem_to_dict (conv_groups 미포함), replace_file 후 write", out: "Path" },
+  ],
+  "fn-env": [
+    { name: "DispatchEnv", brief: "하위 RL 환경", in: "problem, max_tasks/models, dwell/alloc lambda, target_allocation", logic: "move_list 열거+패딩, obs 정규화, action_masks", out: "gym.Env" },
+    { name: "DispatchEnv.step(action)", brief: "substep/commit", in: "int: 0=commit, else move index", logic: "move 적용 또는 advance_hour, shaping reward, terminate at horizon", out: "(obs,reward,term,trunc,info)" },
+    { name: "DispatchEnv.action_masks()", brief: "MaskablePPO", in: "—", logic: "commit 항상 True + valid_moves", out: "bool[]" },
+    { name: "AllocationEnv", brief: "상위 1-step env", in: "problem, max_tasks/models", logic: "logits→softmax→정수 배분(tool cap, largest remainder)", out: "gym.Env" },
+    { name: "AllocationEnv.step(action)", brief: "가이드 결정", in: "float vector (mm×mt)", logic: "배분 후 이론 plan achievement reward", out: "(obs, reward, True, False, info)" },
+    { name: "AllocationEnv.get_float_target()", brief: "Dispatch 주입용", in: "—", logic: "complete_guide_allocation(_last_allocation)", out: "dict[(model,ti), float]" },
+  ],
+  "fn-train": [
+    { name: "train_alloc_model(problems, …)", brief: "ppo_alloc 학습", in: "list[ProblemInstance], ppo_steps", logic: "BC(analytic logits) → PPO → ppo_alloc.zip", out: "PPO model" },
+    { name: "train_model(problems, …)", brief: "메인 학습", in: "problems, ppo_steps, bc_epochs", logic: "shape 필터 → alloc → teacher dataset → BC → PPO → ppo_dispatch.zip", out: "MaskablePPO" },
+    { name: "collect_teacher_dataset(problems)", brief: "BC 데이터", in: "problems", logic: "DispatchEnv에서 heuristic_actions 순차 replay", out: "(obs[], act[], mask[])" },
+    { name: "make_env(problem)", brief: "학습 env", in: "ProblemInstance", logic: "_get_target_allocation → DispatchEnv + ActionMasker", out: "ActionMasker" },
+    { name: "_get_target_allocation(problem)", brief: "가이드 dict", in: "ProblemInstance", logic: "ppo_alloc predict or plan_target_allocation + complete_guide_allocation", out: "dict[(model,ti), float]" },
+    { name: "load_problems_from_dir(dir)", brief: "학습 JSON 로드", in: "Path (default data/train)", logic: "glob *.json → load_problem", out: "list[ProblemInstance]" },
+  ],
+  "fn-test": [
+    { name: "evaluate_benchmark(problem, model)", brief: "단일 문제 평가", in: "ProblemInstance, optional MaskablePPO", logic: "guide → heuristic sim → RL sim(shape match) → enrich rows", out: "dict: heuristic, rl, guide_allocation, *_rows, …" },
+    { name: "_rl_policy_factory(model, problem)", brief: "RL sim 래퍼", in: "PPO, problem", logic: "DispatchEnv substep loop until commit each hour", out: "callable (sim,s)→moves" },
+    { name: "_guide_allocation(problem)", brief: "Mode1 가이드", in: "ProblemInstance", logic: "AllocationEnv+alloc model or analytic", out: "dict slot→count" },
+    { name: "run_eval(model, report_path)", brief: "전 벤치마크", in: "model, paths", logic: "data/test/*.json loop → write_report_files", out: "markdown str" },
+    { name: "write_report_files(results, md, html)", brief: "리포트 저장", in: "results dict", logic: "render_markdown + render_html_report", out: "(md_path, html_path)" },
+  ],
+  "fn-report": [
+    { name: "build_plan_achv_rows(problem, hourly_stats)", brief: "RTS_PLAN_ACHV", in: "problem, stats", logic: "hour×task plan/produce/achieve/util", out: "list[dict]" },
+    { name: "build_assign_rows(problem, hourly_stats)", brief: "RTS_ASSIGN", in: "problem, stats", logic: "hour×eqp unit, UPH 비율 생산 분배", out: "list[dict]" },
+    { name: "build_conv_rows(problem, trace)", brief: "RTS_CONV", in: "trace moves", logic: "batch 변경 Move만, SEQ per EQP_ID", out: "list[dict]" },
+    { name: "build_guide_rows(problem, guide_allocation, source)", brief: "RTS_GUIDE", in: "guide dict", logic: "모든 UPH 슬롯 0 포함", out: "list[dict], CRT_USER_ID=SYS_ID" },
+    { name: "build_inference_result_document(problem, eval_result, policy)", brief: "추론 JSON", in: "eval dict", logic: "guide + dynamic rows, RL/heuristic 선택", out: "dict schema_version=1" },
+    { name: "build_output_tables(…)", brief: "3테이블 묶음", in: "trace, hourly_stats", logic: "plan_achv+assign+conv", out: "dict[table_name, rows]" },
+    { name: "render_html_report / render_markdown", brief: "리포트 렌더", in: "results", logic: "KPI, gantt, 테이블", out: "HTML / MD string" },
+  ],
+  "fn-db": [
+    { name: "rows_to_problem(rows, horizon_hours, …)", brief: "DB pivot", in: "long-format rows", logic: "GBN_CD별 pivot → Task/UPH/assign/tool/target/wip, CONV_GROUPS from config", out: "ProblemInstance" },
+    { name: "fetch_problem(rule_timekey, horizon)", brief: "Oracle read", in: "timekey", logic: "fetch_rows → rows_to_problem", out: "ProblemInstance" },
+    { name: "list_timekeys_in_range(…)", brief: "학습 키 목록", in: "from/to or lookback_days", logic: "DISTINCT RULE_TIMEKEY query", out: "list[str]" },
+    { name: "export_from_db / export_train_snapshots", brief: "JSON export", in: "timekey(s)", logic: "fetch_problem → save_problem", out: "Path(s)" },
+    { name: "run_inference(…)", brief: "추론 오케스트레이션", in: "timekey, flags", logic: "export→eval→result JSON→DB→report", out: "dict paths & metrics" },
+    { name: "write_inference_result(timekey, doc)", brief: "Oracle write", in: "result_doc", logic: "guide+plan_achv+assign+conv → INF delete+insert + HIS", out: "None" },
+  ],
+  "fn-run": [
+    { name: "cmd_train", brief: "학습 CLI", in: "--use-db, --steps, …", logic: "export_train_range → train_model → run_eval", out: "model file + report", tags: ["entry"] },
+    { name: "cmd_infer", brief: "추론 CLI", in: "--timekey, --dataset, …", logic: "run_inference or local evaluate", out: "JSON + DB + report", tags: ["entry"] },
+    { name: "cmd_eval", brief: "평가 CLI", in: "--report", logic: "data/test 전체 run_eval", out: "MODEL_REPORT", tags: ["entry"] },
+    { name: "cmd_export", brief: "export CLI", in: "--train, --sample, --timekey", logic: "DB→JSON", out: "data/* paths", tags: ["entry"] },
+  ],
+  "fn-app": [
+    { name: "_load_and_eval(path)", brief: "캐시 평가", in: "benchmark path", logic: "load_problem + evaluate_benchmark(model)", out: "eval dict" },
+    { name: "render_guide_section", brief: "가이드 UI", in: "problem, result", logic: "guide table + heatmap", out: "Streamlit widgets" },
+    { name: "render_algo_section", brief: "알고리즘 탭", in: "heuristic/RL", logic: "KPI, charts, assign/conv tables", out: "Streamlit widgets" },
+  ],
+};
+
+function renderFnCard(fn) {
+  const tags = (fn.tags || []).map(t =>
+    `<span class="tag ${t}">${t}</span>`).join("");
+  return `<div class="fn-card" data-search="${fn.name} ${fn.brief} ${fn.in} ${fn.logic}">
+    <div class="fn-head" onclick="this.parentElement.classList.toggle('open')">
+      <span class="fn-name">${tags}${fn.name}</span>
+      <span class="fn-brief">${fn.brief}</span>
+    </div>
+    <div class="fn-body">
+      <table class="io">
+        <tr><th>입력</th><td><code>${fn.in}</code></td></tr>
+        <tr><th>내부 로직</th><td>${fn.logic}</td></tr>
+        <tr><th>출력</th><td><code>${fn.out}</code></td></tr>
+      </table>
+    </div>
+  </div>`;
+}
+
+Object.entries(FUNCTIONS).forEach(([id, fns]) => {
+  const el = document.getElementById(id);
+  if (el) el.innerHTML = fns.map(renderFnCard).join("");
+});
+
+document.getElementById("search").addEventListener("input", e => {
+  const q = e.target.value.toLowerCase();
+  document.querySelectorAll(".fn-card").forEach(card => {
+    const text = card.getAttribute("data-search").toLowerCase();
+    card.style.display = !q || text.includes(q) ? "" : "none";
+  });
+});
+
+const sections = document.querySelectorAll("main section[id]");
+const navLinks = document.querySelectorAll("nav.sidebar a[href^='#']");
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(en => {
+    if (en.isIntersecting) {
+      navLinks.forEach(a => a.classList.toggle("active",
+        a.getAttribute("href") === "#" + en.target.id));
+    }
+  });
+}, { rootMargin: "-20% 0px -70% 0px" });
+sections.forEach(s => obs.observe(s));
+</script>
+</body>
+</html>

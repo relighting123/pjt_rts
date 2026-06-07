@@ -26,7 +26,6 @@ def result_json_path(rule_timekey: str) -> Path:
 def export_input_json(
     rule_timekey: str | None = None,
     horizon_hours: int = 12,
-    conv_groups: dict | None = None,
     output_path: Path | None = None,
 ) -> tuple[str, Path]:
     """DB → data/inference/{timekey}.json. (timekey, path) 반환."""
@@ -36,7 +35,7 @@ def export_input_json(
 
     rk = resolve_timekey(rule_timekey)
     out = output_path or input_json_path(rk)
-    path = export_from_db(rk, output_path=out, horizon_hours=horizon_hours, conv_groups=conv_groups)
+    path = export_from_db(rk, output_path=out, horizon_hours=horizon_hours)
     return rk, path
 
 
@@ -45,7 +44,6 @@ def export_train_snapshots(
     to_timekey: str | None = None,
     lookback_days: int | None = None,
     horizon_hours: int = 12,
-    conv_groups: dict | None = None,
     output_dir: Path | None = None,
 ) -> list[Path]:
     """DB 구간(또는 최근 N일) → data/train/{RULE_TIMEKEY}.json."""
@@ -57,7 +55,7 @@ def export_train_snapshots(
     paths: list[Path] = []
     for rk in list_timekeys_in_range(from_timekey, to_timekey, lookback_days):
         paths.append(export_from_db(rk, output_path=out_dir / f"{rk}.json",
-                                    horizon_hours=horizon_hours, conv_groups=conv_groups))
+                                    horizon_hours=horizon_hours))
     return paths
 
 
@@ -65,7 +63,6 @@ def run_inference(
     rule_timekey: str | None = None,
     *,
     horizon_hours: int = 12,
-    conv_groups: dict | None = None,
     skip_input_export: bool = False,
     input_path: Path | None = None,
     write_db: bool = True,
@@ -87,7 +84,7 @@ def run_inference(
             if not inp.is_file():
                 raise FileNotFoundError(f"입력 JSON 없음: {inp}")
         else:
-            rk, inp = export_input_json(rk, horizon_hours, conv_groups)
+            rk, inp = export_input_json(rk, horizon_hours)
     else:
         inp = Path(input_path)
         problem_probe = load_problem(inp)

@@ -25,7 +25,7 @@ def test_export_from_rows_matches_load_problem(tmp_path):
         ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "TOOL_QTY", "1"),
     ]
     out = tmp_path / "exported.json"
-    export_from_rows(rows, out, horizon_hours=3, conv_groups={"G1": ["B1"]}, rule_timekey="20260529")
+    export_from_rows(rows, out, horizon_hours=3, rule_timekey="20260529")
     p = load_problem(out)
     assert len(p.tasks) == 1
     assert p.uph_of("M1", 0) == 100.0

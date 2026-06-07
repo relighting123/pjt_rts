@@ -1,4 +1,5 @@
 from simulator import Task, ProblemInstance, Simulator
+import config
 
 
 def _two_model_one_task() -> ProblemInstance:
@@ -10,7 +11,7 @@ def _two_model_one_task() -> ProblemInstance:
         eqp_qty={"M_A": 1, "M_B": 1},
         init_assign={("M_A", 0): 1, ("M_B", 0): 1},
         tool_qty={("B1", "M_A"): 1, ("B1", "M_B"): 1},
-        conv_groups={"G1": ["B1"]},
+        conv_groups=config.load_conv_groups(),
     )
 
 

@@ -81,8 +81,8 @@ testpaths = ["tests"]
 
 Create `.env`:
 ```dotenv
-ORACLE_USER=dispatcher
-ORACLE_PASSWORD=dispatcher
+ORACLE_USER=sys
+ORACLE_PASSWORD=sys
 ORACLE_DSN=localhost:1521/XEPDB1
 RTS_CRT_USER_ID=RL_AGENT
 ```

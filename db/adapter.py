@@ -11,7 +11,7 @@ import config
 from simulator import Task, ProblemInstance
 
 
-def rows_to_problem(rows, horizon_hours: int, conv_groups: dict[str, list[str]],
+def rows_to_problem(rows, horizon_hours: int,
                     switch_time_hours: int = config.DEFAULT_SWITCH_TIME_HOURS,
                     rule_timekey: str | None = None) -> ProblemInstance:
     """GBN_CD가 long-format인 행들을 ProblemInstance로 피벗.
@@ -62,7 +62,7 @@ def rows_to_problem(rows, horizon_hours: int, conv_groups: dict[str, list[str]],
     return ProblemInstance(
         rule_timekey=rk, horizon_hours=horizon_hours, switch_time_hours=switch_time_hours,
         tasks=tasks, _uph=uph, eqp_qty=dict(eqp_qty), init_assign=init_assign,
-        tool_qty=tool_raw, conv_groups=conv_groups, ground_truth={},
+        tool_qty=tool_raw, conv_groups=config.load_conv_groups(), ground_truth={},
     )
 
 
@@ -148,12 +148,11 @@ def fetch_rows(rule_timekey: str, table: str = config.INPUT_TABLE) -> list[tuple
         conn.close()
 
 
-def fetch_problem(rule_timekey: str | None = None, horizon_hours: int = 12,
-                  conv_groups: dict | None = None) -> ProblemInstance:
+def fetch_problem(rule_timekey: str | None = None, horizon_hours: int = 12) -> ProblemInstance:
     """RTS_LINEDSDB_INF에서 스냅샷을 읽어 ProblemInstance로 변환."""
     rk = resolve_timekey(rule_timekey)
     rows = fetch_rows(rk)
-    return rows_to_problem(rows, horizon_hours, conv_groups or {}, rule_timekey=rk)
+    return rows_to_problem(rows, horizon_hours, rule_timekey=rk)
 
 
 def write_assign_results(rule_timekey: str, assign_rows: list[dict]) -> None:

@@ -14,8 +14,8 @@
 #   "eqp_qty": {"M1": 1},
 #   "init_assign": [{"eqp_model","plan_prod_key","oper_id","count"}],
 #   "tool_qty": [{"batch_id","eqp_model","tool_qty"}],
-#   "conv_groups": {"G1": ["B1"]}
 # }
+# `conv_groups`는 JSON에 두지 않음 — config.py CONV_GROUPS로 설정.
 # ```
 #
 # ## 추론 결과 JSON (data/inference/{RULE_TIMEKEY}_result.json)
@@ -37,7 +37,7 @@
 #         "EQP_MODEL_CD": "M1",
 #         "TARGET_EQP_CNT": 1.0,
 #         "GUIDE_SOURCE": "ANALYTIC",
-#         "CRT_USER_ID": "RL_AGENT"
+#         "CRT_USER_ID": config.SYS_ID 값으로 기록
 #       }
 #     ]
 #   },

@@ -10,7 +10,7 @@ def test_rows_to_problem_pivots_gbn_cd():
         ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "WIP_QTY", "1000"),
         ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "TOOL_QTY", "1"),
     ]
-    p = rows_to_problem(rows, horizon_hours=3, conv_groups={"G1": ["B1"]})
+    p = rows_to_problem(rows, horizon_hours=3)
     assert len(p.tasks) == 1
     assert p.tasks[0].plan_qty == 300
     assert p.uph_of("M1", 0) == 100.0

@@ -14,22 +14,22 @@ h4{margin-top:1rem;color:#444;font-size:0.95rem}
 pre{background:#fafafa;padding:0.75rem;overflow-x:auto}
 </style></head><body>
 <h1>모델 평가 리포트</h1>
-<p class='summary'>평균 계획달성률 — 최적: 0.881 / 휴리스틱: 0.839 / RL: 0.797</p>
+<p class='summary'>평균 계획달성률 — 최적: 0.881 / 휴리스틱: 0.839 / RL: 0.724</p>
 <p class='note'><strong>출력 테이블:</strong> RTS_PLAN_ACHV_INF(계획/달성), RTS_ASSIGN_INF(장비배치), RTS_CONV_INF(batch전환). 입력: RTS_LINEDSDB_INF.</p>
 <h2>벤치마크 요약</h2>
 <table><thead><tr><th>벤치마크</th><th>최적</th><th>휴리스틱</th><th>RL</th></tr></thead><tbody>
 <tr><td>benchmark_01</td><td>1.000</td><td>1.000</td><td>1.000</td></tr>
 <tr><td>benchmark_02</td><td>1.000</td><td>1.000</td><td>1.000</td></tr>
-<tr><td>benchmark_03</td><td>1.000</td><td>1.000</td><td>1.000</td></tr>
+<tr><td>benchmark_03</td><td>1.000</td><td>1.000</td><td>0.750</td></tr>
 <tr><td>benchmark_04</td><td>1.000</td><td>1.000</td><td>1.000</td></tr>
 <tr><td>benchmark_05</td><td>0.400</td><td>0.400</td><td>0.400</td></tr>
 <tr><td>benchmark_06</td><td>0.167</td><td>0.167</td><td>0.167</td></tr>
-<tr><td>benchmark_07</td><td>1.000</td><td>1.000</td><td>1.000</td></tr>
-<tr><td>benchmark_08</td><td>1.000</td><td>1.000</td><td>1.000</td></tr>
+<tr><td>benchmark_07</td><td>1.000</td><td>1.000</td><td>0.500</td></tr>
+<tr><td>benchmark_08</td><td>1.000</td><td>1.000</td><td>0.833</td></tr>
 <tr><td>benchmark_09</td><td>1.000</td><td>1.000</td><td>1.000</td></tr>
 <tr><td>benchmark_10</td><td>1.000</td><td>0.500</td><td>0.500</td></tr>
-<tr><td>benchmark_11</td><td>1.000</td><td>1.000</td><td>0.500</td></tr>
-<tr><td>benchmark_12</td><td>1.000</td><td>1.000</td><td>1.000</td></tr>
+<tr><td>benchmark_11</td><td>1.000</td><td>1.000</td><td>0.708</td></tr>
+<tr><td>benchmark_12</td><td>1.000</td><td>1.000</td><td>0.833</td></tr>
 </tbody></table>
 <h2>benchmark_01</h2>
 <p class='note'>1대 x 100UPH x 3h = 300 = plan, 전환 없음</p>
@@ -81,9 +81,9 @@ pre{background:#fafafa;padding:0.75rem;overflow-x:auto}
       M1 | PA     | PA     | PB     | PB    </pre>
 <h2>benchmark_03</h2>
 <p class='note'>OP10 2대 1h로 200 생산→OP20 WIP 확보. OP20(B2)로 전환해 후공정 달성. OP20 init_wip=0이라 앞공정 빌드 필수.</p>
-<p>평균 장비 가동률 (RL): <strong>0.500</strong></p>
+<p>평균 장비 가동률 (RL): <strong>0.375</strong></p>
 <h3>RL — 간트차트</h3>
-<table style='border-collapse:collapse;font-size:0.85rem;margin:0.5rem 0'><thead><tr><th>모델</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H0</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H1</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H2</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H3</th></tr></thead><tbody><tr><td><strong>M1</strong></td><td style='background:#4472C4;color:#fff;text-align:center;padding:4px 6px'>P1/OP10(2)</td><td style='background:#ED7D31;color:#fff;text-align:center;padding:4px 6px'>P1/OP20(2)</td><td style='background:#ED7D31;color:#fff;text-align:center;padding:4px 6px'>P1/OP20(2)</td><td style='background:#ED7D31;color:#fff;text-align:center;padding:4px 6px'>P1/OP20(2)</td></tr></tbody></table>
+<table style='border-collapse:collapse;font-size:0.85rem;margin:0.5rem 0'><thead><tr><th>모델</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H0</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H1</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H2</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H3</th></tr></thead><tbody><tr><td><strong>M1</strong></td><td style='background:#4472C4;color:#fff;text-align:center;padding:4px 6px'>P1/OP10(2)</td><td style='background:#ED7D31;color:#fff;text-align:center;padding:4px 6px'>P1/OP20(2)</td><td style='background:#4472C4;color:#fff;text-align:center;padding:4px 6px'>P1/OP10(1)<br>P1/OP20(1)</td><td style='background:#4472C4;color:#fff;text-align:center;padding:4px 6px'>P1/OP10(1)<br>P1/OP20(1)</td></tr></tbody></table>
 <h3>RL — 출력 테이블</h3>
 <h4>RTS_PLAN_ACHV_INF / RTS_PLAN_ACHV_HIS</h4>
 <table><thead><tr><th>RULE_TIMEKEY</th><th>EVENT_TM</th><th>BATCH_ID</th><th>PLAN_PROD_KEY</th><th>OPER</th><th>PLAN_QTY</th><th>REMAIN_QTY</th><th>PRODUCE_QTY</th><th>ACHIEVE_RATE</th><th>EQP_UTIL_RATE</th></tr></thead><tbody>
@@ -91,15 +91,14 @@ pre{background:#fafafa;padding:0.75rem;overflow-x:auto}
 <tr><td>2026052922500000</td><td>2026052922500000</td><td>B2</td><td>P1</td><td>OP20</td><td>200</td><td>200</td><td>0</td><td>0.0</td><td>1.0</td></tr>
 <tr><td>2026052922500000</td><td>2026052923500000</td><td>B1</td><td>P1</td><td>OP10</td><td>200</td><td>0</td><td>0</td><td>1.0</td><td>0.0</td></tr>
 <tr><td>2026052922500000</td><td>2026052923500000</td><td>B2</td><td>P1</td><td>OP20</td><td>200</td><td>200</td><td>0</td><td>0.0</td><td>0.0</td></tr>
-<tr><td>2026052922500000</td><td>2026053000500000</td><td>B1</td><td>P1</td><td>OP10</td><td>200</td><td>0</td><td>0</td><td>1.0</td><td>1.0</td></tr>
-<tr><td>2026052922500000</td><td>2026053000500000</td><td>B2</td><td>P1</td><td>OP20</td><td>200</td><td>0</td><td>200</td><td>1.0</td><td>1.0</td></tr>
+<tr><td>2026052922500000</td><td>2026053000500000</td><td>B1</td><td>P1</td><td>OP10</td><td>200</td><td>0</td><td>0</td><td>1.0</td><td>0.5</td></tr>
+<tr><td>2026052922500000</td><td>2026053000500000</td><td>B2</td><td>P1</td><td>OP20</td><td>200</td><td>100</td><td>100</td><td>0.5</td><td>0.5</td></tr>
 <tr><td>2026052922500000</td><td>2026053001500000</td><td>B1</td><td>P1</td><td>OP10</td><td>200</td><td>0</td><td>0</td><td>1.0</td><td>0.0</td></tr>
-<tr><td>2026052922500000</td><td>2026053001500000</td><td>B2</td><td>P1</td><td>OP20</td><td>200</td><td>0</td><td>0</td><td>1.0</td><td>0.0</td></tr>
+<tr><td>2026052922500000</td><td>2026053001500000</td><td>B2</td><td>P1</td><td>OP20</td><td>200</td><td>100</td><td>0</td><td>0.5</td><td>0.0</td></tr>
 </tbody></table>
-<h4>RTS_ASSIGN_INF / RTS_ASSIGN_HIS <small>(병합 후 4행 / 원래 4행)</small></h4>
+<h4>RTS_ASSIGN_INF / RTS_ASSIGN_HIS <small>(병합 후 3행 / 원래 3행)</small></h4>
 <table><thead><tr><th>RULE_TIMEKEY</th><th>EQP_ID</th><th>EQP_MODEL_CD</th><th>SEQ</th><th>START_TIME</th><th>END_TIME</th><th>PLAN_PROD_KEY</th><th>OPER_ID</th><th>PRODUCE_QTY</th><th>CRT_USER_ID</th></tr></thead><tbody>
 <tr><td>2026052922500000</td><td>M1-001</td><td>M1</td><td>1</td><td>2026052922500000</td><td>2026052923500000</td><td>P1</td><td>OP10</td><td>100</td><td>RL_AGENT</td></tr>
-<tr><td>2026052922500000</td><td>M1-001</td><td>M1</td><td>2</td><td>2026053000500000</td><td>2026053001500000</td><td>P1</td><td>OP20</td><td>100</td><td>RL_AGENT</td></tr>
 <tr><td>2026052922500000</td><td>M1-002</td><td>M1</td><td>1</td><td>2026052922500000</td><td>2026052923500000</td><td>P1</td><td>OP10</td><td>100</td><td>RL_AGENT</td></tr>
 <tr><td>2026052922500000</td><td>M1-002</td><td>M1</td><td>2</td><td>2026053000500000</td><td>2026053001500000</td><td>P1</td><td>OP20</td><td>100</td><td>RL_AGENT</td></tr>
 </tbody></table>
@@ -107,6 +106,9 @@ pre{background:#fafafa;padding:0.75rem;overflow-x:auto}
 <table><thead><tr><th>RULE_TIMEKEY</th><th>EVENT_TM</th><th>EQP_ID</th><th>EQP_MODEL_CD</th><th>SEQ</th><th>START_TIME</th><th>END_TIME</th><th>FROM_BATCH</th><th>TO_BATCH</th><th>FROM_PLAN_PROD_KEY</th><th>TO_PLAN_PROD_KEY</th><th>FROM_OPER</th><th>TO_OPER</th><th>CRT_USER_ID</th></tr></thead><tbody>
 <tr><td>2026052922500000</td><td>2026052923500000</td><td>M1-001</td><td>M1</td><td>1</td><td>2026052923500000</td><td>2026052923500000</td><td>B1</td><td>B2</td><td>P1</td><td>P1</td><td>OP10</td><td>OP20</td><td>RL_AGENT</td></tr>
 <tr><td>2026052922500000</td><td>2026052923500000</td><td>M1-002</td><td>M1</td><td>1</td><td>2026052923500000</td><td>2026052923500000</td><td>B1</td><td>B2</td><td>P1</td><td>P1</td><td>OP10</td><td>OP20</td><td>RL_AGENT</td></tr>
+<tr><td>2026052922500000</td><td>2026053000500000</td><td>M1-003</td><td>M1</td><td>1</td><td>2026053000500000</td><td>2026053000500000</td><td>B2</td><td>B1</td><td>P1</td><td>P1</td><td>OP20</td><td>OP10</td><td>RL_AGENT</td></tr>
+<tr><td>2026052922500000</td><td>2026053001500000</td><td>M1-004</td><td>M1</td><td>1</td><td>2026053001500000</td><td>2026053001500000</td><td>B1</td><td>B2</td><td>P1</td><td>P1</td><td>OP10</td><td>OP20</td><td>RL_AGENT</td></tr>
+<tr><td>2026052922500000</td><td>2026053001500000</td><td>M1-005</td><td>M1</td><td>1</td><td>2026053001500000</td><td>2026053001500000</td><td>B2</td><td>B1</td><td>P1</td><td>P1</td><td>OP20</td><td>OP10</td><td>RL_AGENT</td></tr>
 </tbody></table>
 <pre>간트 (model x hour → task)
       M1 | P1     | P1     | P1     | P1    </pre>
@@ -176,9 +178,9 @@ pre{background:#fafafa;padding:0.75rem;overflow-x:auto}
       M1 | P1     | P1     | P1    </pre>
 <h2>benchmark_07</h2>
 <p class='note'>PA 1h(100)→전환1h→PB 1h(100): 3h, 1회 전환으로 둘 다 100%.</p>
-<p>평균 장비 가동률 (RL): <strong>0.750</strong></p>
+<p>평균 장비 가동률 (RL): <strong>0.250</strong></p>
 <h3>RL — 간트차트</h3>
-<table style='border-collapse:collapse;font-size:0.85rem;margin:0.5rem 0'><thead><tr><th>모델</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H0</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H1</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H2</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H3</th></tr></thead><tbody><tr><td><strong>M1</strong></td><td style='background:#4472C4;color:#fff;text-align:center;padding:4px 6px'>PA/OP10(1)</td><td style='background:#ED7D31;color:#fff;text-align:center;padding:4px 6px'>PB/OP10(1)</td><td style='background:#ED7D31;color:#fff;text-align:center;padding:4px 6px'>PB/OP10(1)</td><td style='background:#ED7D31;color:#fff;text-align:center;padding:4px 6px'>PB/OP10(1)</td></tr></tbody></table>
+<table style='border-collapse:collapse;font-size:0.85rem;margin:0.5rem 0'><thead><tr><th>모델</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H0</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H1</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H2</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H3</th></tr></thead><tbody><tr><td><strong>M1</strong></td><td style='background:#4472C4;color:#fff;text-align:center;padding:4px 6px'>PA/OP10(1)</td><td style='background:#ED7D31;color:#fff;text-align:center;padding:4px 6px'>PB/OP10(1)</td><td style='background:#4472C4;color:#fff;text-align:center;padding:4px 6px'>PA/OP10(1)</td><td style='background:#ED7D31;color:#fff;text-align:center;padding:4px 6px'>PB/OP10(1)</td></tr></tbody></table>
 <h3>RL — 출력 테이블</h3>
 <h4>RTS_PLAN_ACHV_INF / RTS_PLAN_ACHV_HIS</h4>
 <table><thead><tr><th>RULE_TIMEKEY</th><th>EVENT_TM</th><th>BATCH_ID</th><th>PLAN_PROD_KEY</th><th>OPER</th><th>PLAN_QTY</th><th>REMAIN_QTY</th><th>PRODUCE_QTY</th><th>ACHIEVE_RATE</th><th>EQP_UTIL_RATE</th></tr></thead><tbody>
@@ -186,27 +188,28 @@ pre{background:#fafafa;padding:0.75rem;overflow-x:auto}
 <tr><td>2026052922500000</td><td>2026052922500000</td><td>B2</td><td>PB</td><td>OP10</td><td>100</td><td>100</td><td>0</td><td>0.0</td><td>1.0</td></tr>
 <tr><td>2026052922500000</td><td>2026052923500000</td><td>B1</td><td>PA</td><td>OP10</td><td>100</td><td>0</td><td>0</td><td>1.0</td><td>0.0</td></tr>
 <tr><td>2026052922500000</td><td>2026052923500000</td><td>B2</td><td>PB</td><td>OP10</td><td>100</td><td>100</td><td>0</td><td>0.0</td><td>0.0</td></tr>
-<tr><td>2026052922500000</td><td>2026053000500000</td><td>B1</td><td>PA</td><td>OP10</td><td>100</td><td>0</td><td>0</td><td>1.0</td><td>1.0</td></tr>
-<tr><td>2026052922500000</td><td>2026053000500000</td><td>B2</td><td>PB</td><td>OP10</td><td>100</td><td>0</td><td>100</td><td>1.0</td><td>1.0</td></tr>
-<tr><td>2026052922500000</td><td>2026053001500000</td><td>B1</td><td>PA</td><td>OP10</td><td>100</td><td>0</td><td>0</td><td>1.0</td><td>1.0</td></tr>
-<tr><td>2026052922500000</td><td>2026053001500000</td><td>B2</td><td>PB</td><td>OP10</td><td>100</td><td>0</td><td>100</td><td>1.0</td><td>1.0</td></tr>
+<tr><td>2026052922500000</td><td>2026053000500000</td><td>B1</td><td>PA</td><td>OP10</td><td>100</td><td>0</td><td>0</td><td>1.0</td><td>0.0</td></tr>
+<tr><td>2026052922500000</td><td>2026053000500000</td><td>B2</td><td>PB</td><td>OP10</td><td>100</td><td>100</td><td>0</td><td>0.0</td><td>0.0</td></tr>
+<tr><td>2026052922500000</td><td>2026053001500000</td><td>B1</td><td>PA</td><td>OP10</td><td>100</td><td>0</td><td>0</td><td>1.0</td><td>0.0</td></tr>
+<tr><td>2026052922500000</td><td>2026053001500000</td><td>B2</td><td>PB</td><td>OP10</td><td>100</td><td>100</td><td>0</td><td>0.0</td><td>0.0</td></tr>
 </tbody></table>
-<h4>RTS_ASSIGN_INF / RTS_ASSIGN_HIS <small>(병합 후 2행 / 원래 3행)</small></h4>
+<h4>RTS_ASSIGN_INF / RTS_ASSIGN_HIS <small>(병합 후 1행 / 원래 1행)</small></h4>
 <table><thead><tr><th>RULE_TIMEKEY</th><th>EQP_ID</th><th>EQP_MODEL_CD</th><th>SEQ</th><th>START_TIME</th><th>END_TIME</th><th>PLAN_PROD_KEY</th><th>OPER_ID</th><th>PRODUCE_QTY</th><th>CRT_USER_ID</th></tr></thead><tbody>
 <tr><td>2026052922500000</td><td>M1-001</td><td>M1</td><td>1</td><td>2026052922500000</td><td>2026052923500000</td><td>PA</td><td>OP10</td><td>100</td><td>RL_AGENT</td></tr>
-<tr><td>2026052922500000</td><td>M1-001</td><td>M1</td><td>2</td><td>2026053000500000</td><td>2026053002500000</td><td>PB</td><td>OP10</td><td>200</td><td>RL_AGENT</td></tr>
 </tbody></table>
 <h4>RTS_CONV_INF / RTS_CONV_HIS</h4>
 <table><thead><tr><th>RULE_TIMEKEY</th><th>EVENT_TM</th><th>EQP_ID</th><th>EQP_MODEL_CD</th><th>SEQ</th><th>START_TIME</th><th>END_TIME</th><th>FROM_BATCH</th><th>TO_BATCH</th><th>FROM_PLAN_PROD_KEY</th><th>TO_PLAN_PROD_KEY</th><th>FROM_OPER</th><th>TO_OPER</th><th>CRT_USER_ID</th></tr></thead><tbody>
 <tr><td>2026052922500000</td><td>2026052923500000</td><td>M1-001</td><td>M1</td><td>1</td><td>2026052923500000</td><td>2026052923500000</td><td>B1</td><td>B2</td><td>PA</td><td>PB</td><td>OP10</td><td>OP10</td><td>RL_AGENT</td></tr>
+<tr><td>2026052922500000</td><td>2026053000500000</td><td>M1-002</td><td>M1</td><td>1</td><td>2026053000500000</td><td>2026053000500000</td><td>B2</td><td>B1</td><td>PB</td><td>PA</td><td>OP10</td><td>OP10</td><td>RL_AGENT</td></tr>
+<tr><td>2026052922500000</td><td>2026053001500000</td><td>M1-003</td><td>M1</td><td>1</td><td>2026053001500000</td><td>2026053001500000</td><td>B1</td><td>B2</td><td>PA</td><td>PB</td><td>OP10</td><td>OP10</td><td>RL_AGENT</td></tr>
 </tbody></table>
 <pre>간트 (model x hour → task)
-      M1 | PA     | PB     | PB     | PB    </pre>
+      M1 | PA     | PB     | PA     | PB    </pre>
 <h2>benchmark_08</h2>
 <p class='note'>3공정 1대 순차전환: OP10 재공 소진(2h) → conv(1h) → OP20(2h) → conv(1h) → OP30(1h) = 7h 100%</p>
-<p>평균 장비 가동률 (RL): <strong>0.714</strong></p>
+<p>평균 장비 가동률 (RL): <strong>0.571</strong></p>
 <h3>RL — 간트차트</h3>
-<table style='border-collapse:collapse;font-size:0.85rem;margin:0.5rem 0'><thead><tr><th>모델</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H0</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H1</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H2</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H3</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H4</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H5</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H6</th></tr></thead><tbody><tr><td><strong>M1</strong></td><td style='background:#4472C4;color:#fff;text-align:center;padding:4px 6px'>P1/OP10(1)</td><td style='background:#4472C4;color:#fff;text-align:center;padding:4px 6px'>P1/OP10(1)</td><td style='background:#ED7D31;color:#fff;text-align:center;padding:4px 6px'>P1/OP20(1)</td><td style='background:#ED7D31;color:#fff;text-align:center;padding:4px 6px'>P1/OP20(1)</td><td style='background:#ED7D31;color:#fff;text-align:center;padding:4px 6px'>P1/OP20(1)</td><td style='background:#70AD47;color:#fff;text-align:center;padding:4px 6px'>P1/OP30(1)</td><td style='background:#70AD47;color:#fff;text-align:center;padding:4px 6px'>P1/OP30(1)</td></tr></tbody></table>
+<table style='border-collapse:collapse;font-size:0.85rem;margin:0.5rem 0'><thead><tr><th>모델</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H0</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H1</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H2</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H3</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H4</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H5</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H6</th></tr></thead><tbody><tr><td><strong>M1</strong></td><td style='background:#4472C4;color:#fff;text-align:center;padding:4px 6px'>P1/OP10(1)</td><td style='background:#4472C4;color:#fff;text-align:center;padding:4px 6px'>P1/OP10(1)</td><td style='background:#ED7D31;color:#fff;text-align:center;padding:4px 6px'>P1/OP20(1)</td><td style='background:#ED7D31;color:#fff;text-align:center;padding:4px 6px'>P1/OP20(1)</td><td style='background:#70AD47;color:#fff;text-align:center;padding:4px 6px'>P1/OP30(1)</td><td style='background:#70AD47;color:#fff;text-align:center;padding:4px 6px'>P1/OP30(1)</td><td style='background:#70AD47;color:#fff;text-align:center;padding:4px 6px'>P1/OP30(1)</td></tr></tbody></table>
 <h3>RL — 출력 테이블</h3>
 <h4>RTS_PLAN_ACHV_INF / RTS_PLAN_ACHV_HIS</h4>
 <table><thead><tr><th>RULE_TIMEKEY</th><th>EVENT_TM</th><th>BATCH_ID</th><th>PLAN_PROD_KEY</th><th>OPER</th><th>PLAN_QTY</th><th>REMAIN_QTY</th><th>PRODUCE_QTY</th><th>ACHIEVE_RATE</th><th>EQP_UTIL_RATE</th></tr></thead><tbody>
@@ -222,26 +225,26 @@ pre{background:#fafafa;padding:0.75rem;overflow-x:auto}
 <tr><td>2026060100000000</td><td>2026060103000000</td><td>B1</td><td>P1</td><td>OP10</td><td>200</td><td>0</td><td>0</td><td>1.0</td><td>1.0</td></tr>
 <tr><td>2026060100000000</td><td>2026060103000000</td><td>B2</td><td>P1</td><td>OP20</td><td>200</td><td>100</td><td>100</td><td>0.5</td><td>1.0</td></tr>
 <tr><td>2026060100000000</td><td>2026060103000000</td><td>B3</td><td>P1</td><td>OP30</td><td>100</td><td>100</td><td>0</td><td>0.0</td><td>1.0</td></tr>
-<tr><td>2026060100000000</td><td>2026060104000000</td><td>B1</td><td>P1</td><td>OP10</td><td>200</td><td>0</td><td>0</td><td>1.0</td><td>1.0</td></tr>
-<tr><td>2026060100000000</td><td>2026060104000000</td><td>B2</td><td>P1</td><td>OP20</td><td>200</td><td>0</td><td>100</td><td>1.0</td><td>1.0</td></tr>
-<tr><td>2026060100000000</td><td>2026060104000000</td><td>B3</td><td>P1</td><td>OP30</td><td>100</td><td>100</td><td>0</td><td>0.0</td><td>1.0</td></tr>
-<tr><td>2026060100000000</td><td>2026060105000000</td><td>B1</td><td>P1</td><td>OP10</td><td>200</td><td>0</td><td>0</td><td>1.0</td><td>0.0</td></tr>
-<tr><td>2026060100000000</td><td>2026060105000000</td><td>B2</td><td>P1</td><td>OP20</td><td>200</td><td>0</td><td>0</td><td>1.0</td><td>0.0</td></tr>
-<tr><td>2026060100000000</td><td>2026060105000000</td><td>B3</td><td>P1</td><td>OP30</td><td>100</td><td>100</td><td>0</td><td>0.0</td><td>0.0</td></tr>
-<tr><td>2026060100000000</td><td>2026060106000000</td><td>B1</td><td>P1</td><td>OP10</td><td>200</td><td>0</td><td>0</td><td>1.0</td><td>1.0</td></tr>
-<tr><td>2026060100000000</td><td>2026060106000000</td><td>B2</td><td>P1</td><td>OP20</td><td>200</td><td>0</td><td>0</td><td>1.0</td><td>1.0</td></tr>
-<tr><td>2026060100000000</td><td>2026060106000000</td><td>B3</td><td>P1</td><td>OP30</td><td>100</td><td>0</td><td>100</td><td>1.0</td><td>1.0</td></tr>
+<tr><td>2026060100000000</td><td>2026060104000000</td><td>B1</td><td>P1</td><td>OP10</td><td>200</td><td>0</td><td>0</td><td>1.0</td><td>0.0</td></tr>
+<tr><td>2026060100000000</td><td>2026060104000000</td><td>B2</td><td>P1</td><td>OP20</td><td>200</td><td>100</td><td>0</td><td>0.5</td><td>0.0</td></tr>
+<tr><td>2026060100000000</td><td>2026060104000000</td><td>B3</td><td>P1</td><td>OP30</td><td>100</td><td>100</td><td>0</td><td>0.0</td><td>0.0</td></tr>
+<tr><td>2026060100000000</td><td>2026060105000000</td><td>B1</td><td>P1</td><td>OP10</td><td>200</td><td>0</td><td>0</td><td>1.0</td><td>1.0</td></tr>
+<tr><td>2026060100000000</td><td>2026060105000000</td><td>B2</td><td>P1</td><td>OP20</td><td>200</td><td>100</td><td>0</td><td>0.5</td><td>1.0</td></tr>
+<tr><td>2026060100000000</td><td>2026060105000000</td><td>B3</td><td>P1</td><td>OP30</td><td>100</td><td>0</td><td>100</td><td>1.0</td><td>1.0</td></tr>
+<tr><td>2026060100000000</td><td>2026060106000000</td><td>B1</td><td>P1</td><td>OP10</td><td>200</td><td>0</td><td>0</td><td>1.0</td><td>0.0</td></tr>
+<tr><td>2026060100000000</td><td>2026060106000000</td><td>B2</td><td>P1</td><td>OP20</td><td>200</td><td>100</td><td>0</td><td>0.5</td><td>0.0</td></tr>
+<tr><td>2026060100000000</td><td>2026060106000000</td><td>B3</td><td>P1</td><td>OP30</td><td>100</td><td>0</td><td>0</td><td>1.0</td><td>0.0</td></tr>
 </tbody></table>
-<h4>RTS_ASSIGN_INF / RTS_ASSIGN_HIS <small>(병합 후 3행 / 원래 5행)</small></h4>
+<h4>RTS_ASSIGN_INF / RTS_ASSIGN_HIS <small>(병합 후 3행 / 원래 4행)</small></h4>
 <table><thead><tr><th>RULE_TIMEKEY</th><th>EQP_ID</th><th>EQP_MODEL_CD</th><th>SEQ</th><th>START_TIME</th><th>END_TIME</th><th>PLAN_PROD_KEY</th><th>OPER_ID</th><th>PRODUCE_QTY</th><th>CRT_USER_ID</th></tr></thead><tbody>
 <tr><td>2026060100000000</td><td>M1-001</td><td>M1</td><td>1</td><td>2026060100000000</td><td>2026060102000000</td><td>P1</td><td>OP10</td><td>200</td><td>RL_AGENT</td></tr>
-<tr><td>2026060100000000</td><td>M1-001</td><td>M1</td><td>3</td><td>2026060103000000</td><td>2026060105000000</td><td>P1</td><td>OP20</td><td>200</td><td>RL_AGENT</td></tr>
-<tr><td>2026060100000000</td><td>M1-001</td><td>M1</td><td>5</td><td>2026060106000000</td><td>2026060107000000</td><td>P1</td><td>OP30</td><td>100</td><td>RL_AGENT</td></tr>
+<tr><td>2026060100000000</td><td>M1-001</td><td>M1</td><td>3</td><td>2026060103000000</td><td>2026060104000000</td><td>P1</td><td>OP20</td><td>100</td><td>RL_AGENT</td></tr>
+<tr><td>2026060100000000</td><td>M1-001</td><td>M1</td><td>4</td><td>2026060105000000</td><td>2026060106000000</td><td>P1</td><td>OP30</td><td>100</td><td>RL_AGENT</td></tr>
 </tbody></table>
 <h4>RTS_CONV_INF / RTS_CONV_HIS</h4>
 <table><thead><tr><th>RULE_TIMEKEY</th><th>EVENT_TM</th><th>EQP_ID</th><th>EQP_MODEL_CD</th><th>SEQ</th><th>START_TIME</th><th>END_TIME</th><th>FROM_BATCH</th><th>TO_BATCH</th><th>FROM_PLAN_PROD_KEY</th><th>TO_PLAN_PROD_KEY</th><th>FROM_OPER</th><th>TO_OPER</th><th>CRT_USER_ID</th></tr></thead><tbody>
 <tr><td>2026060100000000</td><td>2026060102000000</td><td>M1-001</td><td>M1</td><td>1</td><td>2026060102000000</td><td>2026060102000000</td><td>B1</td><td>B2</td><td>P1</td><td>P1</td><td>OP10</td><td>OP20</td><td>RL_AGENT</td></tr>
-<tr><td>2026060100000000</td><td>2026060105000000</td><td>M1-002</td><td>M1</td><td>1</td><td>2026060105000000</td><td>2026060105000000</td><td>B2</td><td>B3</td><td>P1</td><td>P1</td><td>OP20</td><td>OP30</td><td>RL_AGENT</td></tr>
+<tr><td>2026060100000000</td><td>2026060104000000</td><td>M1-002</td><td>M1</td><td>1</td><td>2026060104000000</td><td>2026060104000000</td><td>B2</td><td>B3</td><td>P1</td><td>P1</td><td>OP20</td><td>OP30</td><td>RL_AGENT</td></tr>
 </tbody></table>
 <pre>간트 (model x hour → task)
       M1 | P1     | P1     | P1     | P1     | P1     | P1     | P1    </pre>
@@ -279,9 +282,9 @@ pre{background:#fafafa;padding:0.75rem;overflow-x:auto}
       M1 | P1     | P1     | P1    </pre>
 <h2>benchmark_10</h2>
 <p class='note'>목표배분: PA weight=8, PB weight=2 → 3:1(PA:3대/PB:1대). h0에 M1 1대 PA→PB 전환(1h idle) → h0:PA300, h1~h2:PA300+PB100 → PA=900≥800, PB=200≥200. 휴리스틱은 PA 잔여&gt;0 동안 이동 거부 → PB=0 달성율=0.5. RL 에이전트가 선제적 배분으로 1.0 달성해야 함.</p>
-<p>평균 장비 가동률 (RL): <strong>1.000</strong></p>
+<p>평균 장비 가동률 (RL): <strong>0.667</strong></p>
 <h3>RL — 간트차트</h3>
-<table style='border-collapse:collapse;font-size:0.85rem;margin:0.5rem 0'><thead><tr><th>모델</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H0</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H1</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H2</th></tr></thead><tbody><tr><td><strong>M1</strong></td><td style='background:#4472C4;color:#fff;text-align:center;padding:4px 6px'>PA/OP10(4)</td><td style='background:#4472C4;color:#fff;text-align:center;padding:4px 6px'>PA/OP10(4)</td><td style='background:#4472C4;color:#fff;text-align:center;padding:4px 6px'>PA/OP10(4)</td></tr></tbody></table>
+<table style='border-collapse:collapse;font-size:0.85rem;margin:0.5rem 0'><thead><tr><th>모델</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H0</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H1</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H2</th></tr></thead><tbody><tr><td><strong>M1</strong></td><td style='background:#4472C4;color:#fff;text-align:center;padding:4px 6px'>PA/OP10(4)</td><td style='background:#4472C4;color:#fff;text-align:center;padding:4px 6px'>PA/OP10(4)</td><td style='background:#ED7D31;color:#fff;text-align:center;padding:4px 6px'>PB/OP10(4)</td></tr></tbody></table>
 <h3>RL — 출력 테이블</h3>
 <h4>RTS_PLAN_ACHV_INF / RTS_PLAN_ACHV_HIS</h4>
 <table><thead><tr><th>RULE_TIMEKEY</th><th>EVENT_TM</th><th>BATCH_ID</th><th>PLAN_PROD_KEY</th><th>OPER</th><th>PLAN_QTY</th><th>REMAIN_QTY</th><th>PRODUCE_QTY</th><th>ACHIEVE_RATE</th><th>EQP_UTIL_RATE</th></tr></thead><tbody>
@@ -289,25 +292,30 @@ pre{background:#fafafa;padding:0.75rem;overflow-x:auto}
 <tr><td>2026060700000000</td><td>2026060700000000</td><td>B2</td><td>PB</td><td>OP10</td><td>200</td><td>200</td><td>0</td><td>0.0</td><td>1.0</td></tr>
 <tr><td>2026060700000000</td><td>2026060701000000</td><td>B1</td><td>PA</td><td>OP10</td><td>800</td><td>0</td><td>400</td><td>1.0</td><td>1.0</td></tr>
 <tr><td>2026060700000000</td><td>2026060701000000</td><td>B2</td><td>PB</td><td>OP10</td><td>200</td><td>200</td><td>0</td><td>0.0</td><td>1.0</td></tr>
-<tr><td>2026060700000000</td><td>2026060702000000</td><td>B1</td><td>PA</td><td>OP10</td><td>800</td><td>0</td><td>200</td><td>1.0</td><td>1.0</td></tr>
-<tr><td>2026060700000000</td><td>2026060702000000</td><td>B2</td><td>PB</td><td>OP10</td><td>200</td><td>200</td><td>0</td><td>0.0</td><td>1.0</td></tr>
+<tr><td>2026060700000000</td><td>2026060702000000</td><td>B1</td><td>PA</td><td>OP10</td><td>800</td><td>0</td><td>0</td><td>1.0</td><td>0.0</td></tr>
+<tr><td>2026060700000000</td><td>2026060702000000</td><td>B2</td><td>PB</td><td>OP10</td><td>200</td><td>200</td><td>0</td><td>0.0</td><td>0.0</td></tr>
 </tbody></table>
-<h4>RTS_ASSIGN_INF / RTS_ASSIGN_HIS <small>(병합 후 4행 / 원래 12행)</small></h4>
+<h4>RTS_ASSIGN_INF / RTS_ASSIGN_HIS <small>(병합 후 4행 / 원래 8행)</small></h4>
 <table><thead><tr><th>RULE_TIMEKEY</th><th>EQP_ID</th><th>EQP_MODEL_CD</th><th>SEQ</th><th>START_TIME</th><th>END_TIME</th><th>PLAN_PROD_KEY</th><th>OPER_ID</th><th>PRODUCE_QTY</th><th>CRT_USER_ID</th></tr></thead><tbody>
-<tr><td>2026060700000000</td><td>M1-001</td><td>M1</td><td>1</td><td>2026060700000000</td><td>2026060703000000</td><td>PA</td><td>OP10</td><td>250</td><td>RL_AGENT</td></tr>
-<tr><td>2026060700000000</td><td>M1-002</td><td>M1</td><td>1</td><td>2026060700000000</td><td>2026060703000000</td><td>PA</td><td>OP10</td><td>250</td><td>RL_AGENT</td></tr>
-<tr><td>2026060700000000</td><td>M1-003</td><td>M1</td><td>1</td><td>2026060700000000</td><td>2026060703000000</td><td>PA</td><td>OP10</td><td>250</td><td>RL_AGENT</td></tr>
-<tr><td>2026060700000000</td><td>M1-004</td><td>M1</td><td>1</td><td>2026060700000000</td><td>2026060703000000</td><td>PA</td><td>OP10</td><td>250</td><td>RL_AGENT</td></tr>
+<tr><td>2026060700000000</td><td>M1-001</td><td>M1</td><td>1</td><td>2026060700000000</td><td>2026060702000000</td><td>PA</td><td>OP10</td><td>200</td><td>RL_AGENT</td></tr>
+<tr><td>2026060700000000</td><td>M1-002</td><td>M1</td><td>1</td><td>2026060700000000</td><td>2026060702000000</td><td>PA</td><td>OP10</td><td>200</td><td>RL_AGENT</td></tr>
+<tr><td>2026060700000000</td><td>M1-003</td><td>M1</td><td>1</td><td>2026060700000000</td><td>2026060702000000</td><td>PA</td><td>OP10</td><td>200</td><td>RL_AGENT</td></tr>
+<tr><td>2026060700000000</td><td>M1-004</td><td>M1</td><td>1</td><td>2026060700000000</td><td>2026060702000000</td><td>PA</td><td>OP10</td><td>200</td><td>RL_AGENT</td></tr>
 </tbody></table>
 <h4>RTS_CONV_INF / RTS_CONV_HIS</h4>
-<p><em>데이터 없음</em></p>
+<table><thead><tr><th>RULE_TIMEKEY</th><th>EVENT_TM</th><th>EQP_ID</th><th>EQP_MODEL_CD</th><th>SEQ</th><th>START_TIME</th><th>END_TIME</th><th>FROM_BATCH</th><th>TO_BATCH</th><th>FROM_PLAN_PROD_KEY</th><th>TO_PLAN_PROD_KEY</th><th>FROM_OPER</th><th>TO_OPER</th><th>CRT_USER_ID</th></tr></thead><tbody>
+<tr><td>2026060700000000</td><td>2026060702000000</td><td>M1-001</td><td>M1</td><td>1</td><td>2026060702000000</td><td>2026060702000000</td><td>B1</td><td>B2</td><td>PA</td><td>PB</td><td>OP10</td><td>OP10</td><td>RL_AGENT</td></tr>
+<tr><td>2026060700000000</td><td>2026060702000000</td><td>M1-002</td><td>M1</td><td>1</td><td>2026060702000000</td><td>2026060702000000</td><td>B1</td><td>B2</td><td>PA</td><td>PB</td><td>OP10</td><td>OP10</td><td>RL_AGENT</td></tr>
+<tr><td>2026060700000000</td><td>2026060702000000</td><td>M1-003</td><td>M1</td><td>1</td><td>2026060702000000</td><td>2026060702000000</td><td>B1</td><td>B2</td><td>PA</td><td>PB</td><td>OP10</td><td>OP10</td><td>RL_AGENT</td></tr>
+<tr><td>2026060700000000</td><td>2026060702000000</td><td>M1-004</td><td>M1</td><td>1</td><td>2026060702000000</td><td>2026060702000000</td><td>B1</td><td>B2</td><td>PA</td><td>PB</td><td>OP10</td><td>OP10</td><td>RL_AGENT</td></tr>
+</tbody></table>
 <pre>간트 (model x hour → task)
-      M1 | PA     | PA     | PA    </pre>
+      M1 | PA     | PA     | PB    </pre>
 <h2>benchmark_11</h2>
 <p class='note'>UPH 이질 배분: PA weight=600/50=12, PB weight=400/100=4 → 3:1(PA:3대/PB:1대). h0에 M1 1대 PA→PB 전환(1h idle). PA=3×50×5=750≥600, PB=1×100×4=400≥400. 잘못된 2:2 배분 시 PA=2×50×5=500&lt;600 → avg=0.917.</p>
-<p>평균 장비 가동률 (RL): <strong>1.000</strong></p>
+<p>평균 장비 가동률 (RL): <strong>0.550</strong></p>
 <h3>RL — 간트차트</h3>
-<table style='border-collapse:collapse;font-size:0.85rem;margin:0.5rem 0'><thead><tr><th>모델</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H0</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H1</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H2</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H3</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H4</th></tr></thead><tbody><tr><td><strong>M1</strong></td><td style='background:#4472C4;color:#fff;text-align:center;padding:4px 6px'>PA/OP10(4)</td><td style='background:#4472C4;color:#fff;text-align:center;padding:4px 6px'>PA/OP10(4)</td><td style='background:#4472C4;color:#fff;text-align:center;padding:4px 6px'>PA/OP10(4)</td><td style='background:#4472C4;color:#fff;text-align:center;padding:4px 6px'>PA/OP10(4)</td><td style='background:#4472C4;color:#fff;text-align:center;padding:4px 6px'>PA/OP10(4)</td></tr></tbody></table>
+<table style='border-collapse:collapse;font-size:0.85rem;margin:0.5rem 0'><thead><tr><th>모델</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H0</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H1</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H2</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H3</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H4</th></tr></thead><tbody><tr><td><strong>M1</strong></td><td style='background:#4472C4;color:#fff;text-align:center;padding:4px 6px'>PA/OP10(4)</td><td style='background:#4472C4;color:#fff;text-align:center;padding:4px 6px'>PA/OP10(4)</td><td style='background:#ED7D31;color:#fff;text-align:center;padding:4px 6px'>PB/OP10(4)</td><td style='background:#ED7D31;color:#fff;text-align:center;padding:4px 6px'>PA/OP10(1)<br>PB/OP10(3)</td><td style='background:#4472C4;color:#fff;text-align:center;padding:4px 6px'>PA/OP10(3)<br>PB/OP10(1)</td></tr></tbody></table>
 <h3>RL — 출력 테이블</h3>
 <h4>RTS_PLAN_ACHV_INF / RTS_PLAN_ACHV_HIS</h4>
 <table><thead><tr><th>RULE_TIMEKEY</th><th>EVENT_TM</th><th>BATCH_ID</th><th>PLAN_PROD_KEY</th><th>OPER</th><th>PLAN_QTY</th><th>REMAIN_QTY</th><th>PRODUCE_QTY</th><th>ACHIEVE_RATE</th><th>EQP_UTIL_RATE</th></tr></thead><tbody>
@@ -315,29 +323,42 @@ pre{background:#fafafa;padding:0.75rem;overflow-x:auto}
 <tr><td>2026060700000001</td><td>2026060700000001</td><td>B2</td><td>PB</td><td>OP10</td><td>400</td><td>400</td><td>0</td><td>0.0</td><td>1.0</td></tr>
 <tr><td>2026060700000001</td><td>2026060701000001</td><td>B1</td><td>PA</td><td>OP10</td><td>600</td><td>200</td><td>200</td><td>0.6667</td><td>1.0</td></tr>
 <tr><td>2026060700000001</td><td>2026060701000001</td><td>B2</td><td>PB</td><td>OP10</td><td>400</td><td>400</td><td>0</td><td>0.0</td><td>1.0</td></tr>
-<tr><td>2026060700000001</td><td>2026060702000001</td><td>B1</td><td>PA</td><td>OP10</td><td>600</td><td>0</td><td>200</td><td>1.0</td><td>1.0</td></tr>
-<tr><td>2026060700000001</td><td>2026060702000001</td><td>B2</td><td>PB</td><td>OP10</td><td>400</td><td>400</td><td>0</td><td>0.0</td><td>1.0</td></tr>
-<tr><td>2026060700000001</td><td>2026060703000001</td><td>B1</td><td>PA</td><td>OP10</td><td>600</td><td>0</td><td>200</td><td>1.0</td><td>1.0</td></tr>
-<tr><td>2026060700000001</td><td>2026060703000001</td><td>B2</td><td>PB</td><td>OP10</td><td>400</td><td>400</td><td>0</td><td>0.0</td><td>1.0</td></tr>
-<tr><td>2026060700000001</td><td>2026060704000001</td><td>B1</td><td>PA</td><td>OP10</td><td>600</td><td>0</td><td>200</td><td>1.0</td><td>1.0</td></tr>
-<tr><td>2026060700000001</td><td>2026060704000001</td><td>B2</td><td>PB</td><td>OP10</td><td>400</td><td>400</td><td>0</td><td>0.0</td><td>1.0</td></tr>
+<tr><td>2026060700000001</td><td>2026060702000001</td><td>B1</td><td>PA</td><td>OP10</td><td>600</td><td>200</td><td>0</td><td>0.6667</td><td>0.0</td></tr>
+<tr><td>2026060700000001</td><td>2026060702000001</td><td>B2</td><td>PB</td><td>OP10</td><td>400</td><td>400</td><td>0</td><td>0.0</td><td>0.0</td></tr>
+<tr><td>2026060700000001</td><td>2026060703000001</td><td>B1</td><td>PA</td><td>OP10</td><td>600</td><td>200</td><td>0</td><td>0.6667</td><td>0.75</td></tr>
+<tr><td>2026060700000001</td><td>2026060703000001</td><td>B2</td><td>PB</td><td>OP10</td><td>400</td><td>100</td><td>300</td><td>0.75</td><td>0.75</td></tr>
+<tr><td>2026060700000001</td><td>2026060704000001</td><td>B1</td><td>PA</td><td>OP10</td><td>600</td><td>200</td><td>0</td><td>0.6667</td><td>0.0</td></tr>
+<tr><td>2026060700000001</td><td>2026060704000001</td><td>B2</td><td>PB</td><td>OP10</td><td>400</td><td>100</td><td>0</td><td>0.75</td><td>0.0</td></tr>
 </tbody></table>
-<h4>RTS_ASSIGN_INF / RTS_ASSIGN_HIS <small>(병합 후 4행 / 원래 20행)</small></h4>
+<h4>RTS_ASSIGN_INF / RTS_ASSIGN_HIS <small>(병합 후 7행 / 원래 11행)</small></h4>
 <table><thead><tr><th>RULE_TIMEKEY</th><th>EQP_ID</th><th>EQP_MODEL_CD</th><th>SEQ</th><th>START_TIME</th><th>END_TIME</th><th>PLAN_PROD_KEY</th><th>OPER_ID</th><th>PRODUCE_QTY</th><th>CRT_USER_ID</th></tr></thead><tbody>
-<tr><td>2026060700000001</td><td>M1-001</td><td>M1</td><td>1</td><td>2026060700000001</td><td>2026060705000001</td><td>PA</td><td>OP10</td><td>250</td><td>RL_AGENT</td></tr>
-<tr><td>2026060700000001</td><td>M1-002</td><td>M1</td><td>1</td><td>2026060700000001</td><td>2026060705000001</td><td>PA</td><td>OP10</td><td>250</td><td>RL_AGENT</td></tr>
-<tr><td>2026060700000001</td><td>M1-003</td><td>M1</td><td>1</td><td>2026060700000001</td><td>2026060705000001</td><td>PA</td><td>OP10</td><td>250</td><td>RL_AGENT</td></tr>
-<tr><td>2026060700000001</td><td>M1-004</td><td>M1</td><td>1</td><td>2026060700000001</td><td>2026060705000001</td><td>PA</td><td>OP10</td><td>250</td><td>RL_AGENT</td></tr>
+<tr><td>2026060700000001</td><td>M1-001</td><td>M1</td><td>1</td><td>2026060700000001</td><td>2026060702000001</td><td>PA</td><td>OP10</td><td>100</td><td>RL_AGENT</td></tr>
+<tr><td>2026060700000001</td><td>M1-002</td><td>M1</td><td>1</td><td>2026060700000001</td><td>2026060702000001</td><td>PA</td><td>OP10</td><td>100</td><td>RL_AGENT</td></tr>
+<tr><td>2026060700000001</td><td>M1-002</td><td>M1</td><td>3</td><td>2026060703000001</td><td>2026060704000001</td><td>PB</td><td>OP10</td><td>100</td><td>RL_AGENT</td></tr>
+<tr><td>2026060700000001</td><td>M1-003</td><td>M1</td><td>1</td><td>2026060700000001</td><td>2026060702000001</td><td>PA</td><td>OP10</td><td>100</td><td>RL_AGENT</td></tr>
+<tr><td>2026060700000001</td><td>M1-003</td><td>M1</td><td>3</td><td>2026060703000001</td><td>2026060704000001</td><td>PB</td><td>OP10</td><td>100</td><td>RL_AGENT</td></tr>
+<tr><td>2026060700000001</td><td>M1-004</td><td>M1</td><td>1</td><td>2026060700000001</td><td>2026060702000001</td><td>PA</td><td>OP10</td><td>100</td><td>RL_AGENT</td></tr>
+<tr><td>2026060700000001</td><td>M1-004</td><td>M1</td><td>3</td><td>2026060703000001</td><td>2026060704000001</td><td>PB</td><td>OP10</td><td>100</td><td>RL_AGENT</td></tr>
 </tbody></table>
 <h4>RTS_CONV_INF / RTS_CONV_HIS</h4>
-<p><em>데이터 없음</em></p>
+<table><thead><tr><th>RULE_TIMEKEY</th><th>EVENT_TM</th><th>EQP_ID</th><th>EQP_MODEL_CD</th><th>SEQ</th><th>START_TIME</th><th>END_TIME</th><th>FROM_BATCH</th><th>TO_BATCH</th><th>FROM_PLAN_PROD_KEY</th><th>TO_PLAN_PROD_KEY</th><th>FROM_OPER</th><th>TO_OPER</th><th>CRT_USER_ID</th></tr></thead><tbody>
+<tr><td>2026060700000001</td><td>2026060702000001</td><td>M1-001</td><td>M1</td><td>1</td><td>2026060702000001</td><td>2026060702000001</td><td>B1</td><td>B2</td><td>PA</td><td>PB</td><td>OP10</td><td>OP10</td><td>RL_AGENT</td></tr>
+<tr><td>2026060700000001</td><td>2026060702000001</td><td>M1-002</td><td>M1</td><td>1</td><td>2026060702000001</td><td>2026060702000001</td><td>B1</td><td>B2</td><td>PA</td><td>PB</td><td>OP10</td><td>OP10</td><td>RL_AGENT</td></tr>
+<tr><td>2026060700000001</td><td>2026060702000001</td><td>M1-003</td><td>M1</td><td>1</td><td>2026060702000001</td><td>2026060702000001</td><td>B1</td><td>B2</td><td>PA</td><td>PB</td><td>OP10</td><td>OP10</td><td>RL_AGENT</td></tr>
+<tr><td>2026060700000001</td><td>2026060702000001</td><td>M1-004</td><td>M1</td><td>1</td><td>2026060702000001</td><td>2026060702000001</td><td>B1</td><td>B2</td><td>PA</td><td>PB</td><td>OP10</td><td>OP10</td><td>RL_AGENT</td></tr>
+<tr><td>2026060700000001</td><td>2026060703000001</td><td>M1-005</td><td>M1</td><td>1</td><td>2026060703000001</td><td>2026060703000001</td><td>B2</td><td>B1</td><td>PB</td><td>PA</td><td>OP10</td><td>OP10</td><td>RL_AGENT</td></tr>
+<tr><td>2026060700000001</td><td>2026060704000001</td><td>M1-006</td><td>M1</td><td>1</td><td>2026060704000001</td><td>2026060704000001</td><td>B2</td><td>B1</td><td>PB</td><td>PA</td><td>OP10</td><td>OP10</td><td>RL_AGENT</td></tr>
+<tr><td>2026060700000001</td><td>2026060704000001</td><td>M1-007</td><td>M1</td><td>1</td><td>2026060704000001</td><td>2026060704000001</td><td>B2</td><td>B1</td><td>PB</td><td>PA</td><td>OP10</td><td>OP10</td><td>RL_AGENT</td></tr>
+<tr><td>2026060700000001</td><td>2026060704000001</td><td>M1-008</td><td>M1</td><td>1</td><td>2026060704000001</td><td>2026060704000001</td><td>B2</td><td>B1</td><td>PB</td><td>PA</td><td>OP10</td><td>OP10</td><td>RL_AGENT</td></tr>
+<tr><td>2026060700000001</td><td>2026060704000001</td><td>M1-009</td><td>M1</td><td>1</td><td>2026060704000001</td><td>2026060704000001</td><td>B1</td><td>B2</td><td>PA</td><td>PB</td><td>OP10</td><td>OP10</td><td>RL_AGENT</td></tr>
+</tbody></table>
 <pre>간트 (model x hour → task)
-      M1 | PA     | PA     | PA     | PA     | PA    </pre>
+      M1 | PA     | PA     | PB     | PB     | PA    </pre>
 <h2>benchmark_12</h2>
 <p class='note'>3단 파이프라인 보틀넥: OP20 weight=400/50=8으로 최대, 목표배분 OP10:1/OP20:2/OP30:1. init_wip OP20=0이므로 초기 OP10 집중(dwell shaping 유도) 후 OP20에 2대 배분. 8h 충분. OP20에 1대만 배치 시 WIP 병목으로 달성 어려움.</p>
-<p>평균 장비 가동률 (RL): <strong>0.875</strong></p>
+<p>평균 장비 가동률 (RL): <strong>0.781</strong></p>
 <h3>RL — 간트차트</h3>
-<table style='border-collapse:collapse;font-size:0.85rem;margin:0.5rem 0'><thead><tr><th>모델</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H0</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H1</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H2</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H3</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H4</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H5</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H6</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H7</th></tr></thead><tbody><tr><td><strong>M1</strong></td><td style='background:#4472C4;color:#fff;text-align:center;padding:4px 6px'>P1/OP10(4)</td><td style='background:#4472C4;color:#fff;text-align:center;padding:4px 6px'>P1/OP10(2)<br>P1/OP20(2)</td><td style='background:#4472C4;color:#fff;text-align:center;padding:4px 6px'>P1/OP10(2)<br>P1/OP20(2)</td><td style='background:#4472C4;color:#fff;text-align:center;padding:4px 6px'>P1/OP10(2)<br>P1/OP20(2)</td><td style='background:#ED7D31;color:#fff;text-align:center;padding:4px 6px'>P1/OP20(2)<br>P1/OP30(2)</td><td style='background:#ED7D31;color:#fff;text-align:center;padding:4px 6px'>P1/OP20(2)<br>P1/OP30(2)</td><td style='background:#ED7D31;color:#fff;text-align:center;padding:4px 6px'>P1/OP20(2)<br>P1/OP30(2)</td><td style='background:#ED7D31;color:#fff;text-align:center;padding:4px 6px'>P1/OP20(2)<br>P1/OP30(2)</td></tr></tbody></table>
+<table style='border-collapse:collapse;font-size:0.85rem;margin:0.5rem 0'><thead><tr><th>모델</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H0</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H1</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H2</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H3</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H4</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H5</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H6</th><th style='text-align:center;min-width:60px;white-space:nowrap'>H7</th></tr></thead><tbody><tr><td><strong>M1</strong></td><td style='background:#4472C4;color:#fff;text-align:center;padding:4px 6px'>P1/OP10(4)</td><td style='background:#4472C4;color:#fff;text-align:center;padding:4px 6px'>P1/OP10(2)<br>P1/OP20(2)</td><td style='background:#4472C4;color:#fff;text-align:center;padding:4px 6px'>P1/OP10(2)<br>P1/OP20(2)</td><td style='background:#70AD47;color:#fff;text-align:center;padding:4px 6px'>P1/OP10(1)<br>P1/OP20(1)<br>P1/OP30(2)</td><td style='background:#70AD47;color:#fff;text-align:center;padding:4px 6px'>P1/OP10(1)<br>P1/OP20(1)<br>P1/OP30(2)</td><td style='background:#70AD47;color:#fff;text-align:center;padding:4px 6px'>P1/OP10(1)<br>P1/OP20(1)<br>P1/OP30(2)</td><td style='background:#ED7D31;color:#fff;text-align:center;padding:4px 6px'>P1/OP20(2)<br>P1/OP30(2)</td><td style='background:#ED7D31;color:#fff;text-align:center;padding:4px 6px'>P1/OP20(2)<br>P1/OP30(2)</td></tr></tbody></table>
 <h3>RL — 출력 테이블</h3>
 <h4>RTS_PLAN_ACHV_INF / RTS_PLAN_ACHV_HIS</h4>
 <table><thead><tr><th>RULE_TIMEKEY</th><th>EVENT_TM</th><th>BATCH_ID</th><th>PLAN_PROD_KEY</th><th>OPER</th><th>PLAN_QTY</th><th>REMAIN_QTY</th><th>PRODUCE_QTY</th><th>ACHIEVE_RATE</th><th>EQP_UTIL_RATE</th></tr></thead><tbody>
@@ -350,41 +371,45 @@ pre{background:#fafafa;padding:0.75rem;overflow-x:auto}
 <tr><td>2026060700000002</td><td>2026060702000002</td><td>B1</td><td>P1</td><td>OP10</td><td>400</td><td>0</td><td>200</td><td>1.0</td><td>1.0</td></tr>
 <tr><td>2026060700000002</td><td>2026060702000002</td><td>B2</td><td>P1</td><td>OP20</td><td>400</td><td>300</td><td>100</td><td>0.25</td><td>1.0</td></tr>
 <tr><td>2026060700000002</td><td>2026060702000002</td><td>B3</td><td>P1</td><td>OP30</td><td>400</td><td>400</td><td>0</td><td>0.0</td><td>1.0</td></tr>
-<tr><td>2026060700000002</td><td>2026060703000002</td><td>B1</td><td>P1</td><td>OP10</td><td>400</td><td>0</td><td>200</td><td>1.0</td><td>1.0</td></tr>
-<tr><td>2026060700000002</td><td>2026060703000002</td><td>B2</td><td>P1</td><td>OP20</td><td>400</td><td>200</td><td>100</td><td>0.5</td><td>1.0</td></tr>
-<tr><td>2026060700000002</td><td>2026060703000002</td><td>B3</td><td>P1</td><td>OP30</td><td>400</td><td>400</td><td>0</td><td>0.0</td><td>1.0</td></tr>
-<tr><td>2026060700000002</td><td>2026060704000002</td><td>B1</td><td>P1</td><td>OP10</td><td>400</td><td>0</td><td>0</td><td>1.0</td><td>0.5</td></tr>
-<tr><td>2026060700000002</td><td>2026060704000002</td><td>B2</td><td>P1</td><td>OP20</td><td>400</td><td>100</td><td>100</td><td>0.75</td><td>0.5</td></tr>
-<tr><td>2026060700000002</td><td>2026060704000002</td><td>B3</td><td>P1</td><td>OP30</td><td>400</td><td>400</td><td>0</td><td>0.0</td><td>0.5</td></tr>
-<tr><td>2026060700000002</td><td>2026060705000002</td><td>B1</td><td>P1</td><td>OP10</td><td>400</td><td>0</td><td>0</td><td>1.0</td><td>1.0</td></tr>
-<tr><td>2026060700000002</td><td>2026060705000002</td><td>B2</td><td>P1</td><td>OP20</td><td>400</td><td>0</td><td>100</td><td>1.0</td><td>1.0</td></tr>
-<tr><td>2026060700000002</td><td>2026060705000002</td><td>B3</td><td>P1</td><td>OP30</td><td>400</td><td>200</td><td>200</td><td>0.5</td><td>1.0</td></tr>
-<tr><td>2026060700000002</td><td>2026060706000002</td><td>B1</td><td>P1</td><td>OP10</td><td>400</td><td>0</td><td>0</td><td>1.0</td><td>1.0</td></tr>
-<tr><td>2026060700000002</td><td>2026060706000002</td><td>B2</td><td>P1</td><td>OP20</td><td>400</td><td>0</td><td>100</td><td>1.0</td><td>1.0</td></tr>
-<tr><td>2026060700000002</td><td>2026060706000002</td><td>B3</td><td>P1</td><td>OP30</td><td>400</td><td>0</td><td>200</td><td>1.0</td><td>1.0</td></tr>
+<tr><td>2026060700000002</td><td>2026060703000002</td><td>B1</td><td>P1</td><td>OP10</td><td>400</td><td>0</td><td>0</td><td>1.0</td><td>0.0</td></tr>
+<tr><td>2026060700000002</td><td>2026060703000002</td><td>B2</td><td>P1</td><td>OP20</td><td>400</td><td>300</td><td>0</td><td>0.25</td><td>0.0</td></tr>
+<tr><td>2026060700000002</td><td>2026060703000002</td><td>B3</td><td>P1</td><td>OP30</td><td>400</td><td>400</td><td>0</td><td>0.0</td><td>0.0</td></tr>
+<tr><td>2026060700000002</td><td>2026060704000002</td><td>B1</td><td>P1</td><td>OP10</td><td>400</td><td>0</td><td>100</td><td>1.0</td><td>1.0</td></tr>
+<tr><td>2026060700000002</td><td>2026060704000002</td><td>B2</td><td>P1</td><td>OP20</td><td>400</td><td>250</td><td>50</td><td>0.375</td><td>1.0</td></tr>
+<tr><td>2026060700000002</td><td>2026060704000002</td><td>B3</td><td>P1</td><td>OP30</td><td>400</td><td>300</td><td>100</td><td>0.25</td><td>1.0</td></tr>
+<tr><td>2026060700000002</td><td>2026060705000002</td><td>B1</td><td>P1</td><td>OP10</td><td>400</td><td>0</td><td>100</td><td>1.0</td><td>1.0</td></tr>
+<tr><td>2026060700000002</td><td>2026060705000002</td><td>B2</td><td>P1</td><td>OP20</td><td>400</td><td>200</td><td>50</td><td>0.5</td><td>1.0</td></tr>
+<tr><td>2026060700000002</td><td>2026060705000002</td><td>B3</td><td>P1</td><td>OP30</td><td>400</td><td>250</td><td>50</td><td>0.375</td><td>1.0</td></tr>
+<tr><td>2026060700000002</td><td>2026060706000002</td><td>B1</td><td>P1</td><td>OP10</td><td>400</td><td>0</td><td>0</td><td>1.0</td><td>0.75</td></tr>
+<tr><td>2026060700000002</td><td>2026060706000002</td><td>B2</td><td>P1</td><td>OP20</td><td>400</td><td>150</td><td>50</td><td>0.625</td><td>0.75</td></tr>
+<tr><td>2026060700000002</td><td>2026060706000002</td><td>B3</td><td>P1</td><td>OP30</td><td>400</td><td>200</td><td>50</td><td>0.5</td><td>0.75</td></tr>
 <tr><td>2026060700000002</td><td>2026060707000002</td><td>B1</td><td>P1</td><td>OP10</td><td>400</td><td>0</td><td>0</td><td>1.0</td><td>1.0</td></tr>
-<tr><td>2026060700000002</td><td>2026060707000002</td><td>B2</td><td>P1</td><td>OP20</td><td>400</td><td>0</td><td>100</td><td>1.0</td><td>1.0</td></tr>
-<tr><td>2026060700000002</td><td>2026060707000002</td><td>B3</td><td>P1</td><td>OP30</td><td>400</td><td>0</td><td>100</td><td>1.0</td><td>1.0</td></tr>
+<tr><td>2026060700000002</td><td>2026060707000002</td><td>B2</td><td>P1</td><td>OP20</td><td>400</td><td>50</td><td>100</td><td>0.875</td><td>1.0</td></tr>
+<tr><td>2026060700000002</td><td>2026060707000002</td><td>B3</td><td>P1</td><td>OP30</td><td>400</td><td>150</td><td>50</td><td>0.625</td><td>1.0</td></tr>
 </tbody></table>
-<h4>RTS_ASSIGN_INF / RTS_ASSIGN_HIS <small>(병합 후 10행 / 원래 28행)</small></h4>
+<h4>RTS_ASSIGN_INF / RTS_ASSIGN_HIS <small>(병합 후 11행 / 원래 26행)</small></h4>
 <table><thead><tr><th>RULE_TIMEKEY</th><th>EQP_ID</th><th>EQP_MODEL_CD</th><th>SEQ</th><th>START_TIME</th><th>END_TIME</th><th>PLAN_PROD_KEY</th><th>OPER_ID</th><th>PRODUCE_QTY</th><th>CRT_USER_ID</th></tr></thead><tbody>
-<tr><td>2026060700000002</td><td>M1-001</td><td>M1</td><td>1</td><td>2026060700000002</td><td>2026060704000002</td><td>P1</td><td>OP10</td><td>400</td><td>RL_AGENT</td></tr>
-<tr><td>2026060700000002</td><td>M1-001</td><td>M1</td><td>5</td><td>2026060704000002</td><td>2026060708000002</td><td>P1</td><td>OP20</td><td>200</td><td>RL_AGENT</td></tr>
-<tr><td>2026060700000002</td><td>M1-002</td><td>M1</td><td>1</td><td>2026060700000002</td><td>2026060704000002</td><td>P1</td><td>OP10</td><td>400</td><td>RL_AGENT</td></tr>
-<tr><td>2026060700000002</td><td>M1-002</td><td>M1</td><td>5</td><td>2026060704000002</td><td>2026060708000002</td><td>P1</td><td>OP20</td><td>200</td><td>RL_AGENT</td></tr>
+<tr><td>2026060700000002</td><td>M1-001</td><td>M1</td><td>1</td><td>2026060700000002</td><td>2026060703000002</td><td>P1</td><td>OP10</td><td>300</td><td>RL_AGENT</td></tr>
+<tr><td>2026060700000002</td><td>M1-001</td><td>M1</td><td>4</td><td>2026060704000002</td><td>2026060706000002</td><td>P1</td><td>OP10</td><td>200</td><td>RL_AGENT</td></tr>
+<tr><td>2026060700000002</td><td>M1-001</td><td>M1</td><td>6</td><td>2026060706000002</td><td>2026060708000002</td><td>P1</td><td>OP20</td><td>75</td><td>RL_AGENT</td></tr>
+<tr><td>2026060700000002</td><td>M1-002</td><td>M1</td><td>1</td><td>2026060700000002</td><td>2026060703000002</td><td>P1</td><td>OP10</td><td>300</td><td>RL_AGENT</td></tr>
+<tr><td>2026060700000002</td><td>M1-002</td><td>M1</td><td>4</td><td>2026060704000002</td><td>2026060708000002</td><td>P1</td><td>OP20</td><td>175</td><td>RL_AGENT</td></tr>
 <tr><td>2026060700000002</td><td>M1-003</td><td>M1</td><td>1</td><td>2026060700000002</td><td>2026060701000002</td><td>P1</td><td>OP10</td><td>100</td><td>RL_AGENT</td></tr>
-<tr><td>2026060700000002</td><td>M1-003</td><td>M1</td><td>2</td><td>2026060702000002</td><td>2026060704000002</td><td>P1</td><td>OP20</td><td>100</td><td>RL_AGENT</td></tr>
-<tr><td>2026060700000002</td><td>M1-003</td><td>M1</td><td>4</td><td>2026060705000002</td><td>2026060708000002</td><td>P1</td><td>OP30</td><td>250</td><td>RL_AGENT</td></tr>
+<tr><td>2026060700000002</td><td>M1-003</td><td>M1</td><td>2</td><td>2026060702000002</td><td>2026060703000002</td><td>P1</td><td>OP20</td><td>50</td><td>RL_AGENT</td></tr>
+<tr><td>2026060700000002</td><td>M1-003</td><td>M1</td><td>3</td><td>2026060704000002</td><td>2026060708000002</td><td>P1</td><td>OP30</td><td>125</td><td>RL_AGENT</td></tr>
 <tr><td>2026060700000002</td><td>M1-004</td><td>M1</td><td>1</td><td>2026060700000002</td><td>2026060701000002</td><td>P1</td><td>OP10</td><td>100</td><td>RL_AGENT</td></tr>
-<tr><td>2026060700000002</td><td>M1-004</td><td>M1</td><td>2</td><td>2026060702000002</td><td>2026060704000002</td><td>P1</td><td>OP20</td><td>100</td><td>RL_AGENT</td></tr>
-<tr><td>2026060700000002</td><td>M1-004</td><td>M1</td><td>4</td><td>2026060705000002</td><td>2026060708000002</td><td>P1</td><td>OP30</td><td>250</td><td>RL_AGENT</td></tr>
+<tr><td>2026060700000002</td><td>M1-004</td><td>M1</td><td>2</td><td>2026060702000002</td><td>2026060703000002</td><td>P1</td><td>OP20</td><td>50</td><td>RL_AGENT</td></tr>
+<tr><td>2026060700000002</td><td>M1-004</td><td>M1</td><td>3</td><td>2026060704000002</td><td>2026060708000002</td><td>P1</td><td>OP30</td><td>125</td><td>RL_AGENT</td></tr>
 </tbody></table>
 <h4>RTS_CONV_INF / RTS_CONV_HIS</h4>
 <table><thead><tr><th>RULE_TIMEKEY</th><th>EVENT_TM</th><th>EQP_ID</th><th>EQP_MODEL_CD</th><th>SEQ</th><th>START_TIME</th><th>END_TIME</th><th>FROM_BATCH</th><th>TO_BATCH</th><th>FROM_PLAN_PROD_KEY</th><th>TO_PLAN_PROD_KEY</th><th>FROM_OPER</th><th>TO_OPER</th><th>CRT_USER_ID</th></tr></thead><tbody>
 <tr><td>2026060700000002</td><td>2026060701000002</td><td>M1-001</td><td>M1</td><td>1</td><td>2026060701000002</td><td>2026060701000002</td><td>B1</td><td>B2</td><td>P1</td><td>P1</td><td>OP10</td><td>OP20</td><td>RL_AGENT</td></tr>
 <tr><td>2026060700000002</td><td>2026060701000002</td><td>M1-002</td><td>M1</td><td>1</td><td>2026060701000002</td><td>2026060701000002</td><td>B1</td><td>B2</td><td>P1</td><td>P1</td><td>OP10</td><td>OP20</td><td>RL_AGENT</td></tr>
-<tr><td>2026060700000002</td><td>2026060704000002</td><td>M1-003</td><td>M1</td><td>1</td><td>2026060704000002</td><td>2026060704000002</td><td>B1</td><td>B3</td><td>P1</td><td>P1</td><td>OP10</td><td>OP30</td><td>RL_AGENT</td></tr>
-<tr><td>2026060700000002</td><td>2026060704000002</td><td>M1-004</td><td>M1</td><td>1</td><td>2026060704000002</td><td>2026060704000002</td><td>B1</td><td>B3</td><td>P1</td><td>P1</td><td>OP10</td><td>OP30</td><td>RL_AGENT</td></tr>
+<tr><td>2026060700000002</td><td>2026060703000002</td><td>M1-003</td><td>M1</td><td>1</td><td>2026060703000002</td><td>2026060703000002</td><td>B1</td><td>B3</td><td>P1</td><td>P1</td><td>OP10</td><td>OP30</td><td>RL_AGENT</td></tr>
+<tr><td>2026060700000002</td><td>2026060703000002</td><td>M1-004</td><td>M1</td><td>1</td><td>2026060703000002</td><td>2026060703000002</td><td>B2</td><td>B3</td><td>P1</td><td>P1</td><td>OP20</td><td>OP30</td><td>RL_AGENT</td></tr>
+<tr><td>2026060700000002</td><td>2026060703000002</td><td>M1-005</td><td>M1</td><td>1</td><td>2026060703000002</td><td>2026060703000002</td><td>B2</td><td>B1</td><td>P1</td><td>P1</td><td>OP20</td><td>OP10</td><td>RL_AGENT</td></tr>
+<tr><td>2026060700000002</td><td>2026060703000002</td><td>M1-006</td><td>M1</td><td>1</td><td>2026060703000002</td><td>2026060703000002</td><td>B1</td><td>B2</td><td>P1</td><td>P1</td><td>OP10</td><td>OP20</td><td>RL_AGENT</td></tr>
+<tr><td>2026060700000002</td><td>2026060706000002</td><td>M1-007</td><td>M1</td><td>1</td><td>2026060706000002</td><td>2026060706000002</td><td>B1</td><td>B2</td><td>P1</td><td>P1</td><td>OP10</td><td>OP20</td><td>RL_AGENT</td></tr>
 </tbody></table>
 <pre>간트 (model x hour → task)
       M1 | P1     | P1     | P1     | P1     | P1     | P1     | P1     | P1    </pre>

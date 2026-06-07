@@ -3,21 +3,62 @@
   "horizon_hours": 4,
   "switch_time_hours": 1,
   "tasks": [
-    {"plan_prod_key": "P1", "oper_id": "OP10", "oper_seq": 1, "batch_id": "B1", "plan_qty": 200, "init_wip": 1000},
-    {"plan_prod_key": "P1", "oper_id": "OP20", "oper_seq": 2, "batch_id": "B2", "plan_qty": 200, "init_wip": 0}
+    {
+      "plan_prod_key": "P1",
+      "oper_id": "OP10",
+      "oper_seq": 1,
+      "batch_id": "B1",
+      "plan_qty": 200,
+      "init_wip": 1000
+    },
+    {
+      "plan_prod_key": "P1",
+      "oper_id": "OP20",
+      "oper_seq": 2,
+      "batch_id": "B2",
+      "plan_qty": 200,
+      "init_wip": 0
+    }
   ],
   "uph": [
-    {"plan_prod_key": "P1", "oper_id": "OP10", "eqp_model": "M1", "uph": 100},
-    {"plan_prod_key": "P1", "oper_id": "OP20", "eqp_model": "M1", "uph": 100}
+    {
+      "plan_prod_key": "P1",
+      "oper_id": "OP10",
+      "eqp_model": "M1",
+      "uph": 100
+    },
+    {
+      "plan_prod_key": "P1",
+      "oper_id": "OP20",
+      "eqp_model": "M1",
+      "uph": 100
+    }
   ],
-  "eqp_qty": {"M1": 2},
+  "eqp_qty": {
+    "M1": 2
+  },
   "init_assign": [
-    {"eqp_model": "M1", "plan_prod_key": "P1", "oper_id": "OP10", "count": 2}
+    {
+      "eqp_model": "M1",
+      "plan_prod_key": "P1",
+      "oper_id": "OP10",
+      "count": 2
+    }
   ],
   "tool_qty": [
-    {"batch_id": "B1", "eqp_model": "M1", "tool_qty": 2},
-    {"batch_id": "B2", "eqp_model": "M1", "tool_qty": 2}
+    {
+      "batch_id": "B1",
+      "eqp_model": "M1",
+      "tool_qty": 2
+    },
+    {
+      "batch_id": "B2",
+      "eqp_model": "M1",
+      "tool_qty": 2
+    }
   ],
-  "conv_groups": {"G1": ["B1", "B2"]},
-  "ground_truth": {"plan_achievement": 1.0, "note": "OP10 2대 1h로 200 생산→OP20 WIP 확보. OP20(B2)로 전환해 후공정 달성. OP20 init_wip=0이라 앞공정 빌드 필수."}
+  "ground_truth": {
+    "plan_achievement": 1.0,
+    "note": "OP10 2대 1h로 200 생산→OP20 WIP 확보. OP20(B2)로 전환해 후공정 달성. OP20 init_wip=0이라 앞공정 빌드 필수."
+  }
 }

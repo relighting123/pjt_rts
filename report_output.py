@@ -54,9 +54,10 @@ def _split_hourly_produce(problem: ProblemInstance, stat: dict, ti: int) -> dict
 def build_plan_achv_rows(
     problem: ProblemInstance,
     hourly_stats: list[dict],
-    crt_user_id: str = "RL_AGENT",
+    sys_id: str | None = None,
 ) -> list[dict]:
     """RTS_PLAN_ACHV_INF/HIS — 시간대 × task 계획/생산/달성."""
+    sys_id = sys_id or config.SYS_ID
     rows: list[dict] = []
     rule_timekey = problem.rule_timekey
     for stat in hourly_stats:
@@ -79,7 +80,7 @@ def build_plan_achv_rows(
                 "PRODUCE_QTY": hourly.get(ti, 0),
                 "ACHIEVE_RATE": achieve,
                 "EQP_UTIL_RATE": stat["util_rate"],
-                "CRT_USER_ID": crt_user_id,
+                "CRT_USER_ID": sys_id,
             })
     return rows
 
@@ -87,9 +88,10 @@ def build_plan_achv_rows(
 def build_assign_rows(
     problem: ProblemInstance,
     hourly_stats: list[dict],
-    crt_user_id: str = "RL_AGENT",
+    sys_id: str | None = None,
 ) -> list[dict]:
     """RTS_ASSIGN_INF/HIS — 시간대 × 장비 배치·생산. SEQ_NO는 EQP_ID(호기)별."""
+    sys_id = sys_id or config.SYS_ID
     rows: list[dict] = []
     seq_by_eqp: dict[str, int] = {}
     rule_timekey = problem.rule_timekey
@@ -133,7 +135,7 @@ def build_assign_rows(
                     "PLAN_PROD_KEY": task.plan_prod_key,
                     "OPER_ID": task.oper_id,
                     "PRODUCE_QTY": qty,
-                    "CRT_USER_ID": crt_user_id,
+                    "CRT_USER_ID": sys_id,
                 })
             model_unit_offset[model] = offset + active
     return rows
@@ -142,9 +144,10 @@ def build_assign_rows(
 def build_conv_rows(
     problem: ProblemInstance,
     trace: list,
-    crt_user_id: str = "RL_AGENT",
+    sys_id: str | None = None,
 ) -> list[dict]:
     """RTS_CONV_INF/HIS — batch(tool) 전환 이벤트. SEQ_NO는 EQP_ID(호기)별."""
+    sys_id = sys_id or config.SYS_ID
     rows: list[dict] = []
     seq_by_eqp: dict[str, int] = {}
     rule_timekey = problem.rule_timekey
@@ -178,7 +181,7 @@ def build_conv_rows(
                 "TO_PLAN_PROD_KEY": to_task.plan_prod_key,
                 "FROM_OPER_ID": from_task.oper_id,
                 "TO_OPER_ID": to_task.oper_id,
-                "CRT_USER_ID": crt_user_id,
+                "CRT_USER_ID": sys_id,
             })
     return rows
 
@@ -225,10 +228,10 @@ def build_guide_rows(
     problem: ProblemInstance,
     guide_allocation: dict,
     guide_source: str = "ANALYTIC",
-    crt_user_id: str | None = None,
+    sys_id: str | None = None,
 ) -> list[dict]:
     """RTS_GUIDE_INF/HIS — 공정×모델 목표 장비 대수 (0 포함)."""
-    crt_user_id = crt_user_id or config.load_config()["crt_user_id"]
+    sys_id = sys_id or config.SYS_ID
     rows = []
     for row in guide_allocation_rows(problem, guide_allocation):
         ppk, oper = row["task"].split("/", 1)
@@ -239,7 +242,7 @@ def build_guide_rows(
             "EQP_MODEL_CD": row["model"],
             "TARGET_EQP_CNT": round(row["target_count"], 4),
             "GUIDE_SOURCE": guide_source,
-            "CRT_USER_ID": crt_user_id,
+            "CRT_USER_ID": sys_id,
         })
     return rows
 
@@ -256,10 +259,10 @@ def build_inference_result_document(
     problem: ProblemInstance,
     eval_result: dict,
     policy: str = "RL",
-    crt_user_id: str | None = None,
+    sys_id: str | None = None,
 ) -> dict:
     """추론 결과 JSON (가이드 + 동적 운영). schema_version=1."""
-    crt_user_id = crt_user_id or config.load_config()["crt_user_id"]
+    sys_id = sys_id or config.SYS_ID
     use_rl = policy == "RL" and eval_result.get("rl") is not None
     plan_achv_key = "rl_plan_achv_rows" if use_rl else "plan_achv_rows"
     assign_key = "rl_assign_rows" if use_rl else "assign_rows"
@@ -268,7 +271,7 @@ def build_inference_result_document(
     util = eval_result.get("rl_avg_utilization" if use_rl else "avg_utilization", 0.0)
     guide_src = detect_guide_source()
     guide_rows = build_guide_rows(
-        problem, eval_result.get("guide_allocation", {}), guide_src, crt_user_id,
+        problem, eval_result.get("guide_allocation", {}), guide_src, sys_id,
     )
     return {
         "schema_version": 1,
@@ -370,13 +373,14 @@ def build_output_tables(
     problem: ProblemInstance,
     hourly_stats: list[dict],
     trace: list,
-    crt_user_id: str = "RL_AGENT",
+    sys_id: str | None = None,
 ) -> dict[str, list[dict]]:
     """출력 테이블별 행 dict."""
+    sid = sys_id or config.SYS_ID
     return {
-        config.PLAN_ACHV_TABLE: build_plan_achv_rows(problem, hourly_stats, crt_user_id),
-        config.ASSIGN_TABLE: build_assign_rows(problem, hourly_stats, crt_user_id),
-        config.CONV_TABLE: build_conv_rows(problem, trace, crt_user_id),
+        config.PLAN_ACHV_TABLE: build_plan_achv_rows(problem, hourly_stats, sid),
+        config.ASSIGN_TABLE: build_assign_rows(problem, hourly_stats, sid),
+        config.CONV_TABLE: build_conv_rows(problem, trace, sid),
     }
 
 
@@ -388,10 +392,11 @@ def build_task_hourly_rows(problem: ProblemInstance, hourly_stats: list[dict]) -
 def build_allocation_rows(
     problem: ProblemInstance,
     hourly_stats: list[dict],
-    crt_user_id: str = "RL_AGENT",
+    sys_id: str | None = None,
 ) -> list[dict]:
+    sid = sys_id or config.SYS_ID
     return [{k: row[k] for k in ALLOC_DB_KEYS} for row in build_assign_rows(
-        problem, hourly_stats, crt_user_id)]
+        problem, hourly_stats, sid)]
 
 
 def render_detail_sections(

@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>pjt_rts — 실행 추적 디버거 (Train / Infer)</title>
+  <style>
+    :root {
+      --bg: #0d1117; --surface: #161b22; --panel: #1c2128;
+      --border: #30363d; --text: #e6edf3; --muted: #8b949e;
+      --accent: #58a6ff; --green: #3fb950; --orange: #d29922;
+      --red: #f85149; --purple: #bc8cff;
+      --mono: Consolas, "Courier New", monospace;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; }
+    .topbar {
+      display: flex; align-items: center; gap: 1rem; padding: 0.6rem 1rem;
+      border-bottom: 1px solid var(--border); background: var(--surface);
+    }
+    .topbar h1 { font-size: 1rem; margin: 0; font-weight: 600; }
+    .mode-btn {
+      padding: 0.35rem 0.85rem; border-radius: 6px; border: 1px solid var(--border);
+      background: var(--panel); color: var(--muted); cursor: pointer; font-size: 0.85rem;
+    }
+    .mode-btn.active { border-color: var(--accent); color: var(--accent); background: #122031; }
+    .layout { display: grid; grid-template-columns: 260px 1fr 300px; height: calc(100vh - 49px); }
+    .steps-panel { border-right: 1px solid var(--border); overflow-y: auto; background: var(--surface); }
+    .steps-panel h2 { font-size: 0.7rem; text-transform: uppercase; color: var(--muted); padding: 0.75rem 0.75rem 0.25rem; margin: 0; letter-spacing: 0.06em; }
+    .step-item {
+      display: block; width: 100%; text-align: left; padding: 0.5rem 0.75rem;
+      border: none; background: none; color: var(--muted); cursor: pointer;
+      font-size: 0.82rem; border-left: 3px solid transparent;
+    }
+    .step-item:hover { background: var(--panel); color: var(--text); }
+    .step-item.active { border-left-color: var(--accent); background: var(--panel); color: var(--text); }
+    .step-item .num { color: var(--accent); font-family: var(--mono); font-size: 0.75rem; margin-right: 0.35rem; }
+    .main-panel { overflow-y: auto; padding: 1.25rem 1.5rem; }
+    .watch-panel { border-left: 1px solid var(--border); overflow-y: auto; background: var(--surface); padding: 0.75rem; }
+    .watch-panel h2 { font-size: 0.75rem; color: var(--muted); margin: 0 0 0.5rem; text-transform: uppercase; }
+    .cmd-box {
+      font-family: var(--mono); font-size: 0.85rem; background: #0d1117;
+      border: 1px solid var(--border); border-radius: 6px; padding: 0.6rem 0.85rem;
+      color: var(--green); margin: 0.75rem 0;
+    }
+    .meta-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.5rem 0 1rem; }
+    .chip {
+      font-size: 0.75rem; padding: 0.15rem 0.5rem; border-radius: 4px;
+      border: 1px solid var(--border); background: var(--panel);
+    }
+    .chip.file { border-color: var(--purple); color: var(--purple); }
+    .chip.fn { border-color: var(--orange); color: var(--orange); }
+    h2.step-title { font-size: 1.2rem; margin: 0 0 0.25rem; }
+    .step-desc { color: var(--muted); font-size: 0.9rem; margin-bottom: 1rem; }
+    .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    @media (max-width: 1100px) { .data-grid { grid-template-columns: 1fr; } .layout { grid-template-columns: 220px 1fr; } .watch-panel { display: none; } }
+    .data-box { border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+    .data-box h3 {
+      margin: 0; padding: 0.4rem 0.65rem; font-size: 0.75rem; text-transform: uppercase;
+      background: var(--panel); color: var(--muted); border-bottom: 1px solid var(--border);
+    }
+    .data-box h3.in { color: var(--accent); }
+    .data-box h3.out { color: var(--green); }
+    .data-box h3.logic { color: var(--orange); }
+    pre.data {
+      margin: 0; padding: 0.65rem; font-family: var(--mono); font-size: 0.78rem;
+      line-height: 1.45; overflow-x: auto; max-height: 320px; overflow-y: auto;
+      white-space: pre-wrap; word-break: break-all;
+    }
+    .change-list { list-style: none; padding: 0; margin: 0.75rem 0; }
+    .change-list li {
+      font-size: 0.82rem; padding: 0.35rem 0.5rem; margin-bottom: 0.25rem;
+      border-left: 3px solid var(--green); background: var(--panel); border-radius: 0 4px 4px 0;
+    }
+    .change-list li.warn { border-left-color: var(--orange); }
+    .nav-bar { display: flex; gap: 0.5rem; margin-top: 1.25rem; }
+    .nav-bar button {
+      padding: 0.45rem 1rem; border-radius: 6px; border: 1px solid var(--border);
+      background: var(--panel); color: var(--text); cursor: pointer; font-size: 0.85rem;
+    }
+    .nav-bar button:disabled { opacity: 0.4; cursor: default; }
+    .nav-bar button.primary { border-color: var(--accent); color: var(--accent); }
+    .progress { font-size: 0.8rem; color: var(--muted); margin-left: auto; align-self: center; }
+    .watch-var { margin-bottom: 0.65rem; }
+    .watch-var .key { font-family: var(--mono); font-size: 0.72rem; color: var(--accent); }
+    .watch-var .val { font-family: var(--mono); font-size: 0.78rem; color: var(--text); margin-top: 0.15rem; word-break: break-all; }
+    .watch-var .val.changed { color: var(--green); }
+    .full-width { grid-column: 1 / -1; }
+    .mdp-box {
+      border: 1px solid var(--purple); border-radius: 6px; margin: 0.75rem 0;
+      background: #1a1525;
+    }
+    .mdp-box h3 {
+      margin: 0; padding: 0.4rem 0.65rem; font-size: 0.75rem;
+      color: var(--purple); border-bottom: 1px solid var(--border);
+      text-transform: uppercase;
+    }
+    .mdp-box pre { margin: 0; padding: 0.65rem; font-family: var(--mono); font-size: 0.78rem; line-height: 1.5; }
+  </style>
+</head>
+<body>
+<div class="topbar">
+  <h1>실행 추적 디버거</h1>
+  <button class="mode-btn active" data-mode="infer" id="btn-infer">Infer 추론</button>
+  <button class="mode-btn" data-mode="train" id="btn-train">Train 학습</button>
+  <button class="mode-btn" data-mode="mdp" id="btn-mdp">MDP 전이</button>
+  <span style="color:var(--muted);font-size:0.8rem">← → 키 · <a href="source-architecture-guide.html#rl-mdp" style="color:var(--accent)">MDP 정의</a> · <a href="source-architecture-guide.html" style="color:var(--accent)">아키텍처 가이드</a></span>
+  <button class="mode-btn" id="btn-autoplay" style="margin-left:auto">▶ 자동 재생</button>
+</div>
+<div class="layout">
+  <div class="steps-panel" id="steps-list"></div>
+  <div class="main-panel" id="main"></div>
+  <div class="watch-panel">
+    <h2>Watch (누적 상태)</h2>
+    <div id="watch-vars"></div>
+  </div>
+</div>
+
+<script>
+// benchmark_01 실측값 (python 실행 결과 embed)
+const MEASURED = {
+  obs_dim: 46,
+  action_space_n: 61,
+  mask_true_count: 1,
+  plan_achievement: 1.0,
+  hourly_produce: [{0:100},{0:100},{0:100}],
+  produced_final: {0: 300},
+  p_db_plan: 300,
+  p_db_wip: 1000,
+};
+
+const WATCH_INIT = {
+  rule_timekey: "2026052922500000",
+  horizon_hours: 3,
+  conv_groups: '{"G1":["B1","B2","B3"]}',
+  model_files: "(없음)",
+  plan_achievement: "—",
+  guide_rows: "—",
+  assign_rows: "—",
+};
+
+const FLOWS = {
+  infer: [
+    {
+      id: "i01", title: "CLI 진입",
+      file: "run.py", fn: "cmd_infer(args)",
+      cmd: "python run.py infer [--timekey 2026052922500000]",
+      desc: "추론 CLI가 db.pipeline.run_inference()를 호출합니다. --dataset 없으면 DB→JSON→평가→DB write 경로.",
+      logic: "args.timekey 미지정 → resolve_timekey() = MAX(RULE_TIMEKEY)\nwrite_db=not --no-db\nwrite_report=not --no-report",
+      input: { argv: ["infer"], flags: { skip_export: false, no_db: false } },
+      output: { next: "run_inference()" },
+      changes: ["실행 모드: INFER (운영 파이프라인)"],
+      watch: {}
+    },
+    {
+      id: "i02", title: "Timekey 확정",
+      file: "db/adapter.py", fn: "resolve_timekey(rule_timekey)",
+      cmd: "(내부) Oracle SELECT MAX(RULE_TIMEKEY) FROM RTS_LINEDSDB_INF",
+      desc: "추론 대상 스냅샷 키를 정합니다.",
+      logic: "rule_timekey 인자 있으면 그대로\n없으면 fetch_max_timekey(INPUT_TABLE)",
+      input: { rule_timekey: null },
+      output: { rule_timekey: "2026052922500000" },
+      changes: ["rule_timekey = 2026052922500000"],
+      watch: { rule_timekey: "2026052922500000" }
+    },
+    {
+      id: "i03", title: "Oracle 입력 조회",
+      file: "db/adapter.py", fn: "fetch_rows(rule_timekey)",
+      cmd: "SELECT * FROM RTS_LINEDSDB_INF WHERE RULE_TIMEKEY = :rk",
+      desc: "long-format 행을 읽습니다. 한 행 = (timekey, fac, batch, ppk, oper, seq, model, GBN_CD, val).",
+      logic: "5개 GBN 행 × 모델 (샘플은 M1만)",
+      input: { table: "RTS_LINEDSDB_INF", rule_timekey: "2026052922500000" },
+      output: {
+        row_count: 5,
+        sample_rows: [
+          ["…", "ICPRB", "B1", "P1", "OP10", 1, "M1", "UPH", "100"],
+          ["…", "ICPRB", "B1", "P1", "OP10", 1, "M1", "ASSIGN_EQUIP_CNT", "1"],
+          ["…", "ICPRB", "B1", "P1", "OP10", 1, "M1", "D0_TARGET_QTY", "300"],
+          ["…", "ICPRB", "B1", "P1", "OP10", 1, "M1", "WIP_QTY", "1000"],
+          ["…", "ICPRB", "B1", "P1", "OP10", 1, "M1", "TOOL_QTY", "1"],
+        ]
+      },
+      changes: ["DB long rows → Python tuple list"],
+      watch: { db_rows: "5 rows" }
+    },
+    {
+      id: "i04", title: "ProblemInstance 피벗",
+      file: "db/adapter.py", fn: "rows_to_problem(rows, horizon_hours=12)",
+      desc: "GBN_CD별로 pivot하여 Task·UPH·배치·tool·target·wip을 조립합니다.",
+      logic: "D0_TARGET/WIP → key (ppk, oper_id) 모델 무시\nUPH/ASSIGN → (ppk, oper, model)\nconv_groups ← config.CONV_GROUPS",
+      input: { horizon_hours: 12, CONV_GROUPS: { G1: ["B1","B2","B3"] } },
+      output: {
+        tasks: [{ ppk: "P1", oper: "OP10", plan_qty: MEASURED.p_db_plan, init_wip: MEASURED.p_db_wip, batch: "B1" }],
+        uph: { "M1@P1/OP10": 100 },
+        eqp_qty: { M1: 1 },
+        init_assign: { "M1@P1/OP10": 1 },
+        tool_qty: { "B1@M1": 1 },
+        conv_groups: { G1: ["B1","B2","B3"] }
+      },
+      changes: [
+        "plan_qty: 300 (D0_TARGET_QTY)",
+        "init_wip: 1000 (WIP_QTY)",
+        "UPH M1=100, eqp_qty M1=1"
+      ],
+      watch: { tasks: "1", plan_qty: "300", init_wip: "1000" }
+    },
+    {
+      id: "i05", title: "추론 JSON 저장",
+      file: "db/export.py → simulator.save_problem",
+      fn: "export_from_db() → data/inference/{timekey}.json",
+      cmd: "config.replace_file() 후 JSON write",
+      desc: "ProblemInstance를 JSON으로 저장 (conv_groups 필드 없음).",
+      logic: "problem_to_dict(include_ground_truth=False)\n경로: data/inference/2026052922500000.json",
+      input: { ProblemInstance: "↑ i04 output" },
+      output: { path: "data/inference/2026052922500000.json", bytes: "~1KB" },
+      changes: ["디스크에 입력 JSON 생성/교체"],
+      watch: { input_json: "data/inference/2026052922500000.json" }
+    },
+    {
+      id: "i06", title: "JSON 로드",
+      file: "simulator.py", fn: "load_problem(path)",
+      desc: "추론 파이프라인에서 동일 파일을 다시 로드합니다.",
+      logic: "conv_groups는 JSON이 아닌 config.load_conv_groups() 주입",
+      input: { path: "data/inference/2026052922500000.json" },
+      output: { ProblemInstance: "i04와 동치 (+ conv_groups from config)" },
+      changes: ["메모리상 ProblemInstance 준비 완료"],
+      watch: {}
+    },
+    {
+      id: "i07", title: "Mode1 가이드 산출",
+      file: "test.py", fn: "_guide_allocation(problem)",
+      desc: "RTS_GUIDE용 목표 장비 대수. ppo_alloc.zip 있으면 RL, 없으면 해석식.",
+      logic: "AllocationEnv.reset → model.predict → step → get_float_target()\ncomplete_guide_allocation()으로 0 슬롯 채움",
+      input: { USE_ALLOC_MODEL: true, ppo_alloc: "saved_models/ppo_alloc.zip (optional)" },
+      output: {
+        guide_allocation: { "(M1, task0)": 1.0 },
+        guide_source: "ANALYTIC | ALLOC_RL"
+      },
+      changes: ["guide_allocation dict 생성 → RTS_GUIDE rows의 기반"],
+      watch: { guide_rows: "1 slot (M1×OP10=1.0)" }
+    },
+    {
+      id: "i08", title: "DispatchEnv reset (RL 준비)",
+      file: "env.py", fn: "DispatchEnv.reset()",
+      desc: "휴리스틱/RL 평가 전 환경 초기화. benchmark_01 실측 obs.",
+      logic: "sim.reset() → _obs() 정규화 벡터\nmt=5, mm=3, DWELL_OBS=true → dim=46",
+      input: { max_tasks: 5, max_models: 3, target_allocation: "from i07" },
+      output: {
+        obs_dim: MEASURED.obs_dim,
+        obs_head: [1.0, 0, 0, 0, 0, 1.0, 0, 0, 0, 0],
+        obs_tail: [1.0, 0, 0, 0, 0],
+        meaning: "plan_rem=1.0, wip=1.0, assign M1@t0=1.0, hour=0"
+      },
+      changes: ["SimState: hour=0, produced=0, wip=1000, assign M1→task0=1"],
+      watch: { sim_hour: "0", sim_wip: "1000" }
+    },
+    {
+      id: "i09", title: "Simulator.reset",
+      file: "simulator.py", fn: "Simulator.reset()",
+      desc: "SimState 초기화 — init_assign 복사, tool_used 계산.",
+      logic: "produced=0, wip=init_wip, hour=0\nassign ← init_assign",
+      input: { init_assign: { "M1→task0": 1 }, init_wip: 1000 },
+      output: {
+        SimState: { hour: 0, produced: {0:0}, wip: {0:1000}, assign: {"M1,0":1} }
+      },
+      changes: ["시뮬레이션 시작 상태 확정"],
+      watch: { sim_hour: "0", sim_produced: "0", sim_wip: "1000" }
+    },
+    {
+      id: "i10", title: "Hour 1 — heuristic + 생산",
+      file: "simulator.py", fn: "heuristic_actions → advance_hour",
+      desc: "benchmark_01: 이동 없음(teacher_moves=0). 1대×100UPH=100 생산.",
+      logic: "valid_moves: mask_true=1 (commit만)\nadvance_hour: produce=min(wip,cap)=100",
+      input: { hour_before: 0, wip: 1000, capacity: 100 },
+      output: { hourly_produce: {0:100}, produced: 100, wip: 900, hour: 1 },
+      changes: ["produced 0→100", "wip 1000→900", "hour 0→1"],
+      watch: { sim_hour: "1", sim_produced: "100", sim_wip: "900" }
+    },
+    {
+      id: "i11", title: "Hour 2 — 생산",
+      file: "simulator.py", fn: "advance_hour",
+      desc: "동일 배치 유지, +100 생산.",
+      input: { hour: 1, wip: 900 },
+      output: { hourly_produce: {0:100}, produced: 200, wip: 800, hour: 2 },
+      changes: ["produced 100→200", "wip 900→800"],
+      watch: { sim_hour: "2", sim_produced: "200", sim_wip: "800" }
+    },
+    {
+      id: "i12", title: "Hour 3 — 생산 & 종료",
+      file: "simulator.py", fn: "advance_hour + metrics",
+      desc: "300/300 plan 달성 → plan_achievement=1.0",
+      input: { hour: 2, plan_qty: 300 },
+      output: {
+        hourly_produce: {0:100},
+        produced: 300,
+        plan_achievement: 1.0,
+        is_done: true
+      },
+      changes: ["produced 200→300", "plan_achievement = 1.0", "trace 3 entries"],
+      watch: { sim_hour: "3", sim_produced: "300", plan_achievement: "1.0 (heuristic)" }
+    },
+    {
+      id: "i13", title: "RL 정책 평가 (선택)",
+      file: "test.py", fn: "_rl_policy_factory(model, problem)",
+      desc: "ppo_dispatch.zip 로드 후 shape 일치 시 RL 경로 추가.",
+      logic: "_model_matches: obs.shape & action.n 동일해야 함\n매 hour masked predict substeps",
+      input: { model: "saved_models/ppo_dispatch.zip", shape: "(46, 61)" },
+      output: {
+        rl_plan_achievement: "float (shape 일치 시)",
+        skipped: "shape 불일치 → heuristic만 사용"
+      },
+      changes: ["eval_result['rl'] 키 추가 (조건부)"],
+      watch: { model_files: "ppo_dispatch.zip loaded" }
+    },
+    {
+      id: "i14", title: "Oracle 행 빌드",
+      file: "report_output.py", fn: "enrich_eval_result + build_guide_rows",
+      desc: "trace·hourly_stats → PLAN_ACHV / ASSIGN / CONV / GUIDE row dicts.",
+      logic: "build_plan_achv_rows: hour×task\nbuild_assign_rows: hour×eqp unit\nbuild_conv_rows: batch 변경 Move만",
+      input: { trace: "3 hours", hourly_stats: "util, produce, assign_snapshot" },
+      output: {
+        plan_achv_rows: "3 rows (1 task × 3h)",
+        assign_rows: "3 rows (M1-001 × 3h, 100 each)",
+        conv_rows: "0 (전환 없음)",
+        guide_rows: "1 (M1×OP10 TARGET=1)"
+      },
+      changes: ["CRT_USER_ID = config.SYS_ID (RL_AGENT)"],
+      watch: { assign_rows: "3", guide_rows: "1" }
+    },
+    {
+      id: "i15", title: "결과 JSON 저장",
+      file: "report_output.py", fn: "build_inference_result_document + save",
+      desc: "schema_version=1 JSON. RL 있으면 rl_* rows, 없으면 heuristic rows.",
+      logic: "data/inference/{timekey}_result.json",
+      input: { policy: "RL | HEURISTIC" },
+      output: {
+        path: "data/inference/2026052922500000_result.json",
+        keys: ["guide", "dynamic.plan_achv_rows", "dynamic.assign_rows", "dynamic.conv_rows"]
+      },
+      changes: ["결과 JSON 디스크 write"],
+      watch: { result_json: "…_result.json" }
+    },
+    {
+      id: "i16", title: "Oracle DB write",
+      file: "db/adapter.py", fn: "write_inference_result(timekey, doc)",
+      desc: "4테이블 INF delete+insert 후 HIS 이력 복사.",
+      logic: "RTS_GUIDE_INF/HIS\nRTS_PLAN_ACHV_INF/HIS\nRTS_ASSIGN_INF/HIS\nRTS_CONV_INF/HIS",
+      input: { rule_timekey: "2026052922500000", sys_id: "RL_AGENT" },
+      output: { status: "committed (Oracle 연결 필요)" },
+      changes: ["운영 DB에 가이드+동적 결과 반영"],
+      watch: { db_status: "written" }
+    },
+  ],
+
+  train: [
+    {
+      id: "t01", title: "CLI 진입",
+      file: "run.py", fn: "cmd_train(args)",
+      cmd: "python run.py train [--use-db] [--steps 50000]",
+      desc: "학습 CLI. --use-db 시 먼저 DB→data/train JSON export.",
+      logic: "export_train_range → train.train_model → test.run_eval",
+      input: { argv: ["train", "--use-db"], steps: 50000 },
+      output: { next: "export_train_range() or load data/train/*.json" },
+      changes: ["실행 모드: TRAIN"],
+      watch: {}
+    },
+    {
+      id: "t02", title: "학습 데이터 Export",
+      file: "db/pipeline.py", fn: "export_train_snapshots()",
+      cmd: "python run.py export --train --lookback-days 30",
+      desc: "list_timekeys_in_range → 각 timekey별 JSON.",
+      logic: "for rk in timekeys:\n  export_from_db(rk, data/train/{rk}.json)",
+      input: { lookback_days: 30, table: "RTS_LINEDSDB_INF" },
+      output: { paths: ["data/train/2026052922500000.json", "…"] },
+      changes: ["data/train/ 아래 RULE_TIMEKEY.json 생성"],
+      watch: { train_json: "data/train/*.json" }
+    },
+    {
+      id: "t03", title: "Problem 목록 로드",
+      file: "train.py", fn: "load_problems_from_dir()",
+      desc: "glob data/train/*.json → load_problem each.",
+      logic: "sorted(Path(TRAIN_DATA_DIR).glob('*.json'))",
+      input: { directory: "data/train/" },
+      output: { problems: "list[ProblemInstance]", count: "N" },
+      changes: ["학습 배치 준비"],
+      watch: { problem_count: "N" }
+    },
+    {
+      id: "t04", title: "Shape 필터",
+      file: "train.py", fn: "train_model() — shape filter",
+      desc: "단일 MaskablePPO는 obs/action shape 고정 필요.",
+      logic: "base = DispatchEnv(problems[0]).obs.shape, action.n\nsame = [p for p if _shape(p)==base]",
+      input: { MAX_TASKS: 5, MAX_MODELS: 3, DWELL_OBS: true },
+      output: { kept: "same shape problems", dropped: "나머지 (로그 출력)" },
+      changes: ["학습 대상 문제 집합 확정"],
+      watch: { obs_shape: "(46,)", action_n: "61" }
+    },
+    {
+      id: "t05", title: "상위 Alloc BC",
+      file: "train.py", fn: "behavior_clone_alloc()",
+      desc: "AllocationEnv 정책 mean을 해석식 target logit에 MSE fitting.",
+      logic: "target = _analytic_target_logits from plan_target_allocation\nloss = MSE(mean, target) × mask / sum(mask)\nepochs=BC_EPOCHS(300), lr=1e-3",
+      input: { problems: "same shape list", BC_EPOCHS: 300 },
+      output: { loss: "↓ over 300 epochs", policy: "PPO MlpPolicy (alloc)" },
+      changes: ["alloc 정책 초기화 (해석식 근사)"],
+      watch: { phase: "alloc BC" }
+    },
+    {
+      id: "t06", title: "상위 Alloc PPO",
+      file: "train.py", fn: "train_alloc_model()",
+      desc: "AllocationEnv 1-step PPO. timesteps = max(2000, steps//10).",
+      logic: "sb3.PPO n_steps=64 batch=32\nreward = mean task theoretical plan rate",
+      input: { ppo_steps_alloc: "max(2000, 50000//10)=5000" },
+      output: { path: "saved_models/ppo_alloc.zip" },
+      changes: ["Mode1 가이드 모델 저장"],
+      watch: { model_files: "ppo_alloc.zip" }
+    },
+    {
+      id: "t07", title: "Teacher 데이터 수집",
+      file: "train.py", fn: "collect_teacher_dataset()",
+      desc: "heuristic_actions 궤적을 DispatchEnv에서 replay → (obs, act, mask).",
+      logic: "for each problem:\n  target = _get_target_allocation(p)\n  while not done:\n    planned = heuristic(sim, deepcopy(state))\n    for action in [moves…, 0]:\n      store obs, action, mask; env.step",
+      input: { teacher: "heuristic_actions", problems: "filtered list" },
+      output: {
+        obs: "float32[N, 46]",
+        acts: "int64[N]",
+        masks: "bool[N, 61]",
+        N: "Σ(substeps per episode)"
+      },
+      changes: ["BC 학습용 레이블 데이터셋 생성"],
+      watch: { bc_samples: "N transitions" }
+    },
+    {
+      id: "t08", title: "Dispatch BC",
+      file: "train.py", fn: "behavior_clone()",
+      desc: "MaskablePPO 정책을 teacher action에 맞춤 (masked CE).",
+      logic: "logits = action_net(mlp(obs))\nlogits[~mask] = -1e8\nloss = cross_entropy(logits, teacher_act)",
+      input: { epochs: 300, lr: 0.001 },
+      output: { policy_weights: "updated in-place" },
+      changes: ["dispatch 정책 ≈ heuristic warm-start"],
+      watch: { phase: "dispatch BC" }
+    },
+    {
+      id: "t09", title: "Dispatch PPO",
+      file: "train.py", fn: "MaskablePPO.learn()",
+      desc: "on-policy RL 미세조정. ActionMasker + random problem env.",
+      logic: "model = MaskablePPO n_steps=256 batch=64\nenv = make_env(random.choice(problems))\nreward = plan gain + dwell + guide shaping",
+      input: { total_timesteps: 50000 },
+      output: { path: "saved_models/ppo_dispatch.zip" },
+      changes: ["최종 dispatch 정책 저장"],
+      watch: { model_files: "ppo_dispatch.zip + ppo_alloc.zip" }
+    },
+    {
+      id: "t10", title: "자동 평가",
+      file: "test.py", fn: "run_eval(model)",
+      desc: "학습 직후 data/test 전 벤치마크 평가 → MODEL_REPORT.md/html.",
+      logic: "MaskablePPO.load → evaluate_benchmark each → write_report_files",
+      input: { benchmarks_dir: "data/test/" },
+      output: { MODEL_REPORT: "plan_achievement table" },
+      changes: ["학습 결과 리포트 생성"],
+      watch: { report: "MODEL_REPORT.md" }
+    },
+  ],
+
+  mdp: [
+    {
+      id: "m01", title: "환경 파라미터 ξ",
+      file: "simulator.py", fn: "ProblemInstance",
+      desc: "MDP의 고정 컨텍스트. Allocation·Dispatch 모두 동일 ξ를 공유합니다. benchmark_01 기준.",
+      logic: "ξ = {tasks, uph, eqp_qty, init_assign, tool_qty, horizon, switch_time, conv_groups}\nS_alloc = ξ (정적) | S_dispatch = SimState(s) ⊕ ξ",
+      input: { source: "JSON or rows_to_problem" },
+      output: {
+        horizon_hours: 3,
+        plan_qty: 300,
+        init_wip: 1000,
+        uph: "M1@task0=100",
+        init_assign: "M1→task0=1"
+      },
+      mdp: "ξ ∈ ProblemInstance — episode 동안 불변\nconv_groups ← config.CONV_GROUPS",
+      changes: ["MDP episode boundary = ProblemInstance 1개"],
+      watch: { mdp_xi: "benchmark_01", horizon: "3" }
+    },
+    {
+      id: "m02", title: "상위 MDP — Allocation reset",
+      file: "alloc_env.py", fn: "AllocationEnv.reset()",
+      desc: "SimState 없음. 관측 o_alloc은 plan/UPH/eqp/tool 정규화 벡터.",
+      logic: "o = _build_obs(ξ) ∈ [0,1]^d_alloc\nd = mt + 2·mm·mt + mm (패딩 포함)",
+      input: { mt: 5, mm: 3 },
+      output: { o_alloc_dim: "고정 (문제 크기+패딩)", sim_state: "없음" },
+      mdp: "s_alloc ≡ ξ (trivial)\no₀ = f_obs(ξ)\n에피소드 시작 — 아직 전이 없음",
+      changes: ["상위 MDP 초기 관측 준비"],
+      watch: { mdp_layer: "Allocation (Mode 1)" }
+    },
+    {
+      id: "m03", title: "상위 MDP — step (1 transition)",
+      file: "alloc_env.py", fn: "AllocationEnv.step(a)",
+      desc: "연속 logit a → 정수 alloc g(a) → 이론 plan rate 보상 → 즉시 종료.",
+      logic: "a ∈ [-3,3]^{mm×mt}\nalloc = softmax→tool clip→largest remainder\nR = mean_t min(cap_t·eff_h, plan_t)/plan_t\ndone=True",
+      input: { a: "π_alloc(o) or analytic logit (BC target)" },
+      output: {
+        reward: "≈ plan_achievement (이론)",
+        target_allocation: { "(M1,0)": 1.0 },
+        done: true
+      },
+      mdp: "(ξ, o) --a--> (ξ, alloc)\nT: terminal (1-step MDP)\nR_alloc ∈ [0,1]\nγ 효과 없음 (길이=1)",
+      changes: ["target_allocation → DispatchEnv shaping + RTS_GUIDE"],
+      watch: { mdp_alloc_R: "theoretical rate", guide: "M1×task0=1.0" }
+    },
+    {
+      id: "m04", title: "하위 MDP — reset s₀",
+      file: "env.py", fn: "DispatchEnv.reset()",
+      desc: "hidden state SimState 초기화. 관측 o₀ = _obs(s₀).",
+      logic: "s₀ = Simulator.reset(ξ)\nhour=0, produced=0, wip=1000, assign from init_assign",
+      input: { target_allocation: "from m03" },
+      output: {
+        s0: { hour: 0, produced: 0, wip: 1000, assign: "M1→t0=1" },
+        o0_dim: MEASURED.obs_dim,
+        mask0_true: MEASURED.mask_true_count
+      },
+      mdp: "s₀ ~ T_reset(ξ)\no₀ = _obs(s₀) ∈ ℝ^46\nM(s₀): commit만 valid (이동 없음)",
+      changes: ["하위 MDP 에피소드 시작"],
+      watch: { mdp_s: "h=0,wip=1000", mdp_o: "dim=46" }
+    },
+    {
+      id: "m05", title: "micro-step t=0 → commit (h 0→1)",
+      file: "env.py", fn: "DispatchEnv.step(0)",
+      desc: "a=0: advance_hour. benchmark_01에서 유일한 valid action.",
+      logic: "produce = min(wip, Σ assign×UPH) = 100\nr = Δachv/total_plan + dwell_r + alloc_r\n(종료 아님 → terminal bonus 없음)",
+      input: { s_t: "h=0, wip=1000", a: 0, mask: "[True, False×60]" },
+      output: {
+        s_tp1: { hour: 1, produced: 100, wip: 900 },
+        r_t: "Δachv + shaping (학습 시만)",
+        done: false
+      },
+      mdp: "s₀ --a=0--> s₁\nT_commit: advance_hour\nr₀ = f_reward(s₀,s₁)  [infer: r 계산 생략, sim만]",
+      changes: ["첫 시간 생산 +100", "학습: transition (o₀,a₀,r₀,o₁) PPO 버퍼"],
+      watch: { mdp_s: "h=1,prod=100", mdp_a: "0 (commit)" }
+    },
+    {
+      id: "m06", title: "micro-step t=1 → commit (h 1→2)",
+      file: "env.py", fn: "DispatchEnv.step(0)",
+      desc: "동일 패턴 반복. BC teacher도 a=0만 기록.",
+      logic: "o₁ = _obs(s₁), mask 동일\nadvance_hour → +100",
+      input: { s_t: "h=1, prod=100", a: 0 },
+      output: { s_tp1: { hour: 2, produced: 200, wip: 800 }, done: false },
+      mdp: "s₁ --a=0--> s₂\n(o₁, a₁=0, r₁, o₂) — BC/PPO transition",
+      changes: ["produced 100→200"],
+      watch: { mdp_s: "h=2,prod=200" }
+    },
+    {
+      id: "m07", title: "micro-step t=2 → terminal",
+      file: "env.py", fn: "DispatchEnv.step(0)",
+      desc: "hour=3 ≥ horizon → terminated. 종료 보너스 += plan_achievement.",
+      logic: "produced=300, plan=300 → achievement=1.0\nr += plan_achievement(s) at done",
+      input: { s_t: "h=2, prod=200", horizon: 3 },
+      output: {
+        s_final: { hour: 3, produced: 300 },
+        r_terminal: "+ plan_achievement=1.0",
+        done: true,
+        plan_achievement: MEASURED.plan_achievement
+      },
+      mdp: "s₂ --a=0--> s₃ (terminal)\n에피소드 종료: Σ micro-steps = 3\nG = Σ γ^k r_k (PPO)",
+      changes: ["Dispatch MDP episode complete"],
+      watch: { mdp_done: "true", plan_achievement: "1.0" }
+    },
+    {
+      id: "m08", title: "학습 — BC 데이터 (MDP 전이 로그)",
+      file: "train.py", fn: "collect_teacher_dataset()",
+      desc: "teacher π_H=heuristic가 만든 (o,a,mask) 궤적. 보상 r은 BC에 미사용.",
+      logic: "for each ξ:\n  replay heuristic moves as action indices\n  store (o_t, a_t, mask_t) per env.step\n  env.step still computes r (unused in BC loss)",
+      input: { episodes: "N problems", teacher: "heuristic_actions" },
+      output: {
+        dataset: "(obs[N,46], acts[N], masks[N,61])",
+        BC_loss: "masked cross_entropy(π_θ, a*)"
+      },
+      mdp: "D_BC = {(o_t, a*_t, M(s_t))} — r, s' implicit in replay\n목표: π_θ(a|o) ≈ π_H(a|s)",
+      changes: ["MDP transition → supervised labels"],
+      watch: { mdp_train: "BC dataset", bc_samples: "Σ substeps" }
+    },
+    {
+      id: "m09", title: "학습 — PPO rollout (MDP)",
+      file: "train.py", fn: "MaskablePPO.learn()",
+      desc: "π_θ가 env와 상호작용하며 (o,a,r,mask,done) 수집 → 정책 갱신.",
+      logic: "env = make_env(random ξ)\nrollout until done\nadvantage from Σ γ^k r_k\nθ ← policy gradient + value loss",
+      input: { timesteps: 50000, gamma: 0.99 },
+      output: { theta: "ppo_dispatch.zip" },
+      mdp: "on-policy: (s,o,a,r,s') ~ π_θ, T, R\n상위 alloc도 동일 구조 (1-step PPO)",
+      changes: ["θ 갱신 — MDP 밖 산출물"],
+      watch: { mdp_train: "PPO", model_files: "ppo_dispatch.zip" }
+    },
+    {
+      id: "m10", title: "추론 — 무보상 전이 + Oracle 집계",
+      file: "test.py → report_output.py", fn: "evaluate_benchmark → build_*_rows",
+      desc: "동일 T(s,a) 실행. r·역전파 없음. s 궤적을 trace/hourly_stats로 집계.",
+      logic: "heuristic: sim.apply_move + advance_hour (MDP 밖)\nRL: _rl_policy_factory → predict until commit\nrows = g_aggregate(ξ, trace, hourly_stats)",
+      input: { s_trajectory: "3 commits", trace: "moves per hour" },
+      output: {
+        plan_achv_rows: "task×hour",
+        assign_rows: "eqp×hour",
+        conv_rows: "batch changes",
+        guide_rows: "from alloc MDP"
+      },
+      mdp: "infer: (s,o,a) only — no R, no θ update\nξ + {s_h} → Oracle INSERT\nMDP 종료 후 데이터 레이어",
+      changes: ["MDP state history → 운영 DB rows"],
+      watch: { mdp_infer: "no reward", db_status: "PLAN_ACHV+ASSIGN+GUIDE" }
+    },
+  ]
+};
+
+let mode = "infer";
+let stepIndex = 0;
+let watchState = { ...WATCH_INIT };
+
+function fmt(obj) {
+  return JSON.stringify(obj, null, 2);
+}
+
+function setMode(newMode) {
+  mode = newMode;
+  stepIndex = 0;
+  ["infer", "train", "mdp"].forEach(m => {
+    const btn = document.getElementById("btn-" + m);
+    if (btn) btn.classList.toggle("active", m === mode);
+  });
+  applyWatchUpTo(0);
+  renderAll();
+}
+
+function renderSteps() {
+  const list = document.getElementById("steps-list");
+  const titles = { infer: "추론", train: "학습", mdp: "MDP 전이" };
+  const steps = FLOWS[mode];
+  list.innerHTML = `<h2>${titles[mode] || mode} 단계</h2>`;
+  steps.forEach((s, i) => {
+    const btn = document.createElement("button");
+    btn.className = "step-item" + (i === stepIndex ? " active" : "");
+    btn.innerHTML = `<span class="num">${String(i+1).padStart(2,"0")}</span>${s.title}`;
+    btn.onclick = () => { stepIndex = i; applyWatchUpTo(i); renderAll(); };
+    list.appendChild(btn);
+  });
+}
+
+function applyWatchUpTo(idx) {
+  watchState = { ...WATCH_INIT };
+  FLOWS[mode].slice(0, idx + 1).forEach(s => {
+    if (s.watch) Object.assign(watchState, s.watch);
+  });
+}
+
+function renderWatch() {
+  const el = document.getElementById("watch-vars");
+  el.innerHTML = Object.entries(watchState).map(([k, v]) =>
+    `<div class="watch-var"><div class="key">${k}</div><div class="val">${v}</div></div>`
+  ).join("");
+}
+
+function renderMain() {
+  const s = FLOWS[mode][stepIndex];
+  const total = FLOWS[mode].length;
+  const main = document.getElementById("main");
+  const changesHtml = (s.changes || []).map(c =>
+    `<li>${c}</li>`).join("");
+  const mdpHtml = s.mdp ? `
+    <div class="mdp-box full-width">
+      <h3>MDP 전이 (s, a, r, s′)</h3>
+      <pre>${s.mdp}</pre>
+    </div>` : "";
+
+  main.innerHTML = `
+    <h2 class="step-title">${String(stepIndex+1).padStart(2,"0")}. ${s.title}</h2>
+    <p class="step-desc">${s.desc}</p>
+    <div class="meta-row">
+      <span class="chip file">${s.file}</span>
+      <span class="chip fn">${s.fn}</span>
+    </div>
+    ${s.cmd ? `<div class="cmd-box">${s.cmd}</div>` : ""}
+    ${mdpHtml}
+    <ul class="change-list">${changesHtml}</ul>
+    <div class="data-grid">
+      <div class="data-box full-width">
+        <h3 class="logic">내부 로직</h3>
+        <pre class="data">${s.logic || "—"}</pre>
+      </div>
+      <div class="data-box">
+        <h3 class="in">입력 (Before)</h3>
+        <pre class="data">${fmt(s.input)}</pre>
+      </div>
+      <div class="data-box">
+        <h3 class="out">출력 (After)</h3>
+        <pre class="data">${fmt(s.output)}</pre>
+      </div>
+    </div>
+    <div class="nav-bar">
+      <button id="btn-prev" ${stepIndex === 0 ? "disabled" : ""}>← 이전 단계</button>
+      <button id="btn-next" class="primary" ${stepIndex >= total-1 ? "disabled" : ""}>다음 단계 →</button>
+      <span class="progress">${stepIndex+1} / ${total}</span>
+    </div>
+  `;
+  document.getElementById("btn-prev").onclick = () => { if (stepIndex>0) { stepIndex--; applyWatchUpTo(stepIndex); renderAll(); }};
+  document.getElementById("btn-next").onclick = () => { if (stepIndex<total-1) { stepIndex++; applyWatchUpTo(stepIndex); renderAll(); }};
+}
+
+function renderAll() {
+  renderSteps();
+  renderMain();
+  renderWatch();
+}
+
+document.getElementById("btn-infer").onclick = () => setMode("infer");
+document.getElementById("btn-train").onclick = () => setMode("train");
+document.getElementById("btn-mdp").onclick = () => setMode("mdp");
+
+document.addEventListener("keydown", e => {
+  if (e.key === "ArrowRight" && stepIndex < FLOWS[mode].length - 1) {
+    stepIndex++; applyWatchUpTo(stepIndex); renderAll();
+  }
+  if (e.key === "ArrowLeft" && stepIndex > 0) {
+    stepIndex--; applyWatchUpTo(stepIndex); renderAll();
+  }
+});
+
+setMode(location.hash === "#mdp" ? "mdp" : "infer");
+
+let autoTimer = null;
+document.getElementById("btn-autoplay").onclick = function() {
+  const btn = this;
+  if (autoTimer) {
+    clearInterval(autoTimer); autoTimer = null;
+    btn.textContent = "▶ 자동 재생"; return;
+  }
+  btn.textContent = "⏸ 정지";
+  autoTimer = setInterval(() => {
+    if (stepIndex >= FLOWS[mode].length - 1) {
+      clearInterval(autoTimer); autoTimer = null;
+      btn.textContent = "▶ 자동 재생"; return;
+    }
+    stepIndex++; applyWatchUpTo(stepIndex); renderAll();
+  }, 1800);
+};
+</script>
+</body>
+</html>
