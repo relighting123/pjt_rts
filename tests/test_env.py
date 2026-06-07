@@ -40,3 +40,41 @@ def test_env_masks_invalid_moves_match_simulator():
     sim = Simulator(p)
     s = sim.reset()
     assert mask.sum() == len(sim.valid_moves(s)) + 1
+
+
+def _env_with_guide(util_threshold, band):
+    from env import DispatchEnv
+    p = load_problem(BENCHMARKS_DIR / "benchmark_02.json")
+    models = p.models()
+    target = {(models[0], 0): float(p.eqp_qty[models[0]])}
+    env = DispatchEnv(
+        p, alloc_lambda=1.0, target_allocation=target,
+        guide_util_threshold=util_threshold, guide_band_pct=band,
+    )
+    env.reset(seed=0)
+    return env
+
+
+def test_guide_reward_zero_when_util_below_threshold():
+    env = _env_with_guide(util_threshold=1.1, band=0.2)
+    assert env._alloc_guide_reward() == 0.0
+
+
+def test_guide_reward_skips_zero_wip_tasks():
+    env = _env_with_guide(util_threshold=0.0, band=0.0)
+    s = env._state
+    for i in range(len(env.p.tasks)):
+        s.wip[i] = 0
+    assert env._alloc_guide_reward() == 0.0
+
+
+def test_guide_reward_band_tolerates_small_deviation():
+    p = load_problem(BENCHMARKS_DIR / "benchmark_02.json")
+    from env import DispatchEnv
+    target = {(m, ti): float(c) for (m, ti), c in p.init_assign.items()}
+    env = DispatchEnv(
+        p, alloc_lambda=1.0, target_allocation=target,
+        guide_util_threshold=0.0, guide_band_pct=0.20,
+    )
+    env.reset(seed=0)
+    assert abs(env._alloc_guide_reward() - 1.0) < 1e-9

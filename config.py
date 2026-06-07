@@ -39,6 +39,10 @@ ALLOC_LAMBDA = float(os.getenv("ALLOC_LAMBDA", "0.0"))
 DWELL_OBS = os.getenv("DWELL_OBS", "false").lower() == "true"
 # True면 AllocationEnv 상위 모델을 사용해 target_allocation 주입
 USE_ALLOC_MODEL = os.getenv("USE_ALLOC_MODEL", "false").lower() == "true"
+# 가이드 준수: 이 가동률 이상에서만 적용
+GUIDE_UTIL_THRESHOLD = float(os.getenv("GUIDE_UTIL_THRESHOLD", "0.70"))
+# 가이드 대비 허용 상·하단 비율 (±%). 밴드 안이면 페널티 0
+GUIDE_BAND_PCT = float(os.getenv("GUIDE_BAND_PCT", "0.20"))
 
 # --- DB 테이블 (INF=현행, HIS=이력) ---
 INPUT_TABLE = "RTS_LINEDSDB_INF"
