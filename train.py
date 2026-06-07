@@ -123,7 +123,7 @@ def train_model(problems: list[ProblemInstance], ppo_steps: int = config.DEFAULT
 
     # 단일 정책은 동일 (관측/액션) shape만 학습 가능 → 첫 문제 기준으로 필터
     def _shape(p):
-        e = DispatchEnv(p, max_tasks=config.MAX_TASKS, max_models=config.MAX_MODELS)
+        e = DispatchEnv(p, max_tasks=config.MAX_TASKS, max_models=config.MAX_MODELS, dwell_obs=config.DWELL_OBS)
         return (tuple(e.observation_space.shape), int(e.action_space.n))
     base = _shape(problems[0])
     same = [p for p in problems if _shape(p) == base]
