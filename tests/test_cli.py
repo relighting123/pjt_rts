@@ -31,3 +31,16 @@ def test_cli_help():
                        cwd=ROOT, capture_output=True, text=True)
     assert r.returncode == 0
     assert "train" in r.stdout and "infer" in r.stdout and "eval" in r.stdout
+
+
+def test_infer_prints_guide_and_dynamic(capsys, tmp_path):
+    import run
+    from config import BENCHMARKS_DIR
+    args = run.build_parser().parse_args([
+        "infer", "--benchmark-dataset", str(BENCHMARKS_DIR / "benchmark_01"),
+        "--report", str(tmp_path / "r.md"), "--html", str(tmp_path / "r.html"),
+    ])
+    args.func(args)
+    out = capsys.readouterr().out
+    assert "가이드" in out
+    assert "달성률" in out
