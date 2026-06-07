@@ -11,6 +11,7 @@ except Exception:
 
 ROOT = Path(__file__).resolve().parent
 BENCHMARKS_DIR = ROOT / "benchmarks"
+BENCHMARKS_TRAIN_DIR = ROOT / "benchmarks_train"
 SAVED_MODELS_DIR = ROOT / "saved_models"
 DATA_DIR = ROOT / "data"
 ARTIFACTS_DIR = ROOT / "artifacts"

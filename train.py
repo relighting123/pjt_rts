@@ -109,6 +109,8 @@ def train_model(problems: list[ProblemInstance], ppo_steps: int = config.DEFAULT
     return model
 
 
-def load_problems_from_dir(directory: Path) -> list[ProblemInstance]:
+def load_problems_from_dir(directory: Path | None = None) -> list[ProblemInstance]:
     from simulator import load_problem
+    if directory is None:
+        directory = config.BENCHMARKS_TRAIN_DIR
     return [load_problem(p) for p in sorted(Path(directory).glob("benchmark_*.json"))]
