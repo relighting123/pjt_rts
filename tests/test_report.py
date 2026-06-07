@@ -90,3 +90,14 @@ def test_run_eval_writes_html(tmp_path):
     assert md_path.exists()
     assert html_path.exists()
     assert ASSIGN_TABLE in html_path.read_text(encoding="utf-8")
+
+
+def test_evaluate_benchmark_includes_guide_allocation():
+    from simulator import load_problem
+    from config import BENCHMARKS_DIR
+    import test as report
+    p = load_problem(BENCHMARKS_DIR / "benchmark_02.json")
+    res = report.evaluate_benchmark(p, model=None)
+    assert "guide_allocation" in res
+    assert isinstance(res["guide_allocation"], dict)
+    assert len(res["guide_allocation"]) > 0

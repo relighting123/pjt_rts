@@ -10,8 +10,29 @@ from report_output import (
     enrich_eval_result,
     gantt_text,
     avg_utilization,
+    render_guide_table,
 )
 import config
+
+
+def _guide_allocation(problem: ProblemInstance) -> dict:
+    """가이드 수량(Mode 1). USE_ALLOC_MODEL이면 RL, 아니면 해석식."""
+    if config.USE_ALLOC_MODEL:
+        path = config.SAVED_MODELS_DIR / "ppo_alloc.zip"
+        if path.exists():
+            try:
+                import stable_baselines3 as sb3
+                from alloc_env import AllocationEnv
+                env = AllocationEnv(problem, max_tasks=config.MAX_TASKS,
+                                    max_models=config.MAX_MODELS)
+                m = sb3.PPO.load(path)
+                obs, _ = env.reset()
+                action, _ = m.predict(obs, deterministic=True)
+                env.step(action)
+                return env.get_float_target()
+            except Exception:
+                pass
+    return problem.plan_target_allocation()
 
 
 def _model_matches(model, problem: ProblemInstance) -> bool:
@@ -70,6 +91,7 @@ def evaluate_benchmark(problem: ProblemInstance, model=None) -> dict:
             "conv_rows", "task_hourly_rows", "allocation_rows",
         )},
     }
+    out["guide_allocation"] = _guide_allocation(problem)
     if model is not None and _model_matches(model, problem):
         sim2 = Simulator(problem)
         rl_final, rl_trace, rl_hourly = run_policy(sim2, _rl_policy_factory(model, problem))
@@ -123,6 +145,10 @@ def render_markdown(results: dict[str, tuple[ProblemInstance, dict]]) -> str:
     lines.append("")
     for name, (p, r) in results.items():
         lines.append(f"## {name}")
+        guide_md = render_guide_table(p, r.get("guide_allocation", {}))
+        if guide_md:
+            lines.append(guide_md)
+            lines.append("")
         lines.append(f"- 비고: {p.ground_truth.get('note', '')}")
         lines.append(_gantt(p, r.get("rl_trace", r["trace"])))
         lines.append("")
