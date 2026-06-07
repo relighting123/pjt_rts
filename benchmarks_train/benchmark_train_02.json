@@ -1,0 +1,26 @@
+{
+  "rule_timekey": "2026060100000000",
+  "horizon_hours": 5,
+  "switch_time_hours": 1,
+  "tasks": [
+    {"plan_prod_key": "PA", "oper_id": "OP10", "oper_seq": 1, "batch_id": "B1", "plan_qty": 100, "init_wip": 1000},
+    {"plan_prod_key": "PB", "oper_id": "OP10", "oper_seq": 1, "batch_id": "B2", "plan_qty": 150, "init_wip": 1000}
+  ],
+  "uph": [
+    {"plan_prod_key": "PA", "oper_id": "OP10", "eqp_model": "M1", "uph": 50},
+    {"plan_prod_key": "PB", "oper_id": "OP10", "eqp_model": "M1", "uph": 75}
+  ],
+  "eqp_qty": {"M1": 1},
+  "init_assign": [
+    {"eqp_model": "M1", "plan_prod_key": "PA", "oper_id": "OP10", "count": 1}
+  ],
+  "tool_qty": [
+    {"batch_id": "B1", "eqp_model": "M1", "tool_qty": 1},
+    {"batch_id": "B2", "eqp_model": "M1", "tool_qty": 1}
+  ],
+  "conv_groups": {"G1": ["B1", "B2"]},
+  "ground_truth": {
+    "plan_achievement": 1.0,
+    "note": "1대 2배치 전환(저UPH): PA 2h(50×2=100) → 전환 1h → PB 2h(75×2=150) = 5h 100%"
+  }
+}
