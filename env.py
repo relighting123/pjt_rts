@@ -15,7 +15,9 @@ class DispatchEnv(gym.Env):
     metadata = {"render_modes": []}
 
     def __init__(self, problem: ProblemInstance, max_substeps_per_hour: int | None = None,
-                 max_tasks: int | None = None, max_models: int | None = None):
+                 max_tasks: int | None = None, max_models: int | None = None,
+                 dwell_lambda: float = 0.0, alloc_lambda: float = 0.0,
+                 target_allocation: dict | None = None, dwell_obs: bool = False):
         super().__init__()
         self.p = problem
         self.sim = Simulator(problem)
@@ -49,6 +51,13 @@ class DispatchEnv(gym.Env):
         self.observation_space = spaces.Box(low=0.0, high=1.0, shape=(obs_dim,), dtype=np.float32)
         total_eqp = sum(problem.eqp_qty.values())
         self.max_substeps = max_substeps_per_hour or (total_eqp + 1)
+        self.dwell_lambda = dwell_lambda
+        self.alloc_lambda = alloc_lambda
+        self.target_allocation: dict[tuple[str, int], float] = dict(target_allocation or {})
+        self.dwell_obs = dwell_obs
+        if dwell_obs:
+            obs_dim = self.mt * 2 + 2 * self.mm * self.mt + 1 + self.mt
+            self.observation_space = spaces.Box(low=0.0, high=1.0, shape=(obs_dim,), dtype=np.float32)
         self._state = None
         self._substeps = 0
 
@@ -82,7 +91,15 @@ class DispatchEnv(gym.Env):
                 )
         # ⑤ hour 비율 (1 차원)
         hour_part = [s.hour / max(1, p.horizon_hours)]
-        return np.asarray(plan_part + wip_part + assign_part + change_part + hour_part, dtype=np.float32)
+        base = plan_part + wip_part + assign_part + change_part + hour_part
+        if self.dwell_obs:
+            H = float(p.horizon_hours)
+            dwell_part = [0.0] * self.mt
+            for i in range(self.n_tasks):
+                d = self.sim.wip_dwell_time(s, i)
+                dwell_part[i] = 0.0 if d is None else min(d, H) / H
+            base = base + dwell_part
+        return np.asarray(base, dtype=np.float32)
 
     def action_masks(self) -> np.ndarray:
         valid = set(self.sim.valid_moves(self._state))
@@ -99,10 +116,48 @@ class DispatchEnv(gym.Env):
         self._substeps = 0
         return self._obs(), {}
 
+    def _dwell_shaping_reward(self) -> float:
+        """commit 시점 WIP 체류시간 기반 보상 성형항. dwell 길수록 보너스 큼."""
+        if self.dwell_lambda == 0.0:
+            return 0.0
+        p, s = self.p, self._state
+        H = float(p.horizon_hours)
+        total_plan = sum(t.plan_qty for t in p.tasks) or 1
+        shaping = 0.0
+        for i, t in enumerate(p.tasks):
+            remaining = max(0, t.plan_qty - s.produced[i])
+            if remaining == 0:
+                continue
+            d = self.sim.wip_dwell_time(s, i)
+            if d is None:
+                continue
+            weight = remaining / total_plan
+            shaping += weight * min(d, H) / H   # 길수록 보너스
+        return self.dwell_lambda * shaping
+
+    def _alloc_guide_reward(self) -> float:
+        """현재 배치가 목표 배분에 가까울수록 보너스."""
+        if self.alloc_lambda == 0.0 or not self.target_allocation:
+            return 0.0
+        s = self._state
+        total_err = 0.0
+        count = 0
+        for (model, ti), tgt in self.target_allocation.items():
+            actual = s.assign.get((model, ti), 0)
+            err = abs(actual - tgt) / max(1.0, self.p.eqp_qty[model])
+            total_err += err
+            count += 1
+        if count == 0:
+            return 0.0
+        return self.alloc_lambda * (1.0 - total_err / count)
+
     def step(self, action: int):
         p, s = self.p, self._state
         before = self._achievement_qty()
+        dwell_r = alloc_r = 0.0
         if action == 0:
+            dwell_r = self._dwell_shaping_reward()
+            alloc_r = self._alloc_guide_reward()
             self._commit()
         else:
             mv = self.move_list[action - 1]
@@ -110,11 +165,13 @@ class DispatchEnv(gym.Env):
                 self.sim.apply_move(s, mv)
             self._substeps += 1
             if self._substeps >= self.max_substeps:
+                dwell_r = self._dwell_shaping_reward()
+                alloc_r = self._alloc_guide_reward()
                 self._commit()
         # dense 보상: 미충족 계획에 기여한 생산 증가분(정규화)
         gained = self._achievement_qty() - before
         total_plan = sum(t.plan_qty for t in p.tasks) or 1
-        reward = gained / total_plan
+        reward = gained / total_plan + dwell_r + alloc_r
         terminated = self.sim.is_done(s)
         info = {}
         if terminated:

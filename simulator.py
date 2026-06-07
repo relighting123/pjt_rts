@@ -63,6 +63,35 @@ class ProblemInstance:
                 return i
         return None
 
+    def prev_task_index(self, task_index: int) -> int | None:
+        """같은 plan_prod_key의 oper_seq-1 태스크 인덱스(없으면 None)."""
+        t = self.tasks[task_index]
+        for i, o in enumerate(self.tasks):
+            if o.plan_prod_key == t.plan_prod_key and o.oper_seq == t.oper_seq - 1:
+                return i
+        return None
+
+    def plan_target_allocation(self) -> dict[tuple[str, int], float]:
+        """계획달성율 극대화를 위한 공정별 목표 장비 수(실수).
+
+        weight[m,t] = plan_qty[t] / UPH[m,t]  →  eqp_qty[m]에 비례 배분.
+        전체 장비를 필요 기계-시간에 비례하여 나눈다.
+        """
+        result: dict[tuple[str, int], float] = {}
+        for model in self.models():
+            weights = {
+                ti: t.plan_qty / uph
+                for ti, t in enumerate(self.tasks)
+                if (uph := self.uph_of(model, ti)) and uph > 0
+            }
+            total_w = sum(weights.values())
+            if total_w <= 0:
+                continue
+            eqp = float(self.eqp_qty[model])
+            for ti, w in weights.items():
+                result[(model, ti)] = w / total_w * eqp
+        return result
+
     def models(self) -> list[str]:
         return sorted(self.eqp_qty)
 
@@ -100,14 +129,7 @@ class Simulator:
         p = self.p
         inflow: dict[int, int] = {}
         for ti in range(len(p.tasks)):
-            capacity = 0.0
-            for model in p.models():
-                active = s.assign.get((model, ti), 0) - s.idle.get((model, ti), 0)
-                if active <= 0:
-                    continue
-                uph = p.uph_of(model, ti)
-                if uph:
-                    capacity += active * uph
+            capacity = self.task_capacity(s, ti)
             q = int(min(capacity, s.wip[ti]))
             if q <= 0:
                 continue
@@ -186,6 +208,39 @@ class Simulator:
             s.idle[(model, ti)] = s.idle.get((model, ti), 0) + p.switch_time_hours
             s.tool_used[(fb, model)] = max(0, s.tool_used.get((fb, model), 0) - 1)
             s.tool_used[(tb, model)] = s.tool_used.get((tb, model), 0) + 1
+
+    def task_capacity(self, s: SimState, task_index: int) -> float:
+        """task_index에 배치된 활성(Idle 제외) 장비의 총 UPH 합."""
+        cap = 0.0
+        for model in self.p.models():
+            active = s.assign.get((model, task_index), 0) - s.idle.get((model, task_index), 0)
+            if active > 0 and (uph := self.p.uph_of(model, task_index)):
+                cap += active * uph
+        return cap
+
+    def wip_dwell_time(self, s: SimState, task_index: int) -> float | None:
+        """현재 배치 기준 task_index의 WIP 소진 예상 시간(시간 단위).
+
+        반환:
+          float  — 소진까지 남은 시간 (0.0 이상, horizon_hours로 클리핑)
+          None   — 전 공정이 더 빠르거나(WIP 누적 중), 장비 없음, 개념 미적용
+        """
+        p = self.p
+        wip = s.wip[task_index]
+        H = float(p.horizon_hours)
+        if wip == 0:
+            return 0.0
+        cap_cur = self.task_capacity(s, task_index)
+        if cap_cur <= 0:
+            return None                         # 장비 없음 → 보너스 0 (해킹 방지)
+        prev_ti = p.prev_task_index(task_index)
+        if prev_ti is None:                     # 첫 공정
+            return min(wip / cap_cur, H)
+        cap_prev = self.task_capacity(s, prev_ti)
+        denom = min(cap_cur, float(wip)) - min(cap_prev, float(wip))
+        if denom <= 0:
+            return None                         # 전 공정 공급 ≥ 소비 → 누적 중
+        return min(wip / denom, H)
 
 
 def _remaining(p: ProblemInstance, s: SimState, ti: int) -> int:
