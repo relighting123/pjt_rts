@@ -12,6 +12,7 @@ import torch
 
 from sb3_contrib import MaskablePPO
 from sb3_contrib.common.wrappers import ActionMasker
+import stable_baselines3 as sb3
 
 from simulator import ProblemInstance, Simulator, heuristic_actions
 from env import DispatchEnv
@@ -21,6 +22,72 @@ import config
 
 def _mask_fn(env) -> np.ndarray:
     return env.action_masks()
+
+
+def _analytic_target_logits(env: "AllocationEnv") -> np.ndarray:
+    """해석식 배분 → AllocationEnv 액션(모델별 task logit) 근사."""
+    p = env.p
+    analytic = p.plan_target_allocation()  # (model, ti) -> float
+    logits = np.full((env.mm * env.mt,), -3.0, dtype=np.float32)
+    eps = 1e-6
+    for mi, model in enumerate(env.models):
+        eqp = max(1.0, float(p.eqp_qty[model]))
+        for ti in range(env.n_tasks):
+            if p.uph_of(model, ti) is None:
+                continue
+            frac = analytic.get((model, ti), 0.0) / eqp
+            logits[mi * env.mt + ti] = float(np.clip(np.log(frac + eps) + 3.0, -3.0, 3.0))
+    return logits
+
+
+def behavior_clone_alloc(model, problems, epochs: int, lr: float):
+    """AllocationEnv 정책의 가우시안 평균을 해석식 target logit에 MSE 회귀."""
+    if epochs <= 0:
+        return
+    obs_list, tgt_list = [], []
+    for p in problems:
+        env = AllocationEnv(p, max_tasks=config.MAX_TASKS, max_models=config.MAX_MODELS)
+        obs, _ = env.reset()
+        obs_list.append(obs)
+        tgt_list.append(_analytic_target_logits(env))
+    obs_t = torch.as_tensor(np.asarray(obs_list), dtype=torch.float32)
+    tgt_t = torch.as_tensor(np.asarray(tgt_list), dtype=torch.float32)
+    policy = model.policy
+    policy.set_training_mode(True)
+    opt = torch.optim.Adam(policy.parameters(), lr=lr)
+    for _ in range(epochs):
+        opt.zero_grad()
+        dist = policy.get_distribution(obs_t)
+        mean = dist.distribution.mean  # DiagGaussian 평균
+        loss = torch.nn.functional.mse_loss(mean, tgt_t)
+        loss.backward()
+        opt.step()
+    policy.set_training_mode(False)
+
+
+def train_alloc_model(problems: list[ProblemInstance], ppo_steps: int = 5000,
+                      bc_epochs: int = config.BC_EPOCHS, lr: float = config.BC_LR,
+                      save_path: Path | None = None):
+    """상위 배분(AllocationEnv) 1-step PPO 학습 → ppo_alloc.zip 저장."""
+    save_path = Path(save_path) if save_path else (config.SAVED_MODELS_DIR / "ppo_alloc.zip")
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+
+    def _shape(p):
+        e = AllocationEnv(p, max_tasks=config.MAX_TASKS, max_models=config.MAX_MODELS)
+        return (tuple(e.observation_space.shape), tuple(e.action_space.shape))
+    base = _shape(problems[0])
+    same = [p for p in problems if _shape(p) == base]
+
+    def env_fn():
+        return AllocationEnv(random.choice(same), max_tasks=config.MAX_TASKS,
+                             max_models=config.MAX_MODELS)
+
+    model = sb3.PPO("MlpPolicy", env_fn(), verbose=0, n_steps=64, batch_size=32)
+    behavior_clone_alloc(model, same, bc_epochs, lr)
+    model.set_env(env_fn())
+    model.learn(total_timesteps=ppo_steps, progress_bar=False)
+    model.save(save_path)
+    return model
 
 
 def _get_target_allocation(problem: ProblemInstance) -> dict:
@@ -131,6 +198,10 @@ def train_model(problems: list[ProblemInstance], ppo_steps: int = config.DEFAULT
         print(f"[train] shape가 다른 문제 {len(problems) - len(same)}개 제외 "
               f"(단일 정책은 동일 shape만 학습). {len(same)}개로 학습.")
     problems = same
+
+    # 상위 배분 모델(가이드)을 먼저 학습 (USE_ALLOC_MODEL일 때만 실제 사용)
+    if config.USE_ALLOC_MODEL and config.ALLOC_LAMBDA > 0.0:
+        train_alloc_model(problems, ppo_steps=max(2000, ppo_steps // 10))
 
     def env_fn():
         return make_env(random.choice(problems))
