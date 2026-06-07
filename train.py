@@ -50,6 +50,8 @@ def make_env(problem: ProblemInstance) -> ActionMasker:
         alloc_lambda=config.ALLOC_LAMBDA,
         target_allocation=target,
         dwell_obs=config.DWELL_OBS,
+        guide_util_threshold=config.GUIDE_UTIL_THRESHOLD,
+        guide_band_pct=config.GUIDE_BAND_PCT,
     )
     return ActionMasker(env, _mask_fn)
 
@@ -63,6 +65,8 @@ def collect_teacher_dataset(problems: list[ProblemInstance]):
             p, max_tasks=config.MAX_TASKS, max_models=config.MAX_MODELS,
             dwell_lambda=config.DWELL_LAMBDA, alloc_lambda=config.ALLOC_LAMBDA,
             target_allocation=target, dwell_obs=config.DWELL_OBS,
+            guide_util_threshold=config.GUIDE_UTIL_THRESHOLD,
+            guide_band_pct=config.GUIDE_BAND_PCT,
         )
         sim = Simulator(p)
         obs, _ = env.reset()
