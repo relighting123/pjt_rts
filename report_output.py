@@ -491,6 +491,18 @@ def render_html_report(results: dict[str, tuple[ProblemInstance, dict]]) -> str:
     return "\n".join(parts)
 
 
+def render_guide_table(problem, guide_allocation: dict) -> str:
+    """가이드 수량(Mode 1)을 공정×모델 대수 표(markdown)로."""
+    if not guide_allocation:
+        return ""
+    lines = ["**가이드 수량 (재공 무한 기준 목표 배치)**", "",
+             "| 공정(PLAN_PROD_KEY/OPER) | 모델 | 목표 대수 |", "|---|---|---|"]
+    for (model, ti), cnt in sorted(guide_allocation.items(), key=lambda x: (x[0][1], x[0][0])):
+        t = problem.tasks[ti]
+        lines.append(f"| {t.plan_prod_key}/{t.oper_id} | {model} | {cnt:.1f} |")
+    return "\n".join(lines)
+
+
 def enrich_eval_result(problem: ProblemInstance, trace: list, hourly_stats: list[dict]) -> dict:
     """evaluate_benchmark 반환 dict에 출력 테이블별 행 추가."""
     tables = build_output_tables(problem, hourly_stats, trace)

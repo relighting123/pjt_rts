@@ -8,7 +8,7 @@ import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
 
-from simulator import Simulator, Move, ProblemInstance
+from simulator import Simulator, Move, ProblemInstance, _active_eqp_count
 
 
 class DispatchEnv(gym.Env):
@@ -17,7 +17,8 @@ class DispatchEnv(gym.Env):
     def __init__(self, problem: ProblemInstance, max_substeps_per_hour: int | None = None,
                  max_tasks: int | None = None, max_models: int | None = None,
                  dwell_lambda: float = 0.0, alloc_lambda: float = 0.0,
-                 target_allocation: dict | None = None, dwell_obs: bool = False):
+                 target_allocation: dict | None = None, dwell_obs: bool = False,
+                 guide_util_threshold: float = 0.0, guide_band_pct: float = 0.0):
         super().__init__()
         self.p = problem
         self.sim = Simulator(problem)
@@ -54,6 +55,8 @@ class DispatchEnv(gym.Env):
         self.dwell_lambda = dwell_lambda
         self.alloc_lambda = alloc_lambda
         self.target_allocation: dict[tuple[str, int], float] = dict(target_allocation or {})
+        self.guide_util_threshold = guide_util_threshold
+        self.guide_band_pct = guide_band_pct
         self.dwell_obs = dwell_obs
         if dwell_obs:
             obs_dim = self.mt * 2 + 2 * self.mm * self.mt + 1 + self.mt
@@ -135,21 +138,42 @@ class DispatchEnv(gym.Env):
             shaping += weight * min(d, H) / H   # 길수록 보너스
         return self.dwell_lambda * shaping
 
+    def _current_util(self) -> float:
+        total = sum(self.p.eqp_qty.values()) or 1
+        return _active_eqp_count(self.p, self._state) / total
+
     def _alloc_guide_reward(self) -> float:
-        """현재 배치가 목표 배분에 가까울수록 보너스."""
+        """가이드 준수 보상(조건부).
+
+        - 전체 가동률이 guide_util_threshold 미만이면 0 (재공 부족 국면, 가이드 무의미).
+        - task별 WIP==0이면 그 task 제외.
+        - 가이드 tgt 대비 ±guide_band_pct 밴드 밖 편차만 페널티.
+        """
         if self.alloc_lambda == 0.0 or not self.target_allocation:
             return 0.0
         s = self._state
-        total_err = 0.0
+        if self._current_util() < self.guide_util_threshold:
+            return 0.0
+        band = self.guide_band_pct
+        total_pen = 0.0
         count = 0
         for (model, ti), tgt in self.target_allocation.items():
+            if s.wip.get(ti, 0) == 0:
+                continue
             actual = s.assign.get((model, ti), 0)
-            err = abs(actual - tgt) / max(1.0, self.p.eqp_qty[model])
-            total_err += err
+            lower = tgt * (1.0 - band)
+            upper = tgt * (1.0 + band)
+            if actual < lower:
+                over = lower - actual
+            elif actual > upper:
+                over = actual - upper
+            else:
+                over = 0.0
+            total_pen += over / max(1.0, self.p.eqp_qty[model])
             count += 1
         if count == 0:
             return 0.0
-        return self.alloc_lambda * (1.0 - total_err / count)
+        return self.alloc_lambda * (1.0 - total_pen / count)
 
     def step(self, action: int):
         p, s = self.p, self._state

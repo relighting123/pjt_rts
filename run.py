@@ -66,7 +66,10 @@ def cmd_infer(args):
     for name, p in named:
         res = report.evaluate_benchmark(p, model)
         rate = res.get("rl", res["heuristic"])
-        print(f"{p.rule_timekey}: 평균 계획달성률 {rate:.3f}")
+        guide = res.get("guide_allocation", {})
+        n_guide = len(guide)
+        print(f"{p.rule_timekey}: [가이드 수량] 모델×공정 배분 {n_guide}건 / "
+              f"[동적 운영] 평균 계획달성률 {rate:.3f}")
         results[name] = (p, res)
 
     md_default, html_default = report.default_infer_report_paths(problems, args)

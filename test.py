@@ -10,14 +10,56 @@ from report_output import (
     enrich_eval_result,
     gantt_text,
     avg_utilization,
+    render_guide_table,
 )
 import config
+
+
+_ALLOC_MODEL_CACHE: dict = {}
+
+
+def _load_alloc_model(path):
+    """ppo_alloc.zip을 (경로, mtime) 기준 1회만 로드해 캐시. 실패 시 None+경고."""
+    key = (str(path), path.stat().st_mtime)
+    if key in _ALLOC_MODEL_CACHE:
+        return _ALLOC_MODEL_CACHE[key]
+    model = None
+    try:
+        import stable_baselines3 as sb3
+        model = sb3.PPO.load(path)
+    except Exception as e:  # 손상/비호환 zip, sb3 미설치 등 → 해석식 폴백
+        import warnings
+        warnings.warn(f"ppo_alloc.zip load 실패 ({e!r}); 해석식 가이드로 폴백.")
+    _ALLOC_MODEL_CACHE[key] = model
+    return model
+
+
+def _guide_allocation(problem: ProblemInstance) -> dict:
+    """가이드 수량(Mode 1). USE_ALLOC_MODEL이면 RL, 아니면 해석식."""
+    if config.USE_ALLOC_MODEL:
+        path = config.SAVED_MODELS_DIR / "ppo_alloc.zip"
+        if path.exists():
+            model = _load_alloc_model(path)
+            if model is not None:
+                try:
+                    from alloc_env import AllocationEnv
+                    env = AllocationEnv(problem, max_tasks=config.MAX_TASKS,
+                                        max_models=config.MAX_MODELS)
+                    obs, _ = env.reset()
+                    action, _ = model.predict(obs, deterministic=True)
+                    env.step(action)
+                    return env.get_float_target()
+                except Exception as e:
+                    import warnings
+                    warnings.warn(f"AllocationEnv 추론 실패 ({e!r}); 해석식 가이드로 폴백.")
+    return problem.plan_target_allocation()
 
 
 def _model_matches(model, problem: ProblemInstance) -> bool:
     """학습된 모델의 관측/액션 공간이 이 문제의 env와 같은 shape인지."""
     from env import DispatchEnv
-    env = DispatchEnv(problem, max_tasks=config.MAX_TASKS, max_models=config.MAX_MODELS)
+    env = DispatchEnv(problem, max_tasks=config.MAX_TASKS,
+                      max_models=config.MAX_MODELS, dwell_obs=config.DWELL_OBS)
     try:
         obs_ok = tuple(model.observation_space.shape) == tuple(env.observation_space.shape)
         act_ok = int(model.action_space.n) == int(env.action_space.n)
@@ -29,7 +71,8 @@ def _model_matches(model, problem: ProblemInstance) -> bool:
 def _rl_policy_factory(model, problem: ProblemInstance):
     """model을 사용해 매 시간 이동 목록을 반환하는 policy_fn."""
     from env import DispatchEnv
-    env = DispatchEnv(problem, max_tasks=config.MAX_TASKS, max_models=config.MAX_MODELS)
+    env = DispatchEnv(problem, max_tasks=config.MAX_TASKS,
+                      max_models=config.MAX_MODELS, dwell_obs=config.DWELL_OBS)
 
     def policy_fn(sim: Simulator, s):
         env._state = s
@@ -68,6 +111,7 @@ def evaluate_benchmark(problem: ProblemInstance, model=None) -> dict:
             "conv_rows", "task_hourly_rows", "allocation_rows",
         )},
     }
+    out["guide_allocation"] = _guide_allocation(problem)
     if model is not None and _model_matches(model, problem):
         sim2 = Simulator(problem)
         rl_final, rl_trace, rl_hourly = run_policy(sim2, _rl_policy_factory(model, problem))
@@ -121,6 +165,10 @@ def render_markdown(results: dict[str, tuple[ProblemInstance, dict]]) -> str:
     lines.append("")
     for name, (p, r) in results.items():
         lines.append(f"## {name}")
+        guide_md = render_guide_table(p, r.get("guide_allocation", {}))
+        if guide_md:
+            lines.append(guide_md)
+            lines.append("")
         lines.append(f"- 비고: {p.ground_truth.get('note', '')}")
         lines.append(_gantt(p, r.get("rl_trace", r["trace"])))
         lines.append("")
