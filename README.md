@@ -140,7 +140,7 @@ ATTR_VAL : 각 항목별 GBN_CD에 해당하는 값
 ```bash
 python run.py eval
 python run.py train --benchmark-dataset benchmarks/benchmark_01 --steps 50000
-python run.py infer --benchmark-dataset benchmarks/benchmark_01 --output artifacts/inference/allocation.csv
+python run.py infer --benchmark-dataset benchmarks/benchmark_01 --report artifacts/inference/allocation.md
 ```
 
 ### 2-모드 운영 (가이드 + 동적)

@@ -68,7 +68,7 @@ def cmd_infer(args):
         rate = res.get("rl", res["heuristic"])
         guide = res.get("guide_allocation", {})
         n_guide = len(guide)
-        print(f"{p.rule_timekey}: [가이드 수량] 공정×모델 {n_guide}건 / "
+        print(f"{p.rule_timekey}: [가이드 수량] 모델×공정 배분 {n_guide}건 / "
               f"[동적 운영] 평균 계획달성률 {rate:.3f}")
         results[name] = (p, res)
 

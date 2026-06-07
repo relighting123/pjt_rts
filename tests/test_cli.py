@@ -43,4 +43,4 @@ def test_infer_prints_guide_and_dynamic(capsys, tmp_path):
     args.func(args)
     out = capsys.readouterr().out
     assert "가이드" in out
-    assert "달성률" in out
+    assert "동적 운영" in out
