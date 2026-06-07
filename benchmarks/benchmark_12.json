@@ -1,0 +1,29 @@
+{
+  "rule_timekey": "2026060700000002",
+  "horizon_hours": 8,
+  "switch_time_hours": 1,
+  "tasks": [
+    {"plan_prod_key": "P1", "oper_id": "OP10", "oper_seq": 1, "batch_id": "B1", "plan_qty": 400, "init_wip": 2000},
+    {"plan_prod_key": "P1", "oper_id": "OP20", "oper_seq": 2, "batch_id": "B2", "plan_qty": 400, "init_wip": 0},
+    {"plan_prod_key": "P1", "oper_id": "OP30", "oper_seq": 3, "batch_id": "B3", "plan_qty": 400, "init_wip": 0}
+  ],
+  "uph": [
+    {"plan_prod_key": "P1", "oper_id": "OP10", "eqp_model": "M1", "uph": 100},
+    {"plan_prod_key": "P1", "oper_id": "OP20", "eqp_model": "M1", "uph": 50},
+    {"plan_prod_key": "P1", "oper_id": "OP30", "eqp_model": "M1", "uph": 100}
+  ],
+  "eqp_qty": {"M1": 4},
+  "init_assign": [
+    {"eqp_model": "M1", "plan_prod_key": "P1", "oper_id": "OP10", "count": 4}
+  ],
+  "tool_qty": [
+    {"batch_id": "B1", "eqp_model": "M1", "tool_qty": 2},
+    {"batch_id": "B2", "eqp_model": "M1", "tool_qty": 2},
+    {"batch_id": "B3", "eqp_model": "M1", "tool_qty": 2}
+  ],
+  "conv_groups": {"G1": ["B1", "B2", "B3"]},
+  "ground_truth": {
+    "plan_achievement": 1.0,
+    "note": "3단 파이프라인 보틀넥: OP20 weight=400/50=8으로 최대, 목표배분 OP10:1/OP20:2/OP30:1. init_wip OP20=0이므로 초기 OP10 집중(dwell shaping 유도) 후 OP20에 2대 배분. 8h 충분. OP20에 1대만 배치 시 WIP 병목으로 달성 어려움."
+  }
+}

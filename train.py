@@ -15,6 +15,7 @@ from sb3_contrib.common.wrappers import ActionMasker
 
 from simulator import ProblemInstance, Simulator, heuristic_actions
 from env import DispatchEnv
+from alloc_env import AllocationEnv
 import config
 
 
@@ -22,15 +23,47 @@ def _mask_fn(env) -> np.ndarray:
     return env.action_masks()
 
 
+def _get_target_allocation(problem: ProblemInstance) -> dict:
+    """USE_ALLOC_MODEL=True면 AllocationEnv RL 모델로, 아니면 비례공식으로 목표 배분 산출."""
+    if config.USE_ALLOC_MODEL and config.ALLOC_LAMBDA > 0.0:
+        alloc_env = AllocationEnv(problem, max_tasks=config.MAX_TASKS, max_models=config.MAX_MODELS)
+        alloc_model_path = config.SAVED_MODELS_DIR / "ppo_alloc.zip"
+        if alloc_model_path.exists():
+            from sb3_contrib import MaskablePPO
+            import stable_baselines3 as sb3
+            alloc_model = sb3.PPO.load(alloc_model_path)
+            obs, _ = alloc_env.reset()
+            action, _ = alloc_model.predict(obs, deterministic=True)
+            alloc_env.step(action)
+            return alloc_env.get_float_target()
+    # fallback: 비례공식
+    return problem.plan_target_allocation()
+
+
 def make_env(problem: ProblemInstance) -> ActionMasker:
-    return ActionMasker(DispatchEnv(problem, max_tasks=config.MAX_TASKS, max_models=config.MAX_MODELS), _mask_fn)
+    target = _get_target_allocation(problem) if config.ALLOC_LAMBDA > 0.0 else {}
+    env = DispatchEnv(
+        problem,
+        max_tasks=config.MAX_TASKS,
+        max_models=config.MAX_MODELS,
+        dwell_lambda=config.DWELL_LAMBDA,
+        alloc_lambda=config.ALLOC_LAMBDA,
+        target_allocation=target,
+        dwell_obs=config.DWELL_OBS,
+    )
+    return ActionMasker(env, _mask_fn)
 
 
 def collect_teacher_dataset(problems: list[ProblemInstance]):
     """teacher가 두는 액션 시퀀스를 env 인덱스로 변환해 (obs, action, mask) 수집."""
     obs_buf, act_buf, mask_buf = [], [], []
     for p in problems:
-        env = DispatchEnv(p, max_tasks=config.MAX_TASKS, max_models=config.MAX_MODELS)
+        target = _get_target_allocation(p) if config.ALLOC_LAMBDA > 0.0 else {}
+        env = DispatchEnv(
+            p, max_tasks=config.MAX_TASKS, max_models=config.MAX_MODELS,
+            dwell_lambda=config.DWELL_LAMBDA, alloc_lambda=config.ALLOC_LAMBDA,
+            target_allocation=target, dwell_obs=config.DWELL_OBS,
+        )
         sim = Simulator(p)
         obs, _ = env.reset()
         move_to_idx = {mv: i + 1 for i, mv in enumerate(env.move_list)}

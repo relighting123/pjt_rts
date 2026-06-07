@@ -31,6 +31,15 @@ DEFAULT_SWITCH_TIME_HOURS = 1
 MAX_TASKS = int(os.environ["MAX_TASKS"]) if os.getenv("MAX_TASKS") else None
 MAX_MODELS = int(os.environ["MAX_MODELS"]) if os.getenv("MAX_MODELS") else None
 
+# WIP 체류시간 성형 계수 (0.0 = 비활성)
+DWELL_LAMBDA = float(os.getenv("DWELL_LAMBDA", "0.0"))
+# 목표 배분 가이드 계수 (0.0 = 비활성)
+ALLOC_LAMBDA = float(os.getenv("ALLOC_LAMBDA", "0.0"))
+# True면 obs에 dwell 슬롯 추가 (차원 변경 → 기존 모델과 비호환)
+DWELL_OBS = os.getenv("DWELL_OBS", "false").lower() == "true"
+# True면 AllocationEnv 상위 모델을 사용해 target_allocation 주입
+USE_ALLOC_MODEL = os.getenv("USE_ALLOC_MODEL", "false").lower() == "true"
+
 # --- DB 테이블 (INF=현행, HIS=이력) ---
 INPUT_TABLE = "RTS_LINEDSDB_INF"
 

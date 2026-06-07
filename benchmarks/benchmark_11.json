@@ -1,0 +1,26 @@
+{
+  "rule_timekey": "2026060700000001",
+  "horizon_hours": 5,
+  "switch_time_hours": 1,
+  "tasks": [
+    {"plan_prod_key": "PA", "oper_id": "OP10", "oper_seq": 1, "batch_id": "B1", "plan_qty": 600, "init_wip": 1000},
+    {"plan_prod_key": "PB", "oper_id": "OP10", "oper_seq": 1, "batch_id": "B2", "plan_qty": 400, "init_wip": 1000}
+  ],
+  "uph": [
+    {"plan_prod_key": "PA", "oper_id": "OP10", "eqp_model": "M1", "uph": 50},
+    {"plan_prod_key": "PB", "oper_id": "OP10", "eqp_model": "M1", "uph": 100}
+  ],
+  "eqp_qty": {"M1": 4},
+  "init_assign": [
+    {"eqp_model": "M1", "plan_prod_key": "PA", "oper_id": "OP10", "count": 4}
+  ],
+  "tool_qty": [
+    {"batch_id": "B1", "eqp_model": "M1", "tool_qty": 4},
+    {"batch_id": "B2", "eqp_model": "M1", "tool_qty": 4}
+  ],
+  "conv_groups": {"G1": ["B1", "B2"]},
+  "ground_truth": {
+    "plan_achievement": 1.0,
+    "note": "UPH 이질 배분: PA weight=600/50=12, PB weight=400/100=4 → 3:1(PA:3대/PB:1대). h0에 M1 1대 PA→PB 전환(1h idle). PA=3×50×5=750≥600, PB=1×100×4=400≥400. 잘못된 2:2 배분 시 PA=2×50×5=500<600 → avg=0.917."
+  }
+}
