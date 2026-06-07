@@ -119,9 +119,11 @@ class Simulator:
         # 생산분은 다음 시간에 가용 (지금 더해두면 다음 advance에서 읽힘)
         for ti, v in inflow.items():
             s.wip[ti] += v
-        # 전환 Idle 1시간 차감
+        # 전환 Idle 차감: 배치된 장비 대수만큼 소진 (N대 동시 전환 시 N배 누적 해소)
         for key in list(s.idle):
-            s.idle[key] = max(0, s.idle[key] - 1)
+            model, ti = key
+            machines_here = s.assign.get((model, ti), 0)
+            s.idle[key] = max(0, s.idle[key] - machines_here)
             if s.idle[key] == 0:
                 del s.idle[key]
         s.hour += 1
