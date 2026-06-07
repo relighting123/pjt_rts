@@ -1,6 +1,6 @@
 {
   "rule_timekey": "2026060100000000",
-  "horizon_hours": 4,
+  "horizon_hours": 3,
   "switch_time_hours": 1,
   "tasks": [
     {"plan_prod_key": "P1", "oper_id": "OP10", "oper_seq": 1, "batch_id": "B1", "plan_qty": 100, "init_wip": 100},
@@ -25,6 +25,6 @@
   "conv_groups": {"G1": ["B1", "B2", "B3"]},
   "ground_truth": {
     "plan_achievement": 1.0,
-    "note": "3배치 2대 fan-in: P1(OP10)+P2(OP20) 각 1h → 동시 전환(2h idle) → P3(OP30) 2h 마무리 = 4h 100%"
+    "note": "3배치 2대 fan-in: P1(OP10)+P2(OP20) 각 1h → 동시 전환(1h idle) → P3(OP30) 1h 완료 = 3h 100%"
   }
 }
