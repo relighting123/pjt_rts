@@ -3,6 +3,7 @@ from db.adapter import (
     fetch_problem,
     fetch_max_timekey,
     fetch_rows,
+    filter_rows_by_fac_id,
     resolve_timekey,
     list_timekeys_in_range,
     parse_timekey,
@@ -22,6 +23,7 @@ from db.pipeline import (
     run_inference,
     input_json_path,
     result_json_path,
+    snapshot_key,
     load_train_problems_from_export,
 )
 
@@ -29,6 +31,7 @@ __all__ = [
     "fetch_problem",
     "fetch_max_timekey",
     "fetch_rows",
+    "filter_rows_by_fac_id",
     "resolve_timekey",
     "list_timekeys_in_range",
     "parse_timekey",
@@ -49,5 +52,6 @@ __all__ = [
     "run_inference",
     "input_json_path",
     "result_json_path",
+    "snapshot_key",
     "load_train_problems_from_export",
 ]
