@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+"""Step 2: fetch_rows → rows_to_problem → (선택) JSON export 테스트.
+
+사용:
+  PYTHONPATH=. python3 scripts/test_db_step2_fetch_rows.py
+  PYTHONPATH=. python3 scripts/test_db_step2_fetch_rows.py --timekey 2026052922500000
+  PYTHONPATH=. python3 scripts/test_db_step2_fetch_rows.py --export
+  PYTHONPATH=. python3 scripts/test_db_step2_fetch_rows.py --export --output /tmp/out.json
+"""
+from __future__ import annotations
+
+import argparse
+import sys
+from collections import Counter
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+
+def _parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(description="Step 2: fetch_rows DB 읽기 테스트")
+    p.add_argument("--timekey", help="RULE_TIMEKEY (미지정 시 MAX)")
+    p.add_argument("--horizon", type=int, default=12, help="horizon_hours (기본 12)")
+    p.add_argument("--export", action="store_true", help="data/inference/{timekey}.json 저장")
+    p.add_argument("--output", help="--export 시 출력 경로 (미지정 시 data/inference/{timekey}.json)")
+    return p.parse_args()
+
+
+def main() -> int:
+    try:
+        import oracledb  # noqa: F401
+    except ImportError:
+        print("FAIL: oracledb 미설치 — pip install oracledb python-dotenv")
+        return 1
+
+    args = _parse_args()
+    from db.adapter import fetch_max_timekey, fetch_rows, resolve_timekey, rows_to_problem
+    from db.export import export_from_rows
+    import config
+
+    print("=== Step 2: fetch_rows 테스트 ===")
+
+    try:
+        tk = resolve_timekey(args.timekey)
+        if args.timekey is None:
+            print(f"timekey: MAX(RULE_TIMEKEY) = {tk}")
+        else:
+            print(f"timekey: {tk}")
+    except Exception as exc:
+        print(f"FAIL : timekey 확인 실패 — {exc}")
+        return 1
+
+    try:
+        rows = fetch_rows(tk)
+    except Exception as exc:
+        print(f"FAIL : fetch_rows 실패 — {exc}")
+        return 1
+
+    if not rows:
+        print(f"FAIL : {tk} 에 해당하는 행 없음")
+        return 1
+
+    print(f"OK   : fetch_rows — {len(rows)}행")
+    print(f"sample row: {rows[0]}")
+
+    gbn_counts = Counter(r[7] for r in rows)
+    print("GBN_CD 분포:", dict(sorted(gbn_counts.items())))
+
+    try:
+        problem = rows_to_problem(rows, args.horizon, rule_timekey=tk)
+    except Exception as exc:
+        print(f"FAIL : rows_to_problem 실패 — {exc}")
+        return 1
+
+    print(f"OK   : rows_to_problem — task {len(problem.tasks)}개, model {len(problem.models())}개")
+    if problem.tasks:
+        t0 = problem.tasks[0]
+        print(
+            f"       첫 task: {t0.plan_prod_key}/{t0.oper_id} "
+            f"plan={t0.plan_qty} wip={t0.wip_qty}"
+        )
+
+    if args.export:
+        out = Path(args.output) if args.output else config.INFERENCE_DATA_DIR / f"{tk}.json"
+        try:
+            path = export_from_rows(
+                rows, out, horizon_hours=args.horizon, rule_timekey=tk,
+            )
+            print(f"OK   : JSON 저장 → {path}")
+        except Exception as exc:
+            print(f"FAIL : JSON export 실패 — {exc}")
+            return 1
+
+    print("Step 2 완료")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
