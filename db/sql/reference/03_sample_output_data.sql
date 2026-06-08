@@ -2,7 +2,7 @@
 -- RTS 출력 샘플 — 가이드 + 동적 운영 (검증·UI 확인용)
 -- RULE_TIMEKEY = 2026052922500000 (benchmark_01 기준 예시)
 -- 실제 운영: python run.py infer 가 DELETE 후 INSERT (INF/HIS 동시)
--- 실행 전: @db/sql/01_create_tables.sql
+-- 실행 전: @db/sql/reference/01_create_tables.sql
 -- =============================================================================
 
 DEFINE RK = '2026052922500000'

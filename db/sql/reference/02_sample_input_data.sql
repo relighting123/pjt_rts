@@ -1,7 +1,7 @@
 -- =============================================================================
 -- RTS 입력 샘플 — RTS_LINEDSDB_INF
 -- benchmark_01 / benchmark_02 에 해당하는 2개 RULE_TIMEKEY
--- 실행 전: @db/sql/01_create_tables.sql
+-- 실행 전: @db/sql/reference/01_create_tables.sql
 -- =============================================================================
 
 DELETE FROM RTS_LINEDSDB_INF;
