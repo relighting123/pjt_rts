@@ -6,25 +6,28 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import datetime, timedelta
 import config
+from db.input_row import InputRow, coerce_input_row, coerce_input_rows, rows_from_cursor
 from db.sql_loader import load_sql
 from db.sql_log import log_sql
 from simulator import Task, ProblemInstance
 
 
-def filter_rows_by_facid(rows, facid: str | None) -> list[tuple]:
+def filter_rows_by_facid(rows, facid: str | None) -> list[InputRow]:
     """facid 조건으로 long-format 행 필터."""
+    parsed = coerce_input_rows(rows)
     if not facid:
-        return list(rows)
-    filtered = [r for r in rows if r[1] == facid]
+        return parsed
+    filtered = [r for r in parsed if r.fac_id == facid]
     if not filtered:
         raise ValueError(f"facid={facid} 에 해당하는 행 없음")
     return filtered
 
 
-def filter_rows_by_batchid(rows, batchid: str) -> list[tuple]:
+def filter_rows_by_batchid(rows, batchid: str) -> list[InputRow]:
     """batch_id 부분 일치(LIKE %batchid%) 필터."""
     needle = batchid.lower()
-    filtered = [r for r in rows if needle in str(r[2]).lower()]
+    parsed = coerce_input_rows(rows)
+    filtered = [r for r in parsed if needle in r.batch_id.lower()]
     if not filtered:
         raise ValueError(f"batchid LIKE %{batchid}% 에 해당하는 행 없음")
     return filtered
@@ -42,7 +45,7 @@ def rows_to_problem(rows, horizon_hours: int,
                     batchid: str | None = None) -> ProblemInstance:
     """GBN_CD가 long-format인 행들을 ProblemInstance로 피벗.
 
-    row = (rule_timekey, fac_id, batch_id, plan_prod_key, oper_id, oper_seq, eqp_model, gbn_cd, attr_val)
+    row: InputRow 또는 dict(컬럼명)·tuple(레거시 순서).
     """
     rows = filter_rows_by_facid(rows, facid)
     if batchid:
@@ -56,11 +59,14 @@ def rows_to_problem(rows, horizon_hours: int,
     eqp_models: set[str] = set()
     rk = rule_timekey
 
-    for r in rows:
-        rk = rk or r[0]
-        _, _fac, batch_id, ppk, oper_id, oper_seq, eqp_model, gbn, val = r
+    for raw in rows:
+        r = coerce_input_row(raw)
+        rk = rk or r.rule_timekey
+        batch_id = r.batch_id
+        ppk, oper_id = r.plan_prod_key, r.oper_id
+        eqp_model, gbn, val = r.eqp_model, r.gbn_cd, r.attr_val
         key = (ppk, oper_id)
-        task_meta.setdefault(key, {"batch_id": batch_id, "oper_seq": int(oper_seq)})
+        task_meta.setdefault(key, {"batch_id": batch_id, "oper_seq": r.oper_seq})
         if eqp_model:
             eqp_models.add(eqp_model)
         if gbn == "EQUIP_UPH" and float(val) > 0:
@@ -90,7 +96,7 @@ def rows_to_problem(rows, horizon_hours: int,
         eqp_qty.setdefault(m, 0)
     resolved_fac = facid
     if resolved_fac is None and rows:
-        facs = {r[1] for r in rows}
+        facs = {coerce_input_row(r).fac_id for r in rows}
         if len(facs) == 1:
             resolved_fac = next(iter(facs))
     return ProblemInstance(
@@ -207,7 +213,7 @@ def fetch_rows(
     facid: str,
     batchid: str,
     table: str = config.INPUT_TABLE,
-) -> list[tuple]:
+) -> list[InputRow]:
     """RTS_LINEDSDB_INF 조회. facid·batchid(LIKE %값%) 필수."""
     conn = _connect()
     try:
@@ -216,7 +222,7 @@ def fetch_rows(
             cur, "fetch_rows", "select", "fetch_rows", table=table,
             rk=rule_timekey, facid=facid, batch_like=batch_like_pattern(batchid),
         )
-        return cur.fetchall()
+        return rows_from_cursor(cur)
     finally:
         conn.close()
 

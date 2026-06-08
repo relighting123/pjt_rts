@@ -85,7 +85,7 @@ def main() -> int:
     print(f"OK   : fetch_rows — {len(rows)}행")
     print(f"sample row: {rows[0]}")
 
-    gbn_counts = Counter(r[7] for r in rows)
+    gbn_counts = Counter(r.gbn_cd for r in rows)
     print("GBN_CD 분포:", dict(sorted(gbn_counts.items())))
 
     try:

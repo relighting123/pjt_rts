@@ -18,6 +18,7 @@ from db.adapter import (
     write_inference_result,
     write_results,
 )
+from db.input_row import InputRow, coerce_input_row, coerce_input_rows
 from db.export import export_from_db, export_from_rows, export_from_sample_rows, export_train_range
 from db.pipeline import (
     export_input_json,
@@ -42,6 +43,9 @@ __all__ = [
     "parse_timekey",
     "format_timekey",
     "rows_to_problem",
+    "InputRow",
+    "coerce_input_row",
+    "coerce_input_rows",
     "write_assign_results",
     "write_conv_results",
     "write_plan_achv_results",

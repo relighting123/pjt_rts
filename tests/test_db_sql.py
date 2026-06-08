@@ -42,6 +42,8 @@ def test_fetch_rows_sql_requires_facid_and_batch_like():
     assert ":facid" in sql
     assert ":batch_like" in sql
     assert "BATCH_ID LIKE :batch_like" in sql
+    assert "AS rule_timekey" in sql
+    assert "EQP_MODEL_CD AS eqp_model" in sql
 
 
 def test_max_timekey_sql_requires_facid():
