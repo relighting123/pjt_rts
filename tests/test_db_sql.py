@@ -1,8 +1,22 @@
-"""db/sql/ 외부 SQL 파일 로더 테스트."""
+"""db/sql/select·write SQL 파일 로더 테스트."""
+from pathlib import Path
+
 import pytest
 
 from db.sql_loader import load_sql, sql_file
 import config
+
+_REFERENCE_SQL = Path(__file__).resolve().parent.parent / "db" / "sql" / "reference"
+
+
+def test_reference_sql_files_exist():
+    for name in (
+        "01_create_tables",
+        "02_sample_input_data",
+        "03_sample_output_data",
+        "04_verify_queries",
+    ):
+        assert (_REFERENCE_SQL / f"{name}.sql").is_file()
 
 
 def test_sql_files_exist():

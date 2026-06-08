@@ -1,4 +1,4 @@
-"""db/sql/ 하위 SQL 파일 로더."""
+"""db/sql/select·write 런타임 SQL 로더 (reference/ 는 수동 참조용)."""
 from __future__ import annotations
 
 from pathlib import Path
