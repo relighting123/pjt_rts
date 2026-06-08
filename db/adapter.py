@@ -7,7 +7,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 import config
 from db.input_row import InputRow, coerce_input_row, coerce_input_rows, rows_from_cursor
-from db.sql_loader import load_sql
+from db.sql_loader import filter_rows_for_sql, load_sql
 from db.sql_log import log_sql
 from simulator import Task, ProblemInstance
 
@@ -138,9 +138,10 @@ def _executemany_logged(
     table: str,
 ) -> None:
     sql = load_sql(category, sql_name, table=table)
-    sample = rows[0] if rows else {}
-    log_sql(name, sql, sample, row_count=len(rows))
-    cur.executemany(sql, rows)
+    bound_rows = filter_rows_for_sql(sql, rows)
+    sample = bound_rows[0] if bound_rows else {}
+    log_sql(name, sql, sample, row_count=len(bound_rows))
+    cur.executemany(sql, bound_rows)
 
 
 def parse_timekey(rule_timekey: str) -> datetime:

@@ -126,7 +126,6 @@ def build_assign_rows(
                 seq_by_eqp[eqp_id] = seq_by_eqp.get(eqp_id, 0) + 1
                 rows.append({
                     "RULE_TIMEKEY": rule_timekey,
-                    "EVENT_TM": event_tm,
                     "EQP_ID": eqp_id,
                     "EQP_MODEL_CD": model,
                     "SEQ_NO": seq_by_eqp[eqp_id],
@@ -368,7 +367,7 @@ TASK_DETAIL_KEYS = PLAN_ACHV_KEYS
 TASK_DETAIL_HEADERS = PLAN_ACHV_HEADERS
 ALLOC_DB_KEYS = [
     "RULE_TIMEKEY", "EQP_ID", "EQP_MODEL_CD", "SEQ_NO",
-    "START_TIME", "END_TIME", "PLAN_PROD_KEY", "PRODUCE_QTY", "CRT_USER_ID",
+    "START_TIME", "END_TIME", "PLAN_PROD_KEY", "OPER_ID", "PRODUCE_QTY", "CRT_USER_ID",
 ]
 
 
