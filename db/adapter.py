@@ -5,9 +5,8 @@ oracledb 미설치/미접속이어도 rows_to_problem(순수 변환)은 동작�
 from __future__ import annotations
 from collections import defaultdict
 from datetime import datetime, timedelta
-from pathlib import Path
-
 import config
+from db.sql_loader import load_sql
 from simulator import Task, ProblemInstance
 
 
@@ -103,7 +102,7 @@ def fetch_max_timekey(table: str = config.INPUT_TABLE) -> str:
     conn = _connect()
     try:
         cur = conn.cursor()
-        cur.execute(f"SELECT MAX(RULE_TIMEKEY) FROM {table}")
+        cur.execute(load_sql("select", "max_timekey", table=table))
         row = cur.fetchone()
         if not row or row[0] is None:
             raise RuntimeError(f"{table}에 RULE_TIMEKEY 없음")
@@ -129,7 +128,7 @@ def list_timekeys_in_range(
     try:
         cur = conn.cursor()
         if from_timekey is None and to_timekey is None:
-            cur.execute(f"SELECT MAX(RULE_TIMEKEY) FROM {table}")
+            cur.execute(load_sql("select", "max_timekey", table=table))
             row = cur.fetchone()
             if not row or row[0] is None:
                 return []
@@ -142,8 +141,7 @@ def list_timekeys_in_range(
         elif from_timekey is None or to_timekey is None:
             raise ValueError("from_timekey와 to_timekey는 함께 지정하거나 둘 다 생략해야 합니다.")
         cur.execute(
-            f"SELECT DISTINCT RULE_TIMEKEY FROM {table} "
-            "WHERE RULE_TIMEKEY >= :f AND RULE_TIMEKEY <= :t ORDER BY RULE_TIMEKEY",
+            load_sql("select", "list_timekeys_in_range", table=table),
             f=from_timekey, t=to_timekey,
         )
         return [str(r[0]) for r in cur.fetchall()]
@@ -159,16 +157,11 @@ def fetch_rows(
     conn = _connect()
     try:
         cur = conn.cursor()
-        sql = (
-            "SELECT RULE_TIMEKEY, FAC_ID, BATCH_ID, PLAN_PROD_KEY, OPER_ID, OPER_SEQ, "
-            "EQP_MODEL_CD, GBN_CD, ATTR_VAL FROM "
-            f"{table} WHERE RULE_TIMEKEY = :rk"
-        )
+        sql_name = "fetch_rows_by_fac" if fac_id else "fetch_rows"
         params: dict = {"rk": rule_timekey}
         if fac_id:
-            sql += " AND FAC_ID = :fac_id"
             params["fac_id"] = fac_id
-        cur.execute(sql, **params)
+        cur.execute(load_sql("select", sql_name, table=table), **params)
         return cur.fetchall()
     finally:
         conn.close()
@@ -190,23 +183,31 @@ def fetch_problem(
 
 def write_assign_results(rule_timekey: str, assign_rows: list[dict]) -> None:
     """RTS_ASSIGN_INF/HIS 삭제 후 insert."""
-    _write_table_pair(config.ASSIGN_TABLE, config.ASSIGN_HIS_TABLE, rule_timekey, assign_rows, _ASSIGN_INSERT_SQL)
+    _write_table_pair(
+        config.ASSIGN_TABLE, config.ASSIGN_HIS_TABLE, rule_timekey, assign_rows, "insert_assign",
+    )
 
 
 def write_plan_achv_results(rule_timekey: str, plan_rows: list[dict]) -> None:
     """RTS_PLAN_ACHV_INF/HIS 삭제 후 insert."""
     _write_table_pair(
-        config.PLAN_ACHV_TABLE, config.PLAN_ACHV_HIS_TABLE, rule_timekey, plan_rows, _PLAN_ACHV_INSERT_SQL)
+        config.PLAN_ACHV_TABLE, config.PLAN_ACHV_HIS_TABLE,
+        rule_timekey, plan_rows, "insert_plan_achv",
+    )
 
 
 def write_conv_results(rule_timekey: str, conv_rows: list[dict]) -> None:
     """RTS_CONV_INF/HIS 삭제 후 insert."""
-    _write_table_pair(config.CONV_TABLE, config.CONV_HIS_TABLE, rule_timekey, conv_rows, _CONV_INSERT_SQL)
+    _write_table_pair(
+        config.CONV_TABLE, config.CONV_HIS_TABLE, rule_timekey, conv_rows, "insert_conv",
+    )
 
 
 def write_guide_results(rule_timekey: str, guide_rows: list[dict]) -> None:
     """RTS_GUIDE_INF/HIS 삭제 후 insert."""
-    _write_table_pair(config.GUIDE_TABLE, config.GUIDE_HIS_TABLE, rule_timekey, guide_rows, _GUIDE_INSERT_SQL)
+    _write_table_pair(
+        config.GUIDE_TABLE, config.GUIDE_HIS_TABLE, rule_timekey, guide_rows, "insert_guide",
+    )
 
 
 def write_inference_result(rule_timekey: str, result_doc: dict) -> None:
@@ -218,50 +219,21 @@ def write_inference_result(rule_timekey: str, result_doc: dict) -> None:
     write_conv_results(rule_timekey, dynamic.get("conv_rows", []))
 
 
-_ASSIGN_INSERT_SQL = (
-    "INSERT INTO {table} (RULE_TIMEKEY, EQP_ID, EQP_MODEL_CD, SEQ_NO, "
-    "START_TIME, END_TIME, PLAN_PROD_KEY, OPER_ID, PRODUCE_QTY, CRT_TM, CRT_USER_ID) "
-    "VALUES (:RULE_TIMEKEY, :EQP_ID, :EQP_MODEL_CD, :SEQ_NO, :START_TIME, "
-    ":END_TIME, :PLAN_PROD_KEY, :OPER_ID, :PRODUCE_QTY, SYSTIMESTAMP, :CRT_USER_ID)"
-)
-
-_PLAN_ACHV_INSERT_SQL = (
-    "INSERT INTO {table} (RULE_TIMEKEY, EVENT_TM, BATCH_ID, PLAN_PROD_KEY, OPER_ID, "
-    "PLAN_QTY, REMAIN_QTY, PRODUCE_QTY, ACHIEVE_RATE, EQP_UTIL_RATE, CRT_TM, CRT_USER_ID) "
-    "VALUES (:RULE_TIMEKEY, :EVENT_TM, :BATCH_ID, :PLAN_PROD_KEY, :OPER_ID, "
-    ":PLAN_QTY, :REMAIN_QTY, :PRODUCE_QTY, :ACHIEVE_RATE, :EQP_UTIL_RATE, "
-    "SYSTIMESTAMP, :CRT_USER_ID)"
-)
-
-_CONV_INSERT_SQL = (
-    "INSERT INTO {table} (RULE_TIMEKEY, EVENT_TM, EQP_ID, EQP_MODEL_CD, SEQ_NO, "
-    "START_TIME, END_TIME, FROM_BATCH_ID, TO_BATCH_ID, "
-    "FROM_PLAN_PROD_KEY, TO_PLAN_PROD_KEY, FROM_OPER_ID, TO_OPER_ID, CRT_TM, CRT_USER_ID) "
-    "VALUES (:RULE_TIMEKEY, :EVENT_TM, :EQP_ID, :EQP_MODEL_CD, :SEQ_NO, "
-    ":START_TIME, :END_TIME, :FROM_BATCH_ID, :TO_BATCH_ID, "
-    ":FROM_PLAN_PROD_KEY, :TO_PLAN_PROD_KEY, :FROM_OPER_ID, :TO_OPER_ID, "
-    "SYSTIMESTAMP, :CRT_USER_ID)"
-)
-
-_GUIDE_INSERT_SQL = (
-    "INSERT INTO {table} (RULE_TIMEKEY, PLAN_PROD_KEY, OPER_ID, EQP_MODEL_CD, "
-    "TARGET_EQP_CNT, GUIDE_SOURCE, CRT_TM, CRT_USER_ID) "
-    "VALUES (:RULE_TIMEKEY, :PLAN_PROD_KEY, :OPER_ID, :EQP_MODEL_CD, "
-    ":TARGET_EQP_CNT, :GUIDE_SOURCE, SYSTIMESTAMP, :CRT_USER_ID)"
-)
-
-
-def _write_table_pair(inf_table: str, his_table: str, rule_timekey: str,
-                      rows: list[dict], insert_sql_template: str) -> None:
+def _write_table_pair(
+    inf_table: str,
+    his_table: str,
+    rule_timekey: str,
+    rows: list[dict],
+    insert_sql_name: str,
+) -> None:
     if not rows:
         return
     conn = _connect()
     try:
         cur = conn.cursor()
-        sql = insert_sql_template.format(table="{table}")
         for table in (inf_table, his_table):
-            cur.execute(f"DELETE FROM {table} WHERE RULE_TIMEKEY = :rk", rk=rule_timekey)
-            cur.executemany(sql.format(table=table), rows)
+            cur.execute(load_sql("write", "delete_by_timekey", table=table), rk=rule_timekey)
+            cur.executemany(load_sql("write", insert_sql_name, table=table), rows)
         conn.commit()
     finally:
         conn.close()
