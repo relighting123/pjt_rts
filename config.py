@@ -19,23 +19,23 @@ INFERENCE_INPUT_DIR = INFERENCE_DATA_DIR
 INFERENCE_RESULT_DIR = INFERENCE_DATA_DIR
 TRAIN_DB_EXPORT_DIR = TRAIN_DATA_DIR  # 하위호환 alias (from_db 제거)
 DEFAULT_TRAIN_LOOKBACK_DAYS = int(os.getenv("TRAIN_LOOKBACK_DAYS", "30"))
-# DB SELECT 시 FAC_ID 필수 (--fac-id 또는 .env DEFAULT_FAC_ID)
-DEFAULT_FAC_ID = os.getenv("DEFAULT_FAC_ID") or None
+# DB SELECT 시 facid 필수 (--facid 또는 .env DEFAULT_FACID)
+DEFAULT_FACID = os.getenv("DEFAULT_FACID") or os.getenv("DEFAULT_FAC_ID") or None
 
 
-def resolve_fac_id(fac_id: str | None = None) -> str | None:
-    """CLI --fac-id > 인자 fac_id > .env DEFAULT_FAC_ID."""
-    if fac_id:
-        return fac_id
-    return DEFAULT_FAC_ID
+def resolve_facid(facid: str | None = None) -> str | None:
+    """CLI --facid > 인자 facid > .env DEFAULT_FACID."""
+    if facid:
+        return facid
+    return DEFAULT_FACID
 
 
-def require_fac_id(fac_id: str | None = None) -> str:
-    """DB 조회용 FAC_ID. 미지정 시 ValueError."""
-    fac = resolve_fac_id(fac_id)
+def require_facid(facid: str | None = None) -> str:
+    """DB 조회용 facid. 미지정 시 ValueError."""
+    fac = resolve_facid(facid)
     if not fac:
         raise ValueError(
-            "FAC_ID 필수입니다. --fac-id 지정 또는 .env에 DEFAULT_FAC_ID 설정"
+            "facid 필수입니다. --facid 지정 또는 .env에 DEFAULT_FACID 설정"
         )
     return fac
 

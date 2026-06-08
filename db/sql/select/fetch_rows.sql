@@ -10,4 +10,4 @@ SELECT RULE_TIMEKEY,
        ATTR_VAL
   FROM {table}
  WHERE RULE_TIMEKEY = :rk
-   AND FAC_ID = :fac_id
+   AND FAC_ID = :facid

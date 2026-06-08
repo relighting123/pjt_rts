@@ -43,20 +43,20 @@ def test_save_problem_roundtrip(tmp_path):
     assert p2.ground_truth == p.ground_truth
 
 
-def test_export_from_rows_with_fac_id(tmp_path):
+def test_export_from_rows_with_facid(tmp_path):
     rows = [
         ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "UPH", "100"),
         ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "D0_TARGET_QTY", "300"),
         ("20260529", "OTHER", "B2", "P2", "OP20", 1, "M2", "UPH", "200"),
     ]
     out = tmp_path / "fac.json"
-    export_from_rows(rows, out, horizon_hours=3, rule_timekey="20260529", fac_id="ICPRB")
+    export_from_rows(rows, out, horizon_hours=3, rule_timekey="20260529", facid="ICPRB")
     p = load_problem(out)
-    assert p.fac_id == "ICPRB"
+    assert p.facid == "ICPRB"
     assert len(p.tasks) == 1
 
 
-def test_snapshot_key_includes_fac_id():
+def test_snapshot_key_includes_facid():
     assert snapshot_key("2026052922500000") == "2026052922500000"
     assert snapshot_key("2026052922500000", "ICPRB") == "2026052922500000_ICPRB"
     assert input_json_path("2026052922500000", "ICPRB").name == "2026052922500000_ICPRB.json"

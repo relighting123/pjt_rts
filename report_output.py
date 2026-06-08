@@ -289,8 +289,8 @@ def build_inference_result_document(
             "conv_rows": eval_result.get(conv_key, []),
         },
     }
-    if problem.fac_id:
-        doc["fac_id"] = problem.fac_id
+    if problem.facid:
+        doc["facid"] = problem.facid
     return doc
 
 

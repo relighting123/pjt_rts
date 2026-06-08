@@ -20,12 +20,13 @@ def test_sql_files_exist():
         assert sql_file(category, name).is_file()
 
 
-def test_fetch_rows_sql_requires_fac_id():
+def test_fetch_rows_sql_requires_facid():
     sql = load_sql("select", "fetch_rows", table="RTS_LINEDSDB_INF")
     assert "FROM RTS_LINEDSDB_INF" in sql
     assert ":rk" in sql
-    assert ":fac_id" in sql
-    assert "AND FAC_ID = :fac_id" in sql
+    assert ":facid" in sql
+    assert "AND FAC_ID = :facid" in sql
+    assert ":fac_id" not in sql
 
 
 def test_insert_assign_sql_formats_table():
@@ -34,12 +35,12 @@ def test_insert_assign_sql_formats_table():
     assert ":RULE_TIMEKEY" in sql
 
 
-def test_require_fac_id_raises_without_default(monkeypatch):
-    monkeypatch.setattr(config, "DEFAULT_FAC_ID", None)
-    with pytest.raises(ValueError, match="FAC_ID 필수"):
-        config.require_fac_id(None)
+def test_require_facid_raises_without_default(monkeypatch):
+    monkeypatch.setattr(config, "DEFAULT_FACID", None)
+    with pytest.raises(ValueError, match="facid 필수"):
+        config.require_facid(None)
 
 
-def test_require_fac_id_uses_default(monkeypatch):
-    monkeypatch.setattr(config, "DEFAULT_FAC_ID", "ICPRB")
-    assert config.require_fac_id(None) == "ICPRB"
+def test_require_facid_uses_default(monkeypatch):
+    monkeypatch.setattr(config, "DEFAULT_FACID", "ICPRB")
+    assert config.require_facid(None) == "ICPRB"

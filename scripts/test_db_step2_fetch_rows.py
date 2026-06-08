@@ -5,11 +5,9 @@
 조회만 할 때는 --no-export.
 
 사용:
-  PYTHONPATH=. python3 scripts/test_db_step2_fetch_rows.py
-  PYTHONPATH=. python3 scripts/test_db_step2_fetch_rows.py --timekey 2026052922500000
-  PYTHONPATH=. python3 scripts/test_db_step2_fetch_rows.py --fac-id ICPRB
-  PYTHONPATH=. python3 scripts/test_db_step2_fetch_rows.py --no-export
-  PYTHONPATH=. python3 scripts/test_db_step2_fetch_rows.py --output /tmp/out.json
+  PYTHONPATH=. python3 scripts/test_db_step2_fetch_rows.py --facid ICPRB
+  PYTHONPATH=. python3 scripts/test_db_step2_fetch_rows.py --timekey 2026052922500000 --facid ICPRB
+  PYTHONPATH=. python3 scripts/test_db_step2_fetch_rows.py --no-export --facid ICPRB
 """
 from __future__ import annotations
 
@@ -26,13 +24,13 @@ if str(ROOT) not in sys.path:
 def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Step 2: fetch_rows DB 읽기 테스트")
     p.add_argument("--timekey", help="RULE_TIMEKEY (미지정 시 MAX)")
-    p.add_argument("--fac-id", dest="fac_id", help="FAC_ID 필수 (.env DEFAULT_FAC_ID 가능)")
+    p.add_argument("--facid", help="facid 필수 (.env DEFAULT_FACID 가능)")
     p.add_argument("--horizon", type=int, default=12, help="horizon_hours (기본 12)")
     p.add_argument(
         "--no-export", action="store_true",
-        help="JSON 저장 생략 (기본: data/inference/{timekey}[_fac].json 저장)",
+        help="JSON 저장 생략 (기본: data/inference/{timekey}[_facid].json 저장)",
     )
-    p.add_argument("--output", help="출력 경로 (미지정 시 data/inference/{timekey}[_fac].json)")
+    p.add_argument("--output", help="출력 경로 (미지정 시 data/inference/{timekey}[_facid].json)")
     return p.parse_args()
 
 
@@ -52,7 +50,7 @@ def main() -> int:
     print("=== Step 2: fetch_rows 테스트 ===")
 
     try:
-        fac = config.require_fac_id(args.fac_id)
+        fac = config.require_facid(args.facid)
     except ValueError as exc:
         print(f"FAIL : {exc}")
         return 1
@@ -63,19 +61,19 @@ def main() -> int:
             print(f"timekey: MAX(RULE_TIMEKEY) = {tk}")
         else:
             print(f"timekey: {tk}")
-        print(f"fac_id: {fac}")
+        print(f"facid: {fac}")
     except Exception as exc:
         print(f"FAIL : timekey 확인 실패 — {exc}")
         return 1
 
     try:
-        rows = fetch_rows(tk, fac_id=fac)
+        rows = fetch_rows(tk, facid=fac)
     except Exception as exc:
         print(f"FAIL : fetch_rows 실패 — {exc}")
         return 1
 
     if not rows:
-        print(f"FAIL : {tk} 에 해당하는 행 없음")
+        print(f"FAIL : {tk} / facid={fac} 에 해당하는 행 없음")
         return 1
 
     print(f"OK   : fetch_rows — {len(rows)}행")
@@ -85,7 +83,7 @@ def main() -> int:
     print("GBN_CD 분포:", dict(sorted(gbn_counts.items())))
 
     try:
-        problem = rows_to_problem(rows, args.horizon, rule_timekey=tk, fac_id=fac)
+        problem = rows_to_problem(rows, args.horizon, rule_timekey=tk, facid=fac)
     except Exception as exc:
         print(f"FAIL : rows_to_problem 실패 — {exc}")
         return 1
@@ -102,7 +100,7 @@ def main() -> int:
         out = Path(args.output) if args.output else input_json_path(tk, fac)
         try:
             path = export_from_rows(
-                rows, out, horizon_hours=args.horizon, rule_timekey=tk, fac_id=fac,
+                rows, out, horizon_hours=args.horizon, rule_timekey=tk, facid=fac,
             )
             print(f"OK   : JSON 저장 → {path}")
             print(f"       inference 폴더: {path.parent}")
