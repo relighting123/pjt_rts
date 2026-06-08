@@ -25,6 +25,7 @@ def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Step 2: fetch_rows DB 읽기 테스트")
     p.add_argument("--timekey", help="RULE_TIMEKEY (미지정 시 MAX)")
     p.add_argument("--facid", help="facid 필수 (.env DEFAULT_FACID 가능)")
+    p.add_argument("--batchid", help="BATCH_ID 부분 일치 (LIKE %값%)")
     p.add_argument("--horizon", type=int, default=12, help="horizon_hours (기본 12)")
     p.add_argument(
         "--no-export", action="store_true",
@@ -62,12 +63,14 @@ def main() -> int:
         else:
             print(f"timekey: {tk}")
         print(f"facid: {fac}")
+        if args.batchid:
+            print(f"batchid LIKE %{args.batchid}%")
     except Exception as exc:
         print(f"FAIL : timekey 확인 실패 — {exc}")
         return 1
 
     try:
-        rows = fetch_rows(tk, facid=fac)
+        rows = fetch_rows(tk, facid=fac, batchid=args.batchid)
     except Exception as exc:
         print(f"FAIL : fetch_rows 실패 — {exc}")
         return 1
@@ -83,7 +86,9 @@ def main() -> int:
     print("GBN_CD 분포:", dict(sorted(gbn_counts.items())))
 
     try:
-        problem = rows_to_problem(rows, args.horizon, rule_timekey=tk, facid=fac)
+        problem = rows_to_problem(
+            rows, args.horizon, rule_timekey=tk, facid=fac, batchid=args.batchid,
+        )
     except Exception as exc:
         print(f"FAIL : rows_to_problem 실패 — {exc}")
         return 1
@@ -100,7 +105,8 @@ def main() -> int:
         out = Path(args.output) if args.output else input_json_path(tk, fac)
         try:
             path = export_from_rows(
-                rows, out, horizon_hours=args.horizon, rule_timekey=tk, facid=fac,
+                rows, out, horizon_hours=args.horizon, rule_timekey=tk,
+                facid=fac, batchid=args.batchid,
             )
             print(f"OK   : JSON 저장 → {path}")
             print(f"       inference 폴더: {path.parent}")

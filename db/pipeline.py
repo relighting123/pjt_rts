@@ -36,6 +36,7 @@ def export_input_json(
     horizon_hours: int = 12,
     output_path: Path | None = None,
     facid: str | None = None,
+    batchid: str | None = None,
 ) -> tuple[str, str, Path]:
     """DB → data/inference JSON. (timekey, facid, path) 반환."""
     from db.export import export_from_db
@@ -45,7 +46,9 @@ def export_input_json(
     fac = config.require_facid(facid)
     rk = resolve_timekey(rule_timekey, facid=fac)
     out = output_path or input_json_path(rk, fac)
-    path = export_from_db(rk, output_path=out, horizon_hours=horizon_hours, facid=fac)
+    path = export_from_db(
+        rk, output_path=out, horizon_hours=horizon_hours, facid=fac, batchid=batchid,
+    )
     return rk, fac, path
 
 
@@ -56,6 +59,7 @@ def export_train_snapshots(
     horizon_hours: int = 12,
     output_dir: Path | None = None,
     facid: str | None = None,
+    batchid: str | None = None,
 ) -> list[Path]:
     """DB 구간(또는 최근 N일) → data/train/{RULE_TIMEKEY}.json."""
     from db.adapter import list_timekeys_in_range
@@ -69,7 +73,7 @@ def export_train_snapshots(
         stem = snapshot_key(rk, fac)
         paths.append(export_from_db(
             rk, output_path=out_dir / f"{stem}.json",
-            horizon_hours=horizon_hours, facid=fac,
+            horizon_hours=horizon_hours, facid=fac, batchid=batchid,
         ))
     return paths
 
@@ -78,6 +82,7 @@ def run_inference(
     rule_timekey: str | None = None,
     *,
     facid: str | None = None,
+    batchid: str | None = None,
     horizon_hours: int = 12,
     skip_input_export: bool = False,
     input_path: Path | None = None,
@@ -104,7 +109,9 @@ def run_inference(
                     f"  python run.py export --timekey {rk} --facid {fac}"
                 )
         else:
-            rk, fac, inp = export_input_json(rk, horizon_hours, facid=fac)
+            rk, fac, inp = export_input_json(
+                rk, horizon_hours, facid=fac, batchid=batchid,
+            )
     else:
         inp = Path(input_path)
         problem_probe = load_problem(inp)
@@ -141,6 +148,7 @@ def run_inference(
     return {
         "rule_timekey": rk,
         "facid": fac,
+        "batchid": batchid,
         "input_json": inp,
         "result_json": result_path,
         "plan_achievement": float(rate),

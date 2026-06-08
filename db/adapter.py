@@ -20,15 +20,33 @@ def filter_rows_by_facid(rows, facid: str | None) -> list[tuple]:
     return filtered
 
 
+def filter_rows_by_batchid(rows, batchid: str | None) -> list[tuple]:
+    """batch_id 부분 일치(LIKE %batchid%) 필터."""
+    if not batchid:
+        return list(rows)
+    needle = batchid.lower()
+    filtered = [r for r in rows if needle in str(r[2]).lower()]
+    if not filtered:
+        raise ValueError(f"batchid LIKE %{batchid}% 에 해당하는 행 없음")
+    return filtered
+
+
+def batch_like_pattern(batchid: str) -> str:
+    """Oracle BATCH_ID LIKE 바인드값 (%좌우%)."""
+    return f"%{batchid}%"
+
+
 def rows_to_problem(rows, horizon_hours: int,
                     switch_time_hours: int = config.DEFAULT_SWITCH_TIME_HOURS,
                     rule_timekey: str | None = None,
-                    facid: str | None = None) -> ProblemInstance:
+                    facid: str | None = None,
+                    batchid: str | None = None) -> ProblemInstance:
     """GBN_CD가 long-format인 행들을 ProblemInstance로 피벗.
 
     row = (rule_timekey, fac_id, batch_id, plan_prod_key, oper_id, oper_seq, eqp_model, gbn_cd, attr_val)
     """
     rows = filter_rows_by_facid(rows, facid)
+    rows = filter_rows_by_batchid(rows, batchid)
     task_meta: dict[tuple[str, str], dict] = {}
     uph_raw: dict[tuple[str, str, str], float] = {}
     assign_raw: dict[tuple[str, str, str], int] = {}
@@ -157,16 +175,23 @@ def list_timekeys_in_range(
 def fetch_rows(
     rule_timekey: str,
     facid: str,
+    batchid: str | None = None,
     table: str = config.INPUT_TABLE,
 ) -> list[tuple]:
-    """RTS_LINEDSDB_INF 조회. facid 필수."""
+    """RTS_LINEDSDB_INF 조회. facid 필수, batchid는 LIKE %값% 선택."""
     conn = _connect()
     try:
         cur = conn.cursor()
-        cur.execute(
-            load_sql("select", "fetch_rows", table=table),
-            rk=rule_timekey, facid=facid,
-        )
+        if batchid:
+            cur.execute(
+                load_sql("select", "fetch_rows_batch", table=table),
+                rk=rule_timekey, facid=facid, batch_like=batch_like_pattern(batchid),
+            )
+        else:
+            cur.execute(
+                load_sql("select", "fetch_rows", table=table),
+                rk=rule_timekey, facid=facid,
+            )
         return cur.fetchall()
     finally:
         conn.close()
@@ -176,14 +201,18 @@ def fetch_problem(
     rule_timekey: str | None = None,
     horizon_hours: int = 12,
     facid: str | None = None,
+    batchid: str | None = None,
 ) -> ProblemInstance:
     """RTS_LINEDSDB_INF에서 스냅샷을 읽어 ProblemInstance로 변환."""
     fac = config.require_facid(facid)
     rk = resolve_timekey(rule_timekey, facid=fac)
-    rows = fetch_rows(rk, facid=fac)
+    rows = fetch_rows(rk, facid=fac, batchid=batchid)
     if not rows:
-        raise ValueError(f"RULE_TIMEKEY={rk}, facid={fac} 에 해당하는 행 없음")
-    return rows_to_problem(rows, horizon_hours, rule_timekey=rk, facid=fac)
+        msg = f"RULE_TIMEKEY={rk}, facid={fac}"
+        if batchid:
+            msg += f", batchid LIKE %{batchid}%"
+        raise ValueError(f"{msg} 에 해당하는 행 없음")
+    return rows_to_problem(rows, horizon_hours, rule_timekey=rk, facid=fac, batchid=batchid)
 
 
 def write_assign_results(rule_timekey: str, assign_rows: list[dict]) -> None:
