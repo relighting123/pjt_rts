@@ -1,4 +1,4 @@
--- 입력 스냅샷 long-format 조회 (RULE_TIMEKEY)
+-- 입력 스냅샷 long-format 조회 (RULE_TIMEKEY + FAC_ID 필수)
 SELECT RULE_TIMEKEY,
        FAC_ID,
        BATCH_ID,
@@ -10,3 +10,4 @@ SELECT RULE_TIMEKEY,
        ATTR_VAL
   FROM {table}
  WHERE RULE_TIMEKEY = :rk
+   AND FAC_ID = :fac_id

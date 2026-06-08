@@ -43,7 +43,7 @@ def export_input_json(
     from db.adapter import resolve_timekey
 
     rk = resolve_timekey(rule_timekey)
-    fac = config.resolve_fac_id(fac_id)
+    fac = config.require_fac_id(fac_id)
     out = output_path or input_json_path(rk, fac)
     path = export_from_db(rk, output_path=out, horizon_hours=horizon_hours, fac_id=fac)
     return rk, fac, path
@@ -87,7 +87,7 @@ def run_inference(
     from pathlib import Path as P
 
     rk = str(rule_timekey) if rule_timekey else None
-    fac = config.resolve_fac_id(fac_id)
+    fac = config.require_fac_id(fac_id)
     if input_path is None:
         if skip_input_export:
             if rk is None:
