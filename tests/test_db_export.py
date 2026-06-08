@@ -19,10 +19,10 @@ def test_export_from_sample_rows_creates_inference_json(tmp_path, monkeypatch):
 
 def test_export_from_rows_matches_load_problem(tmp_path):
     rows = [
-        ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "UPH", "100"),
+        ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "EQUIP_UPH", "100"),
         ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "ASSIGN_EQUIP_CNT", "1"),
-        ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "D0_TARGET_QTY", "300"),
-        ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "WIP_QTY", "1000"),
+        ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "EXEC_D0_PLAN", "300"),
+        ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "AVAIL_WIP_QTY", "1000"),
         ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "TOOL_QTY", "1"),
     ]
     out = tmp_path / "exported.json"
@@ -45,9 +45,9 @@ def test_save_problem_roundtrip(tmp_path):
 
 def test_export_from_rows_with_facid(tmp_path):
     rows = [
-        ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "UPH", "100"),
-        ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "D0_TARGET_QTY", "300"),
-        ("20260529", "OTHER", "B2", "P2", "OP20", 1, "M2", "UPH", "200"),
+        ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "EQUIP_UPH", "100"),
+        ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "EXEC_D0_PLAN", "300"),
+        ("20260529", "OTHER", "B2", "P2", "OP20", 1, "M2", "EQUIP_UPH", "200"),
     ]
     out = tmp_path / "fac.json"
     export_from_rows(rows, out, horizon_hours=3, rule_timekey="20260529", facid="ICPRB")

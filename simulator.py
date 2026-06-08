@@ -26,7 +26,7 @@ class Task:
 
     @property
     def wip_qty(self) -> int:
-        """DB GBN_CD=WIP_QTY와 동일 의미. init_wip 별칭."""
+        """DB GBN_CD=AVAIL_WIP_QTY와 동일 의미. init_wip 별칭."""
         return self.init_wip
 
 
