@@ -7,6 +7,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 import config
 from db.sql_loader import load_sql
+from db.sql_log import log_sql
 from simulator import Task, ProblemInstance
 
 
@@ -106,6 +107,36 @@ def _connect():
     return oracledb.connect(user=cfg["user"], password=cfg["password"], dsn=cfg["dsn"])
 
 
+def _execute_logged(
+    cur,
+    name: str,
+    category: str,
+    sql_name: str,
+    *,
+    table: str | None = None,
+    **binds,
+) -> None:
+    fmt = {"table": table} if table is not None else {}
+    sql = load_sql(category, sql_name, **fmt)
+    log_sql(name, sql, binds)
+    cur.execute(sql, binds)
+
+
+def _executemany_logged(
+    cur,
+    name: str,
+    category: str,
+    sql_name: str,
+    rows: list[dict],
+    *,
+    table: str,
+) -> None:
+    sql = load_sql(category, sql_name, table=table)
+    sample = rows[0] if rows else {}
+    log_sql(name, sql, sample, row_count=len(rows))
+    cur.executemany(sql, rows)
+
+
 def parse_timekey(rule_timekey: str) -> datetime:
     s = str(rule_timekey).ljust(16, "0")[:16]
     return datetime.strptime(s[:14], "%Y%m%d%H%M%S")
@@ -120,7 +151,7 @@ def fetch_max_timekey(facid: str, table: str = config.INPUT_TABLE) -> str:
     conn = _connect()
     try:
         cur = conn.cursor()
-        cur.execute(load_sql("select", "max_timekey", table=table), facid=facid)
+        _execute_logged(cur, "max_timekey", "select", "max_timekey", table=table, facid=facid)
         row = cur.fetchone()
         if not row or row[0] is None:
             raise RuntimeError(f"{table}에 facid={facid} RULE_TIMEKEY 없음")
@@ -150,7 +181,7 @@ def list_timekeys_in_range(
     try:
         cur = conn.cursor()
         if from_timekey is None and to_timekey is None:
-            cur.execute(load_sql("select", "max_timekey", table=table), facid=fac)
+            _execute_logged(cur, "max_timekey", "select", "max_timekey", table=table, facid=fac)
             row = cur.fetchone()
             if not row or row[0] is None:
                 return []
@@ -162,9 +193,9 @@ def list_timekeys_in_range(
             to_timekey = max_tk
         elif from_timekey is None or to_timekey is None:
             raise ValueError("from_timekey와 to_timekey는 함께 지정하거나 둘 다 생략해야 합니다.")
-        cur.execute(
-            load_sql("select", "list_timekeys_in_range", table=table),
-            f=from_timekey, t=to_timekey, facid=fac,
+        _execute_logged(
+            cur, "list_timekeys_in_range", "select", "list_timekeys_in_range",
+            table=table, f=from_timekey, t=to_timekey, facid=fac,
         )
         return [str(r[0]) for r in cur.fetchall()]
     finally:
@@ -181,8 +212,8 @@ def fetch_rows(
     conn = _connect()
     try:
         cur = conn.cursor()
-        cur.execute(
-            load_sql("select", "fetch_rows", table=table),
+        _execute_logged(
+            cur, "fetch_rows", "select", "fetch_rows", table=table,
             rk=rule_timekey, facid=facid, batch_like=batch_like_pattern(batchid),
         )
         return cur.fetchall()
@@ -259,8 +290,13 @@ def _write_table_pair(
     try:
         cur = conn.cursor()
         for table in (inf_table, his_table):
-            cur.execute(load_sql("write", "delete_by_timekey", table=table), rk=rule_timekey)
-            cur.executemany(load_sql("write", insert_sql_name, table=table), rows)
+            _execute_logged(
+                cur, f"delete_by_timekey:{table}", "write", "delete_by_timekey",
+                table=table, rk=rule_timekey,
+            )
+            _executemany_logged(
+                cur, f"{insert_sql_name}:{table}", "write", insert_sql_name, rows, table=table,
+            )
         conn.commit()
     finally:
         conn.close()
