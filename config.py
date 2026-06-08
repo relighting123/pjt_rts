@@ -19,6 +19,15 @@ INFERENCE_INPUT_DIR = INFERENCE_DATA_DIR
 INFERENCE_RESULT_DIR = INFERENCE_DATA_DIR
 TRAIN_DB_EXPORT_DIR = TRAIN_DATA_DIR  # 하위호환 alias (from_db 제거)
 DEFAULT_TRAIN_LOOKBACK_DAYS = int(os.getenv("TRAIN_LOOKBACK_DAYS", "30"))
+# 추론/DB export 시 FAC_ID 미지정이면 전체 공장, 지정 시 해당 공장만 필터
+DEFAULT_FAC_ID = os.getenv("DEFAULT_FAC_ID") or None
+
+
+def resolve_fac_id(fac_id: str | None = None) -> str | None:
+    """CLI --fac-id > 인자 fac_id > .env DEFAULT_FAC_ID."""
+    if fac_id:
+        return fac_id
+    return DEFAULT_FAC_ID
 
 
 def replace_file(path: str | Path) -> Path:

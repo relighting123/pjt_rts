@@ -22,6 +22,7 @@ if str(ROOT) not in sys.path:
 def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Step 2: fetch_rows DB 읽기 테스트")
     p.add_argument("--timekey", help="RULE_TIMEKEY (미지정 시 MAX)")
+    p.add_argument("--fac-id", dest="fac_id", help="FAC_ID 필터 (미지정 시 .env DEFAULT_FAC_ID 또는 전체)")
     p.add_argument("--horizon", type=int, default=12, help="horizon_hours (기본 12)")
     p.add_argument("--export", action="store_true", help="data/inference/{timekey}.json 저장")
     p.add_argument("--output", help="--export 시 출력 경로 (미지정 시 data/inference/{timekey}.json)")
@@ -36,10 +37,12 @@ def main() -> int:
         return 1
 
     args = _parse_args()
-    from db.adapter import fetch_max_timekey, fetch_rows, resolve_timekey, rows_to_problem
+    from db.adapter import fetch_rows, resolve_timekey, rows_to_problem
     from db.export import export_from_rows
+    from db.pipeline import input_json_path
     import config
 
+    fac = config.resolve_fac_id(args.fac_id)
     print("=== Step 2: fetch_rows 테스트 ===")
 
     try:
@@ -48,12 +51,14 @@ def main() -> int:
             print(f"timekey: MAX(RULE_TIMEKEY) = {tk}")
         else:
             print(f"timekey: {tk}")
+        if fac:
+            print(f"fac_id: {fac}")
     except Exception as exc:
         print(f"FAIL : timekey 확인 실패 — {exc}")
         return 1
 
     try:
-        rows = fetch_rows(tk)
+        rows = fetch_rows(tk, fac_id=fac)
     except Exception as exc:
         print(f"FAIL : fetch_rows 실패 — {exc}")
         return 1
@@ -69,7 +74,7 @@ def main() -> int:
     print("GBN_CD 분포:", dict(sorted(gbn_counts.items())))
 
     try:
-        problem = rows_to_problem(rows, args.horizon, rule_timekey=tk)
+        problem = rows_to_problem(rows, args.horizon, rule_timekey=tk, fac_id=fac)
     except Exception as exc:
         print(f"FAIL : rows_to_problem 실패 — {exc}")
         return 1
@@ -83,10 +88,10 @@ def main() -> int:
         )
 
     if args.export:
-        out = Path(args.output) if args.output else config.INFERENCE_DATA_DIR / f"{tk}.json"
+        out = Path(args.output) if args.output else input_json_path(tk, fac)
         try:
             path = export_from_rows(
-                rows, out, horizon_hours=args.horizon, rule_timekey=tk,
+                rows, out, horizon_hours=args.horizon, rule_timekey=tk, fac_id=fac,
             )
             print(f"OK   : JSON 저장 → {path}")
         except Exception as exc:

@@ -43,13 +43,15 @@ def _load_named_problems(args) -> list[tuple[str, object]]:
         return [(path.stem, load_problem(path))]
 
     if getattr(args, "timekey", None):
-        from db.pipeline import input_json_path
-        key = str(args.timekey)
-        path = input_json_path(key)
+        from db.pipeline import input_json_path, snapshot_key
+        fac = config.resolve_fac_id(getattr(args, "fac_id", None))
+        key = snapshot_key(str(args.timekey), fac)
+        path = input_json_path(str(args.timekey), fac)
         if not path.is_file():
+            hint = f" --fac-id {fac}" if fac else ""
             raise FileNotFoundError(
                 f"{path} 없음. DB export:\n"
-                f"  python run.py export --timekey {key}"
+                f"  python run.py export --timekey {args.timekey}{hint}"
             )
         return [(key, load_problem(path))]
 
@@ -124,6 +126,7 @@ def cmd_infer(args):
 
     out = run_inference(
         args.timekey,
+        fac_id=getattr(args, "fac_id", None),
         horizon_hours=args.horizon,
         skip_input_export=args.skip_export,
         write_db=not args.no_db,
@@ -131,8 +134,9 @@ def cmd_infer(args):
         report_path=Path(args.report) if getattr(args, "report", None) else None,
         html_path=Path(args.html) if getattr(args, "html", None) else None,
     )
-    print(f"{out['rule_timekey']}: 입력 JSON → {out['input_json']}")
-    print(f"{out['rule_timekey']}: 결과 JSON → {out['result_json']}")
+    label = out["rule_timekey"] + (f" [{out['fac_id']}]" if out.get("fac_id") else "")
+    print(f"{label}: 입력 JSON → {out['input_json']}")
+    print(f"{label}: 결과 JSON → {out['result_json']}")
     print(f"[동적 운영] 평균 계획달성률 {out['plan_achievement']:.3f}")
     if not args.no_db:
         print("DB 기록 완료 (RTS_GUIDE / PLAN_ACHV / ASSIGN / CONV)")
@@ -157,7 +161,12 @@ def cmd_export(args):
         from db.adapter import resolve_timekey
         args.timekey = resolve_timekey(None)
         print(f"--timekey 미지정 → MAX(RULE_TIMEKEY) = {args.timekey}")
-    path = export_from_db(args.timekey, output_path=args.output, horizon_hours=args.horizon)
+    fac = config.resolve_fac_id(getattr(args, "fac_id", None))
+    path = export_from_db(
+        args.timekey, output_path=args.output, horizon_hours=args.horizon, fac_id=fac,
+    )
+    if fac:
+        print(f"FAC_ID={fac}")
     print(f"input JSON 저장 → {path}")
 
 
@@ -180,6 +189,7 @@ def build_parser():
     pi.add_argument("--dataset")
     pi.add_argument("--benchmark-dataset", dest="benchmark_dataset")
     pi.add_argument("--timekey", help="미지정 시 MAX(RULE_TIMEKEY)")
+    pi.add_argument("--fac-id", dest="fac_id", help="공장 ID 필터 (미지정 시 .env DEFAULT_FAC_ID 또는 전체)")
     pi.add_argument("--horizon", type=int, default=12)
     pi.add_argument("--skip-export", action="store_true", help="기존 input JSON 사용")
     pi.add_argument("--no-db", action="store_true", help="결과 DB write 생략")
@@ -195,6 +205,7 @@ def build_parser():
 
     px = sub.add_parser("export", help="DB → JSON")
     px.add_argument("--timekey", help="추론 input (미지정=MAX)")
+    px.add_argument("--fac-id", dest="fac_id", help="공장 ID 필터 (미지정 시 .env DEFAULT_FAC_ID 또는 전체)")
     px.add_argument("--train", action="store_true", help="학습 구간 → data/train/{RULE_TIMEKEY}.json")
     px.add_argument("--from-timekey", dest="from_timekey")
     px.add_argument("--to-timekey", dest="to_timekey")

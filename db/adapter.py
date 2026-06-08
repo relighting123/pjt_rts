@@ -11,13 +11,25 @@ import config
 from simulator import Task, ProblemInstance
 
 
+def filter_rows_by_fac_id(rows, fac_id: str | None) -> list[tuple]:
+    """FAC_ID 조건으로 long-format 행 필터."""
+    if not fac_id:
+        return list(rows)
+    filtered = [r for r in rows if r[1] == fac_id]
+    if not filtered:
+        raise ValueError(f"FAC_ID={fac_id} 에 해당하는 행 없음")
+    return filtered
+
+
 def rows_to_problem(rows, horizon_hours: int,
                     switch_time_hours: int = config.DEFAULT_SWITCH_TIME_HOURS,
-                    rule_timekey: str | None = None) -> ProblemInstance:
+                    rule_timekey: str | None = None,
+                    fac_id: str | None = None) -> ProblemInstance:
     """GBN_CD가 long-format인 행들을 ProblemInstance로 피벗.
 
     row = (rule_timekey, fac_id, batch_id, plan_prod_key, oper_id, oper_seq, eqp_model, gbn_cd, attr_val)
     """
+    rows = filter_rows_by_fac_id(rows, fac_id)
     task_meta: dict[tuple[str, str], dict] = {}
     uph_raw: dict[tuple[str, str, str], float] = {}
     assign_raw: dict[tuple[str, str, str], int] = {}
@@ -59,10 +71,16 @@ def rows_to_problem(rows, horizon_hours: int,
         eqp_qty[m] += c
     for m in eqp_models:
         eqp_qty.setdefault(m, 0)
+    resolved_fac = fac_id
+    if resolved_fac is None and rows:
+        facs = {r[1] for r in rows}
+        if len(facs) == 1:
+            resolved_fac = next(iter(facs))
     return ProblemInstance(
         rule_timekey=rk, horizon_hours=horizon_hours, switch_time_hours=switch_time_hours,
         tasks=tasks, _uph=uph, eqp_qty=dict(eqp_qty), init_assign=init_assign,
-        tool_qty=tool_raw, conv_groups=config.load_conv_groups(), ground_truth={},
+        tool_qty=tool_raw, conv_groups=config.load_conv_groups(), fac_id=resolved_fac,
+        ground_truth={},
     )
 
 
@@ -133,26 +151,41 @@ def list_timekeys_in_range(
         conn.close()
 
 
-def fetch_rows(rule_timekey: str, table: str = config.INPUT_TABLE) -> list[tuple]:
+def fetch_rows(
+    rule_timekey: str,
+    fac_id: str | None = None,
+    table: str = config.INPUT_TABLE,
+) -> list[tuple]:
     conn = _connect()
     try:
         cur = conn.cursor()
-        cur.execute(
+        sql = (
             "SELECT RULE_TIMEKEY, FAC_ID, BATCH_ID, PLAN_PROD_KEY, OPER_ID, OPER_SEQ, "
             "EQP_MODEL_CD, GBN_CD, ATTR_VAL FROM "
-            f"{table} WHERE RULE_TIMEKEY = :rk",
-            rk=rule_timekey,
+            f"{table} WHERE RULE_TIMEKEY = :rk"
         )
+        params: dict = {"rk": rule_timekey}
+        if fac_id:
+            sql += " AND FAC_ID = :fac_id"
+            params["fac_id"] = fac_id
+        cur.execute(sql, **params)
         return cur.fetchall()
     finally:
         conn.close()
 
 
-def fetch_problem(rule_timekey: str | None = None, horizon_hours: int = 12) -> ProblemInstance:
+def fetch_problem(
+    rule_timekey: str | None = None,
+    horizon_hours: int = 12,
+    fac_id: str | None = None,
+) -> ProblemInstance:
     """RTS_LINEDSDB_INF에서 스냅샷을 읽어 ProblemInstance로 변환."""
     rk = resolve_timekey(rule_timekey)
-    rows = fetch_rows(rk)
-    return rows_to_problem(rows, horizon_hours, rule_timekey=rk)
+    fac = config.resolve_fac_id(fac_id)
+    rows = fetch_rows(rk, fac_id=fac)
+    if fac and not rows:
+        raise ValueError(f"RULE_TIMEKEY={rk}, FAC_ID={fac} 에 해당하는 행 없음")
+    return rows_to_problem(rows, horizon_hours, rule_timekey=rk, fac_id=fac)
 
 
 def write_assign_results(rule_timekey: str, assign_rows: list[dict]) -> None:

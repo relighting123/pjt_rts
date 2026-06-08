@@ -273,7 +273,7 @@ def build_inference_result_document(
     guide_rows = build_guide_rows(
         problem, eval_result.get("guide_allocation", {}), guide_src, sys_id,
     )
-    return {
+    doc = {
         "schema_version": 1,
         "rule_timekey": problem.rule_timekey,
         "policy": "RL" if use_rl else "HEURISTIC",
@@ -289,6 +289,9 @@ def build_inference_result_document(
             "conv_rows": eval_result.get(conv_key, []),
         },
     }
+    if problem.fac_id:
+        doc["fac_id"] = problem.fac_id
+    return doc
 
 
 def save_inference_result_document(doc: dict, path: str | Path) -> Path:

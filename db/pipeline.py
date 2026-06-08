@@ -15,28 +15,38 @@ from report_output import (
 )
 
 
-def input_json_path(rule_timekey: str) -> Path:
-    return config.INFERENCE_DATA_DIR / f"{rule_timekey}.json"
+def snapshot_key(rule_timekey: str, fac_id: str | None = None) -> str:
+    """JSON 파일 stem: {timekey} 또는 {timekey}_{fac_id}."""
+    rk = str(rule_timekey)
+    if fac_id:
+        return f"{rk}_{fac_id}"
+    return rk
 
 
-def result_json_path(rule_timekey: str) -> Path:
-    return config.INFERENCE_DATA_DIR / f"{rule_timekey}_result.json"
+def input_json_path(rule_timekey: str, fac_id: str | None = None) -> Path:
+    return config.INFERENCE_DATA_DIR / f"{snapshot_key(rule_timekey, fac_id)}.json"
+
+
+def result_json_path(rule_timekey: str, fac_id: str | None = None) -> Path:
+    return config.INFERENCE_DATA_DIR / f"{snapshot_key(rule_timekey, fac_id)}_result.json"
 
 
 def export_input_json(
     rule_timekey: str | None = None,
     horizon_hours: int = 12,
     output_path: Path | None = None,
-) -> tuple[str, Path]:
-    """DB → data/inference/{timekey}.json. (timekey, path) 반환."""
+    fac_id: str | None = None,
+) -> tuple[str, str | None, Path]:
+    """DB → data/inference JSON. (timekey, fac_id, path) 반환."""
     from db.export import export_from_db
 
     from db.adapter import resolve_timekey
 
     rk = resolve_timekey(rule_timekey)
-    out = output_path or input_json_path(rk)
-    path = export_from_db(rk, output_path=out, horizon_hours=horizon_hours)
-    return rk, path
+    fac = config.resolve_fac_id(fac_id)
+    out = output_path or input_json_path(rk, fac)
+    path = export_from_db(rk, output_path=out, horizon_hours=horizon_hours, fac_id=fac)
+    return rk, fac, path
 
 
 def export_train_snapshots(
@@ -62,6 +72,7 @@ def export_train_snapshots(
 def run_inference(
     rule_timekey: str | None = None,
     *,
+    fac_id: str | None = None,
     horizon_hours: int = 12,
     skip_input_export: bool = False,
     input_path: Path | None = None,
@@ -76,19 +87,25 @@ def run_inference(
     from pathlib import Path as P
 
     rk = str(rule_timekey) if rule_timekey else None
+    fac = config.resolve_fac_id(fac_id)
     if input_path is None:
         if skip_input_export:
             if rk is None:
                 raise ValueError("skip_input_export 시 rule_timekey 필요")
-            inp = input_json_path(rk)
+            inp = input_json_path(rk, fac)
             if not inp.is_file():
-                raise FileNotFoundError(f"입력 JSON 없음: {inp}")
+                hint = f" --fac-id {fac}" if fac else ""
+                raise FileNotFoundError(
+                    f"입력 JSON 없음: {inp}\n"
+                    f"  python run.py export --timekey {rk}{hint}"
+                )
         else:
-            rk, inp = export_input_json(rk, horizon_hours)
+            rk, fac, inp = export_input_json(rk, horizon_hours, fac_id=fac)
     else:
         inp = Path(input_path)
         problem_probe = load_problem(inp)
         rk = problem_probe.rule_timekey
+        fac = problem_probe.fac_id or fac
 
     problem = load_problem(inp)
     model = None
@@ -98,7 +115,7 @@ def run_inference(
 
     eval_result = report.evaluate_benchmark(problem, model)
     result_doc = build_inference_result_document(problem, eval_result, policy=policy)
-    result_path = save_inference_result_document(result_doc, result_json_path(rk))
+    result_path = save_inference_result_document(result_doc, result_json_path(rk, fac))
 
     if write_db:
         from db.adapter import write_inference_result
@@ -106,18 +123,20 @@ def run_inference(
 
     report_paths = None
     if write_report:
+        stem = snapshot_key(rk, fac)
         md_default, html_default = (
-            config.ARTIFACTS_DIR / "inference" / f"{rk}.md",
-            config.ARTIFACTS_DIR / "inference" / f"{rk}.html",
+            config.ARTIFACTS_DIR / "inference" / f"{stem}.md",
+            config.ARTIFACTS_DIR / "inference" / f"{stem}.html",
         )
         md_p = report_path or md_default
         html_p = html_path or html_default
-        report.write_report_files({rk: (problem, eval_result)}, md_p, html_p)
+        report.write_report_files({stem: (problem, eval_result)}, md_p, html_p)
         report_paths = (md_p, html_p)
 
     rate = eval_result.get("rl", eval_result["heuristic"])
     return {
         "rule_timekey": rk,
+        "fac_id": fac,
         "input_json": inp,
         "result_json": result_path,
         "plan_achievement": float(rate),

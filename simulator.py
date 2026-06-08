@@ -36,6 +36,7 @@ class ProblemInstance:
     init_assign: dict[tuple[str, int], int]      # (model, task_index) -> count
     tool_qty: dict[tuple[str, str], int]         # (batch_id, model) -> tools
     conv_groups: dict[str, list[str]]            # group_id -> [batch_id, ...]
+    fac_id: str | None = None
     ground_truth: dict = field(default_factory=dict)
 
     def uph_of(self, model: str, task_index: int) -> float | None:
@@ -391,6 +392,7 @@ def load_problem(path: str | Path) -> ProblemInstance:
         init_assign=init_assign,
         tool_qty=tool_qty,
         conv_groups=config.load_conv_groups(),
+        fac_id=data.get("fac_id"),
         ground_truth=data.get("ground_truth", {}),
     )
 
@@ -440,6 +442,8 @@ def problem_to_dict(problem: ProblemInstance, include_ground_truth: bool = True)
         "init_assign": init_assign,
         "tool_qty": tool_qty,
     }
+    if problem.fac_id:
+        data["fac_id"] = problem.fac_id
     if include_ground_truth and problem.ground_truth:
         data["ground_truth"] = problem.ground_truth
     return data
