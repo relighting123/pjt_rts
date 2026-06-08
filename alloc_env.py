@@ -13,7 +13,7 @@ import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
 
-from simulator import ProblemInstance
+from simulator import ProblemInstance, largest_remainder
 
 
 def _softmax(x: list[float]) -> list[float]:
@@ -21,17 +21,6 @@ def _softmax(x: list[float]) -> list[float]:
     ex = [math.exp(v - mx) for v in x]
     s = sum(ex)
     return [v / s for v in ex]
-
-
-def _largest_remainder(fracs: list[float], total: int) -> list[int]:
-    """소수점 배분을 정수로 변환, 합계 = total 보장 (최대잉여법)."""
-    floors = [int(f) for f in fracs]
-    remainders = [(fracs[i] - floors[i], i) for i in range(len(fracs))]
-    deficit = total - sum(floors)
-    remainders.sort(reverse=True)
-    for k in range(deficit):
-        floors[remainders[k][1]] += 1
-    return floors
 
 
 class AllocationEnv(gym.Env):
@@ -139,7 +128,7 @@ class AllocationEnv(gym.Env):
                 scale = eqp / raw_sum
                 raw = [v * scale for v in raw]
 
-            counts = _largest_remainder(raw, eqp)
+            counts = largest_remainder(raw, eqp)
             for ti, cnt in enumerate(counts):
                 if ti < self.n_tasks and p.uph_of(model, ti) is not None:
                     alloc[(model, ti)] = cnt

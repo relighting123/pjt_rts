@@ -110,7 +110,8 @@ def test_render_guide_table_output():
     rows = [l for l in md.splitlines() if l.startswith("|") and "---" not in l]
     assert len(rows) >= 2  # 헤더 + 최소 1개 데이터 행
     zero_rows = guide_allocation_rows(p, {})
-    assert all(r["target_count"] == 0.0 for r in zero_rows)
+    assert all(r["target_count"] == 0 for r in zero_rows)
+    assert all(isinstance(r["target_count"], int) for r in zero_rows)
     assert "가이드 수량" in render_guide_table(p, {})
 
 
@@ -129,11 +130,22 @@ def test_guide_allocation_rows():
     assert len(md_rows) == len(rows)
 
 
-def test_guide_allocation_includes_zero_slots():
+def test_plan_target_allocation_int_sums_to_eqp_qty():
+    from simulator import load_problem
+    p = load_problem(TEST_DATA_DIR / "benchmark_09.json")
+    alloc = p.plan_target_allocation_int()
+    for model in p.models():
+        total = sum(alloc.get((model, ti), 0) for ti in range(len(p.tasks)))
+        assert total == p.eqp_qty[model]
+        for (m, _ti), cnt in alloc.items():
+            if m == model:
+                assert isinstance(cnt, int)
+
+
+def test_guide_allocation_rows_are_integers():
     from report_output import guide_allocation_rows
     p = load_problem(TEST_DATA_DIR / "benchmark_09.json")
     res = report.evaluate_benchmark(p, model=None)
     rows = guide_allocation_rows(p, res["guide_allocation"])
     assert len(rows) == len(p.tasks) * len(p.models())
-    op30 = next(r for r in rows if r["task"] == "P1/OP30")
-    assert op30["target_count"] == 0.0
+    assert all(isinstance(r["target_count"], int) for r in rows)

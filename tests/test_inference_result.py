@@ -10,14 +10,13 @@ from report_output import (
 )
 
 
-def test_build_guide_rows_includes_zero():
+def test_build_guide_rows_uses_integer_counts():
     p = load_problem(TEST_DATA_DIR / "benchmark_09.json")
     res = report.evaluate_benchmark(p, model=None)
     rows = build_guide_rows(p, res["guide_allocation"], "ANALYTIC")
     assert len(rows) == len(p.tasks) * len(p.models())
     assert all(k in rows[0] for k in GUIDE_KEYS)
-    op30 = next(r for r in rows if r["OPER_ID"] == "OP30")
-    assert op30["TARGET_EQP_CNT"] == 0.0
+    assert all(isinstance(r["TARGET_EQP_CNT"], int) for r in rows)
 
 
 def test_inference_result_document_roundtrip(tmp_path):

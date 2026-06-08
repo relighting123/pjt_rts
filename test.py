@@ -48,11 +48,11 @@ def _guide_allocation(problem: ProblemInstance) -> dict:
                     obs, _ = env.reset()
                     action, _ = model.predict(obs, deterministic=True)
                     env.step(action)
-                    return problem.complete_guide_allocation(env.get_float_target())
+                    return problem.complete_guide_allocation(env.get_allocation())
                 except Exception as e:
                     import warnings
                     warnings.warn(f"AllocationEnv 추론 실패 ({e!r}); 해석식 가이드로 폴백.")
-    return problem.complete_guide_allocation(problem.plan_target_allocation())
+    return problem.complete_guide_allocation(problem.plan_target_allocation_int())
 
 
 def _model_matches(model, problem: ProblemInstance) -> bool:
