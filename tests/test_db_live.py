@@ -45,6 +45,7 @@ def test_step2_fetch_rows_script():
 
 def test_step2_fetch_rows_export(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "INFERENCE_DATA_DIR", tmp_path)
-    r = _run_script("test_db_step2_fetch_rows.py", "--export")
+    r = _run_script("test_db_step2_fetch_rows.py")
     assert r.returncode == 0, r.stdout + r.stderr
     assert list(tmp_path.glob("*.json")), "export JSON not created"
+    assert "JSON 저장" in r.stdout
