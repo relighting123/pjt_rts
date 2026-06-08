@@ -8,7 +8,6 @@ import config
 def test_sql_files_exist():
     expected = [
         ("select", "fetch_rows"),
-        ("select", "fetch_rows_batch"),
         ("select", "max_timekey"),
         ("select", "list_timekeys_in_range"),
         ("write", "delete_by_timekey"),
@@ -19,21 +18,16 @@ def test_sql_files_exist():
     ]
     for category, name in expected:
         assert sql_file(category, name).is_file()
+    assert not sql_file("select", "fetch_rows_batch").is_file()
 
 
-def test_fetch_rows_sql_requires_facid():
+def test_fetch_rows_sql_requires_facid_and_batch_like():
     sql = load_sql("select", "fetch_rows", table="RTS_LINEDSDB_INF")
     assert "FROM RTS_LINEDSDB_INF" in sql
     assert ":rk" in sql
     assert ":facid" in sql
-    assert "AND FAC_ID = :facid" in sql
-    assert ":fac_id" not in sql
-
-
-def test_fetch_rows_batch_sql_like_pattern():
-    sql = load_sql("select", "fetch_rows_batch", table="RTS_LINEDSDB_INF")
+    assert ":batch_like" in sql
     assert "BATCH_ID LIKE :batch_like" in sql
-    assert ":facid" in sql
 
 
 def test_max_timekey_sql_requires_facid():
@@ -62,3 +56,14 @@ def test_require_facid_raises_without_default(monkeypatch):
 def test_require_facid_uses_default(monkeypatch):
     monkeypatch.setattr(config, "DEFAULT_FACID", "ICPRB")
     assert config.require_facid(None) == "ICPRB"
+
+
+def test_require_batchid_raises_without_default(monkeypatch):
+    monkeypatch.setattr(config, "DEFAULT_BATCHID", None)
+    with pytest.raises(ValueError, match="batchid 필수"):
+        config.require_batchid(None)
+
+
+def test_require_batchid_uses_default(monkeypatch):
+    monkeypatch.setattr(config, "DEFAULT_BATCHID", "B1")
+    assert config.require_batchid(None) == "B1"

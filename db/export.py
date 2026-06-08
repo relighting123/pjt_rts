@@ -24,9 +24,10 @@ def export_from_rows(
 
     sw = switch_time_hours if switch_time_hours is not None else config.DEFAULT_SWITCH_TIME_HOURS
     fac = config.resolve_facid(facid)
+    bid = config.resolve_batchid(batchid)
     problem = rows_to_problem(
         rows, horizon_hours, switch_time_hours=sw, rule_timekey=rule_timekey,
-        facid=fac, batchid=batchid,
+        facid=fac, batchid=bid,
     )
     return save_problem(problem, output_path, include_ground_truth=False)
 
@@ -43,8 +44,9 @@ def export_from_db(
     from db.pipeline import input_json_path
 
     fac = config.require_facid(facid)
+    bid = config.require_batchid(batchid)
     problem = fetch_problem(
-        rule_timekey=rule_timekey, horizon_hours=horizon_hours, facid=fac, batchid=batchid,
+        rule_timekey=rule_timekey, horizon_hours=horizon_hours, facid=fac, batchid=bid,
     )
     out = Path(output_path) if output_path else input_json_path(rule_timekey, fac)
     return save_problem(problem, out, include_ground_truth=False)
@@ -81,4 +83,5 @@ def export_from_sample_rows(output_path: str | Path | None = None) -> Path:
         horizon_hours=int(meta.get("horizon_hours", 12)),
         rule_timekey=meta.get("rule_timekey"),
         facid=meta.get("facid") or meta.get("fac_id"),
+        batchid=meta.get("batchid") or "B1",
     )
