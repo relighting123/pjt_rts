@@ -27,7 +27,8 @@ def test_sql_files_exist():
         ("write", "delete_by_timekey"),
         ("write", "insert_assign"),
         ("write", "insert_plan_achv"),
-        ("write", "insert_conv"),
+        ("write", "insert_eqpconvplan"),
+        ("write", "insert_eqpconvplan_his"),
         ("write", "insert_guide"),
     ]
     for category, name in expected:

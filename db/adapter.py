@@ -261,11 +261,34 @@ def write_plan_achv_results(rule_timekey: str, plan_rows: list[dict]) -> None:
     )
 
 
+def write_eqpconvplan_results(rule_timekey: str, rows: list[dict]) -> None:
+    """RTS_EQPCONVPLAN_INF/HIS 삭제 후 insert (HIS는 EVENT_TIMEKEY 포함)."""
+    if not rows:
+        return
+    conn = _connect()
+    try:
+        cur = conn.cursor()
+        for table in (config.EQPCONVPLAN_TABLE, config.EQPCONVPLAN_HIS_TABLE):
+            _execute_logged(
+                cur, f"delete_by_timekey:{table}", "write", "delete_by_timekey",
+                table=table, rk=rule_timekey,
+            )
+        _executemany_logged(
+            cur, f"insert_eqpconvplan:{config.EQPCONVPLAN_TABLE}",
+            "write", "insert_eqpconvplan", rows, table=config.EQPCONVPLAN_TABLE,
+        )
+        _executemany_logged(
+            cur, f"insert_eqpconvplan_his:{config.EQPCONVPLAN_HIS_TABLE}",
+            "write", "insert_eqpconvplan_his", rows, table=config.EQPCONVPLAN_HIS_TABLE,
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def write_conv_results(rule_timekey: str, conv_rows: list[dict]) -> None:
-    """RTS_CONV_INF/HIS 삭제 후 insert."""
-    _write_table_pair(
-        config.CONV_TABLE, config.CONV_HIS_TABLE, rule_timekey, conv_rows, "insert_conv",
-    )
+    """하위호환 alias → RTS_EQPCONVPLAN_INF/HIS."""
+    write_eqpconvplan_results(rule_timekey, conv_rows)
 
 
 def write_guide_results(rule_timekey: str, guide_rows: list[dict]) -> None:
@@ -281,7 +304,10 @@ def write_inference_result(rule_timekey: str, result_doc: dict) -> None:
     dynamic = result_doc.get("dynamic", {})
     write_plan_achv_results(rule_timekey, dynamic.get("plan_achv_rows", []))
     write_assign_results(rule_timekey, dynamic.get("assign_rows", []))
-    write_conv_results(rule_timekey, dynamic.get("conv_rows", []))
+    write_eqpconvplan_results(
+        rule_timekey,
+        dynamic.get("eqpconvplan_rows", dynamic.get("conv_rows", [])),
+    )
 
 
 def _write_table_pair(

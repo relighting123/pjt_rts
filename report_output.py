@@ -3,7 +3,7 @@
 출력 Oracle 테이블 (config.py):
   RTS_PLAN_ACHV_INF/HIS — 시간대별 계획·생산·달성 (task 단위)
   RTS_ASSIGN_INF/HIS    — 장비 배치·생산 (eqp 단위)
-  RTS_CONV_INF/HIS      — batch(tool) 전환 이벤트
+  RTS_EQPCONVPLAN_INF/HIS — 장비 전환 계획 (batch/tool 전환)
 """
 from __future__ import annotations
 from datetime import datetime, timedelta
@@ -140,49 +140,15 @@ def build_assign_rows(
     return rows
 
 
-def build_conv_rows(
-    problem: ProblemInstance,
-    trace: list,
-    sys_id: str | None = None,
-) -> list[dict]:
-    """RTS_CONV_INF/HIS — batch(tool) 전환 이벤트. SEQ_NO는 EQP_ID(호기)별."""
-    sys_id = sys_id or config.SYS_ID
-    rows: list[dict] = []
-    seq_by_eqp: dict[str, int] = {}
-    rule_timekey = problem.rule_timekey
-    unit_idx: dict[str, int] = {}
+def build_eqpconvplan_rows(problem: ProblemInstance, trace: list) -> list[dict]:
+    """RTS_EQPCONVPLAN_INF/HIS — batch 전환 계획."""
+    from db.eqpconvplan import build_eqpconvplan_rows as _build
+    return _build(problem, trace)
 
-    for hour, applied_moves, _snapshot in trace:
-        event_tm = event_tm_for_hour(rule_timekey, hour)
-        for mv in applied_moves:
-            if not isinstance(mv, Move):
-                continue
-            from_batch = problem.batch_of(mv.from_index)
-            to_batch = problem.batch_of(mv.to_index)
-            if from_batch == to_batch:
-                continue
-            from_task = problem.tasks[mv.from_index]
-            to_task = problem.tasks[mv.to_index]
-            unit_idx[mv.model] = unit_idx.get(mv.model, 0) + 1
-            eqp_id = f"{mv.model}-{unit_idx[mv.model]:03d}"
-            seq_by_eqp[eqp_id] = seq_by_eqp.get(eqp_id, 0) + 1
-            rows.append({
-                "RULE_TIMEKEY": rule_timekey,
-                "EVENT_TM": event_tm,
-                "EQP_ID": eqp_id,
-                "EQP_MODEL_CD": mv.model,
-                "SEQ_NO": seq_by_eqp[eqp_id],
-                "START_TIME": event_tm,
-                "END_TIME": event_tm,
-                "FROM_BATCH_ID": from_batch,
-                "TO_BATCH_ID": to_batch,
-                "FROM_PLAN_PROD_KEY": from_task.plan_prod_key,
-                "TO_PLAN_PROD_KEY": to_task.plan_prod_key,
-                "FROM_OPER_ID": from_task.oper_id,
-                "TO_OPER_ID": to_task.oper_id,
-                "CRT_USER_ID": sys_id,
-            })
-    return rows
+
+def build_conv_rows(problem: ProblemInstance, trace: list, sys_id: str | None = None) -> list[dict]:
+    """하위호환 alias."""
+    return build_eqpconvplan_rows(problem, trace)
 
 
 def merge_assign_rows(rows: list[dict]) -> list[dict]:
@@ -265,7 +231,7 @@ def build_inference_result_document(
     use_rl = policy == "RL" and eval_result.get("rl") is not None
     plan_achv_key = "rl_plan_achv_rows" if use_rl else "plan_achv_rows"
     assign_key = "rl_assign_rows" if use_rl else "assign_rows"
-    conv_key = "rl_conv_rows" if use_rl else "conv_rows"
+    conv_key = "rl_eqpconvplan_rows" if use_rl else "eqpconvplan_rows"
     achievement = eval_result.get("rl" if use_rl else "heuristic", 0.0)
     util = eval_result.get("rl_avg_utilization" if use_rl else "avg_utilization", 0.0)
     guide_src = detect_guide_source()
@@ -285,7 +251,10 @@ def build_inference_result_document(
         "dynamic": {
             "plan_achv_rows": eval_result.get(plan_achv_key, []),
             "assign_rows": eval_result.get(assign_key, []),
-            "conv_rows": eval_result.get(conv_key, []),
+            "eqpconvplan_rows": eval_result.get(
+                conv_key,
+                eval_result.get("rl_conv_rows" if use_rl else "conv_rows", []),
+            ),
         },
     }
     if problem.facid:
@@ -338,20 +307,22 @@ ASSIGN_HEADERS = [
     "START_TIME", "END_TIME", "PLAN_PROD_KEY", "OPER_ID", "PRODUCE_QTY", "CRT_USER_ID",
 ]
 
-CONV_KEYS = [
-    "RULE_TIMEKEY", "EVENT_TM", "EQP_ID", "EQP_MODEL_CD", "SEQ_NO",
-    "START_TIME", "END_TIME",
-    "FROM_BATCH_ID", "TO_BATCH_ID",
-    "FROM_PLAN_PROD_KEY", "TO_PLAN_PROD_KEY", "FROM_OPER_ID", "TO_OPER_ID",
-    "CRT_USER_ID",
+EQPCONVPLAN_KEYS = [
+    "FAC_ID", "RULE_TIMEKEY", "JOB_ID", "TESTER_EQP_MODEL_CD",
+    "CONV_START_TM", "CONV_END_TM", "CONV_TIME",
+    "LOT_CD", "TEMPER_VAL", "PLAN_PROD_ATTR_VAL",
+    "TO_LOT_CD", "TO_TEMPER_VAL", "TO_PLAN_PROD_ATTR_VAL",
+    "PRCS_STAT_CD", "REASON_CD",
 ]
-CONV_HEADERS = [
-    "RULE_TIMEKEY", "EVENT_TM", "EQP_ID", "EQP_MODEL_CD", "SEQ",
-    "START_TIME", "END_TIME",
-    "FROM_BATCH", "TO_BATCH",
-    "FROM_PLAN_PROD_KEY", "TO_PLAN_PROD_KEY", "FROM_OPER", "TO_OPER",
-    "CRT_USER_ID",
+EQPCONVPLAN_HEADERS = [
+    "FAC_ID", "RULE_TIMEKEY", "JOB_ID", "TESTER_EQP_MODEL",
+    "CONV_START", "CONV_END", "CONV_TIME",
+    "LOT_CD", "TEMPER", "FROM_PLAN",
+    "TO_LOT_CD", "TO_TEMPER", "TO_PLAN",
+    "STATUS", "REASON",
 ]
+CONV_KEYS = EQPCONVPLAN_KEYS
+CONV_HEADERS = EQPCONVPLAN_HEADERS
 
 GUIDE_KEYS = [
     "RULE_TIMEKEY", "PLAN_PROD_KEY", "OPER_ID", "EQP_MODEL_CD",
@@ -382,7 +353,7 @@ def build_output_tables(
     return {
         config.PLAN_ACHV_TABLE: build_plan_achv_rows(problem, hourly_stats, sid),
         config.ASSIGN_TABLE: build_assign_rows(problem, hourly_stats, sid),
-        config.CONV_TABLE: build_conv_rows(problem, trace, sid),
+        config.EQPCONVPLAN_TABLE: build_eqpconvplan_rows(problem, trace),
     }
 
 
@@ -419,8 +390,8 @@ def render_detail_sections(
         f"#### {config.ASSIGN_TABLE} / {config.ASSIGN_HIS_TABLE}",
         _markdown_table(ASSIGN_HEADERS, tables[config.ASSIGN_TABLE], ASSIGN_KEYS),
         "",
-        f"#### {config.CONV_TABLE} / {config.CONV_HIS_TABLE}",
-        _markdown_table(CONV_HEADERS, tables[config.CONV_TABLE], CONV_KEYS),
+        f"#### {config.EQPCONVPLAN_TABLE} / {config.EQPCONVPLAN_HIS_TABLE}",
+        _markdown_table(EQPCONVPLAN_HEADERS, tables[config.EQPCONVPLAN_TABLE], EQPCONVPLAN_KEYS),
         "",
     ]
     return "\n".join(lines)
@@ -536,7 +507,7 @@ def render_html_report(results: dict[str, tuple[ProblemInstance, dict]]) -> str:
         "<p class='note'><strong>출력 테이블:</strong> "
         f"{escape(config.PLAN_ACHV_TABLE)}(계획/달성), "
         f"{escape(config.ASSIGN_TABLE)}(장비배치), "
-        f"{escape(config.CONV_TABLE)}(batch전환). "
+        f"{escape(config.EQPCONVPLAN_TABLE)}(전환계획). "
         "입력: "
         f"{escape(config.INPUT_TABLE)}.</p>",
     ]
@@ -582,8 +553,13 @@ def render_html_report(results: dict[str, tuple[ProblemInstance, dict]]) -> str:
                 f"<small>(병합 후 {merged_n}행 / 원래 {orig_n}행)</small></h4>"
             )
             parts.append(_html_table(ASSIGN_HEADERS, assign_merged, ASSIGN_KEYS))
-            parts.append(f"<h4>{escape(config.CONV_TABLE)} / {escape(config.CONV_HIS_TABLE)}</h4>")
-            parts.append(_html_table(CONV_HEADERS, tables[config.CONV_TABLE], CONV_KEYS))
+            parts.append(
+                f"<h4>{escape(config.EQPCONVPLAN_TABLE)} / "
+                f"{escape(config.EQPCONVPLAN_HIS_TABLE)}</h4>"
+            )
+            parts.append(_html_table(
+                EQPCONVPLAN_HEADERS, tables[config.EQPCONVPLAN_TABLE], EQPCONVPLAN_KEYS,
+            ))
         parts.append(f"<pre>{escape(gantt_text(p, trace))}</pre>")
 
     parts.append("</body></html>")
@@ -624,7 +600,8 @@ def enrich_eval_result(problem: ProblemInstance, trace: list, hourly_stats: list
         "output_tables": tables,
         "plan_achv_rows": tables[config.PLAN_ACHV_TABLE],
         "assign_rows": tables[config.ASSIGN_TABLE],
-        "conv_rows": tables[config.CONV_TABLE],
+        "eqpconvplan_rows": tables[config.EQPCONVPLAN_TABLE],
+        "conv_rows": tables[config.EQPCONVPLAN_TABLE],
         "task_hourly_rows": tables[config.PLAN_ACHV_TABLE],
         "allocation_rows": [{k: row[k] for k in ALLOC_DB_KEYS} for row in tables[config.ASSIGN_TABLE]],
         "avg_utilization": avg_utilization(hourly_stats),
