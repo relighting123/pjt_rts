@@ -39,6 +39,7 @@ def test_assign_rows_eqp_and_seq():
     assert [r["SEQ_NO"] for r in rows] == [1, 2, 3]
     for key in ASSIGN_KEYS:
         assert key in rows[0]
+    assert "EVENT_TM" not in rows[0]
 
 
 def test_assign_seq_per_eqp_id():
