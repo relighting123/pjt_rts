@@ -98,37 +98,42 @@ def format_timekey(dt: datetime, suffix: str = "0000") -> str:
     return dt.strftime("%Y%m%d%H%M%S") + suffix[:4].ljust(4, "0")
 
 
-def fetch_max_timekey(table: str = config.INPUT_TABLE) -> str:
+def fetch_max_timekey(facid: str, table: str = config.INPUT_TABLE) -> str:
+    """facid별 최신 RULE_TIMEKEY."""
     conn = _connect()
     try:
         cur = conn.cursor()
-        cur.execute(load_sql("select", "max_timekey", table=table))
+        cur.execute(load_sql("select", "max_timekey", table=table), facid=facid)
         row = cur.fetchone()
         if not row or row[0] is None:
-            raise RuntimeError(f"{table}에 RULE_TIMEKEY 없음")
+            raise RuntimeError(f"{table}에 facid={facid} RULE_TIMEKEY 없음")
         return str(row[0])
     finally:
         conn.close()
 
 
-def resolve_timekey(rule_timekey: str | None = None) -> str:
-    """미지정 시 MAX(RULE_TIMEKEY)."""
-    return rule_timekey if rule_timekey else fetch_max_timekey()
+def resolve_timekey(rule_timekey: str | None = None, facid: str | None = None) -> str:
+    """미지정 시 facid별 MAX(RULE_TIMEKEY)."""
+    if rule_timekey:
+        return rule_timekey
+    return fetch_max_timekey(config.require_facid(facid))
 
 
 def list_timekeys_in_range(
     from_timekey: str | None = None,
     to_timekey: str | None = None,
     lookback_days: int | None = None,
+    facid: str | None = None,
     table: str = config.INPUT_TABLE,
 ) -> list[str]:
     """학습용 스냅샷 RULE_TIMEKEY 목록. from/to 미지정 시 최근 lookback_days(기본 30일)."""
+    fac = config.require_facid(facid)
     lookback = lookback_days if lookback_days is not None else config.DEFAULT_TRAIN_LOOKBACK_DAYS
     conn = _connect()
     try:
         cur = conn.cursor()
         if from_timekey is None and to_timekey is None:
-            cur.execute(load_sql("select", "max_timekey", table=table))
+            cur.execute(load_sql("select", "max_timekey", table=table), facid=fac)
             row = cur.fetchone()
             if not row or row[0] is None:
                 return []
@@ -142,7 +147,7 @@ def list_timekeys_in_range(
             raise ValueError("from_timekey와 to_timekey는 함께 지정하거나 둘 다 생략해야 합니다.")
         cur.execute(
             load_sql("select", "list_timekeys_in_range", table=table),
-            f=from_timekey, t=to_timekey,
+            f=from_timekey, t=to_timekey, facid=fac,
         )
         return [str(r[0]) for r in cur.fetchall()]
     finally:
@@ -173,8 +178,8 @@ def fetch_problem(
     facid: str | None = None,
 ) -> ProblemInstance:
     """RTS_LINEDSDB_INF에서 스냅샷을 읽어 ProblemInstance로 변환."""
-    rk = resolve_timekey(rule_timekey)
     fac = config.require_facid(facid)
+    rk = resolve_timekey(rule_timekey, facid=fac)
     rows = fetch_rows(rk, facid=fac)
     if not rows:
         raise ValueError(f"RULE_TIMEKEY={rk}, facid={fac} 에 해당하는 행 없음")

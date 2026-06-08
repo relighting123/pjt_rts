@@ -42,8 +42,8 @@ def export_input_json(
 
     from db.adapter import resolve_timekey
 
-    rk = resolve_timekey(rule_timekey)
     fac = config.require_facid(facid)
+    rk = resolve_timekey(rule_timekey, facid=fac)
     out = output_path or input_json_path(rk, fac)
     path = export_from_db(rk, output_path=out, horizon_hours=horizon_hours, facid=fac)
     return rk, fac, path
@@ -65,7 +65,7 @@ def export_train_snapshots(
     out_dir = Path(output_dir) if output_dir else config.TRAIN_DATA_DIR
     out_dir.mkdir(parents=True, exist_ok=True)
     paths: list[Path] = []
-    for rk in list_timekeys_in_range(from_timekey, to_timekey, lookback_days):
+    for rk in list_timekeys_in_range(from_timekey, to_timekey, lookback_days, facid=fac):
         stem = snapshot_key(rk, fac)
         paths.append(export_from_db(
             rk, output_path=out_dir / f"{stem}.json",
