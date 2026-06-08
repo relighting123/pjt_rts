@@ -44,7 +44,7 @@ def _load_named_problems(args) -> list[tuple[str, object]]:
 
     if getattr(args, "timekey", None):
         from db.pipeline import input_json_path, snapshot_key
-        fac = config.resolve_fac_id(getattr(args, "fac_id", None))
+        fac = config.require_fac_id(getattr(args, "fac_id", None))
         key = snapshot_key(str(args.timekey), fac)
         path = input_json_path(str(args.timekey), fac)
         if not path.is_file():
@@ -161,7 +161,7 @@ def cmd_export(args):
         from db.adapter import resolve_timekey
         args.timekey = resolve_timekey(None)
         print(f"--timekey 미지정 → MAX(RULE_TIMEKEY) = {args.timekey}")
-    fac = config.resolve_fac_id(getattr(args, "fac_id", None))
+    fac = config.require_fac_id(getattr(args, "fac_id", None))
     path = export_from_db(
         args.timekey, output_path=args.output, horizon_hours=args.horizon, fac_id=fac,
     )
@@ -189,7 +189,7 @@ def build_parser():
     pi.add_argument("--dataset")
     pi.add_argument("--benchmark-dataset", dest="benchmark_dataset")
     pi.add_argument("--timekey", help="미지정 시 MAX(RULE_TIMEKEY)")
-    pi.add_argument("--fac-id", dest="fac_id", help="공장 ID 필터 (미지정 시 .env DEFAULT_FAC_ID 또는 전체)")
+    pi.add_argument("--fac-id", dest="fac_id", help="FAC_ID 필수 (.env DEFAULT_FAC_ID 가능)")
     pi.add_argument("--horizon", type=int, default=12)
     pi.add_argument("--skip-export", action="store_true", help="기존 input JSON 사용")
     pi.add_argument("--no-db", action="store_true", help="결과 DB write 생략")
@@ -205,7 +205,7 @@ def build_parser():
 
     px = sub.add_parser("export", help="DB → JSON")
     px.add_argument("--timekey", help="추론 input (미지정=MAX)")
-    px.add_argument("--fac-id", dest="fac_id", help="공장 ID 필터 (미지정 시 .env DEFAULT_FAC_ID 또는 전체)")
+    px.add_argument("--fac-id", dest="fac_id", help="FAC_ID 필수 (.env DEFAULT_FAC_ID 가능)")
     px.add_argument("--train", action="store_true", help="학습 구간 → data/train/{RULE_TIMEKEY}.json")
     px.add_argument("--from-timekey", dest="from_timekey")
     px.add_argument("--to-timekey", dest="to_timekey")

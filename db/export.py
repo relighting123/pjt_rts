@@ -39,7 +39,7 @@ def export_from_db(
     from db.adapter import fetch_problem
     from db.pipeline import input_json_path
 
-    fac = config.resolve_fac_id(fac_id)
+    fac = config.require_fac_id(fac_id)
     problem = fetch_problem(rule_timekey=rule_timekey, horizon_hours=horizon_hours, fac_id=fac)
     out = Path(output_path) if output_path else input_json_path(rule_timekey, fac)
     return save_problem(problem, out, include_ground_truth=False)

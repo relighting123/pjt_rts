@@ -151,17 +151,17 @@ def list_timekeys_in_range(
 
 def fetch_rows(
     rule_timekey: str,
-    fac_id: str | None = None,
+    fac_id: str,
     table: str = config.INPUT_TABLE,
 ) -> list[tuple]:
+    """RTS_LINEDSDB_INF 조회. fac_id 필수."""
     conn = _connect()
     try:
         cur = conn.cursor()
-        sql_name = "fetch_rows_by_fac" if fac_id else "fetch_rows"
-        params: dict = {"rk": rule_timekey}
-        if fac_id:
-            params["fac_id"] = fac_id
-        cur.execute(load_sql("select", sql_name, table=table), **params)
+        cur.execute(
+            load_sql("select", "fetch_rows", table=table),
+            rk=rule_timekey, fac_id=fac_id,
+        )
         return cur.fetchall()
     finally:
         conn.close()
@@ -174,9 +174,9 @@ def fetch_problem(
 ) -> ProblemInstance:
     """RTS_LINEDSDB_INF에서 스냅샷을 읽어 ProblemInstance로 변환."""
     rk = resolve_timekey(rule_timekey)
-    fac = config.resolve_fac_id(fac_id)
+    fac = config.require_fac_id(fac_id)
     rows = fetch_rows(rk, fac_id=fac)
-    if fac and not rows:
+    if not rows:
         raise ValueError(f"RULE_TIMEKEY={rk}, FAC_ID={fac} 에 해당하는 행 없음")
     return rows_to_problem(rows, horizon_hours, rule_timekey=rk, fac_id=fac)
 

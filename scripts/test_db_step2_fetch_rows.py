@@ -26,7 +26,7 @@ if str(ROOT) not in sys.path:
 def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Step 2: fetch_rows DB 읽기 테스트")
     p.add_argument("--timekey", help="RULE_TIMEKEY (미지정 시 MAX)")
-    p.add_argument("--fac-id", dest="fac_id", help="FAC_ID 필터 (미지정 시 .env DEFAULT_FAC_ID 또는 전체)")
+    p.add_argument("--fac-id", dest="fac_id", help="FAC_ID 필수 (.env DEFAULT_FAC_ID 가능)")
     p.add_argument("--horizon", type=int, default=12, help="horizon_hours (기본 12)")
     p.add_argument(
         "--no-export", action="store_true",
@@ -49,8 +49,13 @@ def main() -> int:
     from db.pipeline import input_json_path
     import config
 
-    fac = config.resolve_fac_id(args.fac_id)
     print("=== Step 2: fetch_rows 테스트 ===")
+
+    try:
+        fac = config.require_fac_id(args.fac_id)
+    except ValueError as exc:
+        print(f"FAIL : {exc}")
+        return 1
 
     try:
         tk = resolve_timekey(args.timekey)
@@ -58,8 +63,7 @@ def main() -> int:
             print(f"timekey: MAX(RULE_TIMEKEY) = {tk}")
         else:
             print(f"timekey: {tk}")
-        if fac:
-            print(f"fac_id: {fac}")
+        print(f"fac_id: {fac}")
     except Exception as exc:
         print(f"FAIL : timekey 확인 실패 — {exc}")
         return 1
