@@ -7,5 +7,7 @@ data/*
 !data/.gitkeep
 !data/test/
 !data/test/**
+!data/inference/
+!data/inference/**
 artifacts/
 .pytest_cache/

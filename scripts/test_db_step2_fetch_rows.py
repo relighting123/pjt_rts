@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
-"""Step 2: fetch_rows → rows_to_problem → (선택) JSON export 테스트.
+"""Step 2: fetch_rows → rows_to_problem → data/inference JSON export.
+
+기본 동작: 성공 시 data/inference/{timekey}.json 저장 (폴더 자동 생성).
+조회만 할 때는 --no-export.
 
 사용:
   PYTHONPATH=. python3 scripts/test_db_step2_fetch_rows.py
   PYTHONPATH=. python3 scripts/test_db_step2_fetch_rows.py --timekey 2026052922500000
-  PYTHONPATH=. python3 scripts/test_db_step2_fetch_rows.py --export
-  PYTHONPATH=. python3 scripts/test_db_step2_fetch_rows.py --export --output /tmp/out.json
+  PYTHONPATH=. python3 scripts/test_db_step2_fetch_rows.py --fac-id ICPRB
+  PYTHONPATH=. python3 scripts/test_db_step2_fetch_rows.py --no-export
+  PYTHONPATH=. python3 scripts/test_db_step2_fetch_rows.py --output /tmp/out.json
 """
 from __future__ import annotations
 
@@ -24,8 +28,11 @@ def _parse_args() -> argparse.Namespace:
     p.add_argument("--timekey", help="RULE_TIMEKEY (미지정 시 MAX)")
     p.add_argument("--fac-id", dest="fac_id", help="FAC_ID 필터 (미지정 시 .env DEFAULT_FAC_ID 또는 전체)")
     p.add_argument("--horizon", type=int, default=12, help="horizon_hours (기본 12)")
-    p.add_argument("--export", action="store_true", help="data/inference/{timekey}.json 저장")
-    p.add_argument("--output", help="--export 시 출력 경로 (미지정 시 data/inference/{timekey}.json)")
+    p.add_argument(
+        "--no-export", action="store_true",
+        help="JSON 저장 생략 (기본: data/inference/{timekey}[_fac].json 저장)",
+    )
+    p.add_argument("--output", help="출력 경로 (미지정 시 data/inference/{timekey}[_fac].json)")
     return p.parse_args()
 
 
@@ -87,16 +94,19 @@ def main() -> int:
             f"plan={t0.plan_qty} wip={t0.wip_qty}"
         )
 
-    if args.export:
+    if not args.no_export:
         out = Path(args.output) if args.output else input_json_path(tk, fac)
         try:
             path = export_from_rows(
                 rows, out, horizon_hours=args.horizon, rule_timekey=tk, fac_id=fac,
             )
             print(f"OK   : JSON 저장 → {path}")
+            print(f"       inference 폴더: {path.parent}")
         except Exception as exc:
             print(f"FAIL : JSON export 실패 — {exc}")
             return 1
+    else:
+        print("SKIP : JSON export (--no-export)")
 
     print("Step 2 완료")
     return 0
