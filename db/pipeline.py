@@ -7,6 +7,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import config
+from ops_log import log_ops
 from simulator import load_problem
 from report_output import (
     build_inference_result_document,
@@ -110,8 +111,23 @@ def run_inference(
     rk = str(rule_timekey) if rule_timekey else None
     fac = config.require_facid(facid)
     bid = config.require_batchid(batchid)
+    log_ops(
+        "infer.start",
+        rule_timekey=rk or "-",
+        facid=fac,
+        batchid=bid,
+        batchid_like=f"%{bid}%",
+        horizon_hours=horizon_hours,
+        skip_input_export=skip_input_export,
+        write_db=write_db,
+        write_report=write_report,
+        policy=policy,
+        input_path=input_path,
+        ops_log=config.ARTIFACTS_DIR / "inference" / "ops.jsonl",
+    )
     if input_path is None and not skip_input_export:
         clear_inference_dir()
+        log_ops("infer.clear_dir", dir=config.INFERENCE_DATA_DIR)
     if input_path is None:
         if skip_input_export:
             if rk is None:
@@ -159,6 +175,22 @@ def run_inference(
         report_paths = (md_p, html_p)
 
     rate = eval_result.get("rl", eval_result["heuristic"])
+    log_ops(
+        "infer.done",
+        rule_timekey=rk,
+        facid=fac,
+        batchid=bid,
+        batchid_like=f"%{bid}%",
+        horizon_hours=horizon_hours,
+        plan_achievement=float(rate),
+        input_json=inp,
+        result_json=result_path,
+        write_db=write_db,
+        report_md=report_paths[0] if report_paths else None,
+        report_html=report_paths[1] if report_paths else None,
+        task_count=len(problem.tasks),
+        model_count=len(problem.models()),
+    )
     return {
         "rule_timekey": rk,
         "facid": fac,

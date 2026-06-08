@@ -39,6 +39,7 @@ def main() -> int:
     from db.export import export_from_rows
     from db.pipeline import input_json_path
     import config
+    from ops_log import log_ops, OPS_LOG_PATH
 
     print("=== Step 2: fetch_rows 테스트 ===")
 
@@ -57,6 +58,16 @@ def main() -> int:
             print(f"timekey: {tk}")
         print(f"facid: {fac}")
         print(f"batchid LIKE %{bid}%")
+        log_ops(
+            "step2.start",
+            rule_timekey=args.timekey or "MAX",
+            facid=fac,
+            batchid=bid,
+            batchid_like=f"%{bid}%",
+            horizon_hours=args.horizon,
+            no_export=args.no_export,
+            ops_log=OPS_LOG_PATH,
+        )
     except Exception as exc:
         print(f"FAIL : timekey 확인 실패 — {exc}")
         return 1
@@ -108,7 +119,16 @@ def main() -> int:
     else:
         print("SKIP : JSON export (--no-export)")
 
+    log_ops(
+        "step2.done",
+        rule_timekey=tk,
+        facid=fac,
+        batchid=bid,
+        row_count=len(rows),
+        task_count=len(problem.tasks),
+    )
     print("Step 2 완료")
+    print(f"ops 로그 → {OPS_LOG_PATH}")
     return 0
 
 

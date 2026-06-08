@@ -124,6 +124,7 @@ def cmd_infer(args):
         return
 
     from db.pipeline import run_inference
+    from ops_log import OPS_LOG_PATH
 
     out = run_inference(
         args.timekey,
@@ -144,6 +145,7 @@ def cmd_infer(args):
         print("DB 기록 완료 (RTS_GUIDE / PLAN_ACHV / ASSIGN / CONV)")
     if out.get("report_paths"):
         print(f"리포트 → {out['report_paths'][0]}")
+    print(f"ops 로그 → {OPS_LOG_PATH}")
 
 
 def cmd_export(args):
@@ -161,19 +163,30 @@ def cmd_export(args):
         )
         print(f"학습 JSON {len(paths)}건 → {config.TRAIN_DATA_DIR}")
         return
+    from ops_log import log_ops, OPS_LOG_PATH
+
     fac = config.require_facid(getattr(args, "facid", None))
     bid = config.require_batchid(getattr(args, "batchid", None))
     if not args.timekey:
         from db.adapter import resolve_timekey
         args.timekey = resolve_timekey(None, facid=fac)
-        print(f"--timekey 미지정 → MAX(RULE_TIMEKEY) [{fac}] = {args.timekey}")
+    log_ops(
+        "export.start",
+        rule_timekey=args.timekey,
+        facid=fac,
+        batchid=bid,
+        batchid_like=f"%{bid}%",
+        horizon_hours=args.horizon,
+        output=args.output,
+        ops_log=OPS_LOG_PATH,
+    )
     path = export_from_db(
         args.timekey, output_path=args.output, horizon_hours=args.horizon,
         facid=fac, batchid=bid,
     )
-    print(f"facid={fac}")
-    print(f"batchid LIKE %{bid}%")
+    log_ops("export.done", rule_timekey=args.timekey, facid=fac, batchid=bid, output=path)
     print(f"input JSON 저장 → {path}")
+    print(f"ops 로그 → {OPS_LOG_PATH}")
 
 
 def build_parser():
