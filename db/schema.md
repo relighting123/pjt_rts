@@ -44,13 +44,15 @@
 #   "dynamic": {
 #     "plan_achv_rows": [...],
 #     "assign_rows": [...],
-#     "conv_rows": [...]
+#     "eqpconvplan_rows": [...]
+#     "conv_rows": [...]  # eqpconvplan_rows alias
 #   }
 # }
 # ```
 #
 # `guide.rows` → RTS_GUIDE_INF/HIS
-# `dynamic.*` → RTS_PLAN_ACHV / RTS_ASSIGN / RTS_CONV (기존과 동일 키)
+# `dynamic.*` → RTS_PLAN_ACHV / RTS_ASSIGN / RTS_EQPCONVPLAN
+# (`eqpconvplan_rows` 권장, `conv_rows`는 하위호환 alias)
 #
 # ## Oracle DDL — RTS_GUIDE_INF / RTS_GUIDE_HIS (신규)
 #

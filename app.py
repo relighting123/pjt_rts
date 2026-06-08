@@ -263,7 +263,7 @@ def render_tables(bm_name: str, algo: str, view) -> None:
         else:
             st.info("데이터 없음")
 
-    with st.expander(f"🔄 {algo} — CONV_INF ({len(conv_rows)}행)", expanded=False):
+    with st.expander(f"🔄 {algo} — EQPCONVPLAN_INF ({len(conv_rows)}행)", expanded=False):
         if conv_rows and _HAS_PLOTLY:
             df_cv = pd.DataFrame(conv_rows)[CONV_KEYS].copy()
             df_cv.columns = CONV_HEADERS

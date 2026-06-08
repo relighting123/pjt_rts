@@ -26,6 +26,7 @@ def test_inference_result_document_roundtrip(tmp_path):
     assert doc["schema_version"] == 1
     assert doc["guide"]["rows"]
     assert doc["dynamic"]["plan_achv_rows"]
+    assert "eqpconvplan_rows" in doc["dynamic"]
     path = save_inference_result_document(doc, tmp_path / "r.json")
     loaded = load_inference_result_document(path)
     assert loaded["rule_timekey"] == p.rule_timekey

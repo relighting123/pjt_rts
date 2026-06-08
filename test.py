@@ -108,7 +108,7 @@ def evaluate_benchmark(problem: ProblemInstance, model=None) -> dict:
         "hourly_stats": h_hourly,
         **{k: h_extra[k] for k in (
             "avg_utilization", "output_tables", "plan_achv_rows", "assign_rows",
-            "conv_rows", "task_hourly_rows", "allocation_rows",
+            "eqpconvplan_rows", "conv_rows", "task_hourly_rows", "allocation_rows",
         )},
     }
     out["guide_allocation"] = _guide_allocation(problem)
@@ -125,7 +125,8 @@ def evaluate_benchmark(problem: ProblemInstance, model=None) -> dict:
         out["rl_output_tables"] = rl_extra["output_tables"]
         out["rl_plan_achv_rows"] = rl_extra["plan_achv_rows"]
         out["rl_assign_rows"] = rl_extra["assign_rows"]
-        out["rl_conv_rows"] = rl_extra["conv_rows"]
+        out["rl_eqpconvplan_rows"] = rl_extra.get("eqpconvplan_rows", rl_extra.get("conv_rows", []))
+        out["rl_conv_rows"] = out["rl_eqpconvplan_rows"]
         out["rl_task_hourly_rows"] = rl_extra["task_hourly_rows"]
         out["rl_allocation_rows"] = rl_extra["allocation_rows"]
     return out
