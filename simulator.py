@@ -24,6 +24,11 @@ class Task:
     plan_qty: int
     init_wip: int
 
+    @property
+    def wip_qty(self) -> int:
+        """DB GBN_CD=WIP_QTY와 동일 의미. init_wip 별칭."""
+        return self.init_wip
+
 
 @dataclass
 class ProblemInstance:
@@ -357,13 +362,20 @@ def evaluate(problem: ProblemInstance) -> dict:
     }
 
 
+def _task_wip_qty(task_data: dict) -> int:
+    """JSON task dict → 초기 WIP. wip_qty 우선, 없으면 init_wip."""
+    if "wip_qty" in task_data:
+        return int(task_data["wip_qty"])
+    return int(task_data.get("init_wip", 0))
+
+
 def load_problem(path: str | Path) -> ProblemInstance:
     import config
 
     data = json.loads(Path(path).read_text(encoding="utf-8"))
     tasks = [
         Task(t["plan_prod_key"], t["oper_id"], int(t["oper_seq"]),
-             t["batch_id"], int(t["plan_qty"]), int(t.get("init_wip", 0)))
+             t["batch_id"], int(t["plan_qty"]), _task_wip_qty(t))
         for t in data["tasks"]
     ]
 
@@ -406,6 +418,7 @@ def problem_to_dict(problem: ProblemInstance, include_ground_truth: bool = True)
             "oper_seq": t.oper_seq,
             "batch_id": t.batch_id,
             "plan_qty": t.plan_qty,
+            "wip_qty": t.wip_qty,
             "init_wip": t.init_wip,
         }
         for t in problem.tasks
