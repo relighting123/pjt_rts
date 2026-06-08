@@ -1,13 +1,8 @@
 #!/usr/bin/env python3
 """Step 2: fetch_rows → rows_to_problem → data/inference JSON export.
 
-기본 동작: 성공 시 data/inference/{timekey}.json 저장 (폴더 자동 생성).
-조회만 할 때는 --no-export.
-
 사용:
-  PYTHONPATH=. python3 scripts/test_db_step2_fetch_rows.py --facid ICPRB
-  PYTHONPATH=. python3 scripts/test_db_step2_fetch_rows.py --timekey 2026052922500000 --facid ICPRB
-  PYTHONPATH=. python3 scripts/test_db_step2_fetch_rows.py --no-export --facid ICPRB
+  PYTHONPATH=. python3 scripts/test_db_step2_fetch_rows.py --facid ICPRB --batchid B1
 """
 from __future__ import annotations
 
@@ -25,13 +20,10 @@ def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Step 2: fetch_rows DB 읽기 테스트")
     p.add_argument("--timekey", help="RULE_TIMEKEY (미지정 시 MAX)")
     p.add_argument("--facid", help="facid 필수 (.env DEFAULT_FACID 가능)")
-    p.add_argument("--batchid", help="BATCH_ID 부분 일치 (LIKE %값%)")
-    p.add_argument("--horizon", type=int, default=12, help="horizon_hours (기본 12)")
-    p.add_argument(
-        "--no-export", action="store_true",
-        help="JSON 저장 생략 (기본: data/inference/{timekey}[_facid].json 저장)",
-    )
-    p.add_argument("--output", help="출력 경로 (미지정 시 data/inference/{timekey}[_facid].json)")
+    p.add_argument("--batchid", help="batchid 필수 (.env DEFAULT_BATCHID 가능, LIKE %값%)")
+    p.add_argument("--horizon", type=int, default=12)
+    p.add_argument("--no-export", action="store_true")
+    p.add_argument("--output")
     return p.parse_args()
 
 
@@ -52,6 +44,7 @@ def main() -> int:
 
     try:
         fac = config.require_facid(args.facid)
+        bid = config.require_batchid(args.batchid)
     except ValueError as exc:
         print(f"FAIL : {exc}")
         return 1
@@ -63,20 +56,19 @@ def main() -> int:
         else:
             print(f"timekey: {tk}")
         print(f"facid: {fac}")
-        if args.batchid:
-            print(f"batchid LIKE %{args.batchid}%")
+        print(f"batchid LIKE %{bid}%")
     except Exception as exc:
         print(f"FAIL : timekey 확인 실패 — {exc}")
         return 1
 
     try:
-        rows = fetch_rows(tk, facid=fac, batchid=args.batchid)
+        rows = fetch_rows(tk, facid=fac, batchid=bid)
     except Exception as exc:
         print(f"FAIL : fetch_rows 실패 — {exc}")
         return 1
 
     if not rows:
-        print(f"FAIL : {tk} / facid={fac} 에 해당하는 행 없음")
+        print(f"FAIL : {tk} / facid={fac} / batchid LIKE %{bid}% 행 없음")
         return 1
 
     print(f"OK   : fetch_rows — {len(rows)}행")
@@ -87,7 +79,7 @@ def main() -> int:
 
     try:
         problem = rows_to_problem(
-            rows, args.horizon, rule_timekey=tk, facid=fac, batchid=args.batchid,
+            rows, args.horizon, rule_timekey=tk, facid=fac, batchid=bid,
         )
     except Exception as exc:
         print(f"FAIL : rows_to_problem 실패 — {exc}")
@@ -106,7 +98,7 @@ def main() -> int:
         try:
             path = export_from_rows(
                 rows, out, horizon_hours=args.horizon, rule_timekey=tk,
-                facid=fac, batchid=args.batchid,
+                facid=fac, batchid=bid,
             )
             print(f"OK   : JSON 저장 → {path}")
             print(f"       inference 폴더: {path.parent}")

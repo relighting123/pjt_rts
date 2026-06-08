@@ -40,6 +40,27 @@ def require_facid(facid: str | None = None) -> str:
     return fac
 
 
+# DB SELECT 시 batchid 필수 (--batchid 또는 .env DEFAULT_BATCHID, LIKE %값%)
+DEFAULT_BATCHID = os.getenv("DEFAULT_BATCHID") or None
+
+
+def resolve_batchid(batchid: str | None = None) -> str | None:
+    """CLI --batchid > 인자 batchid > .env DEFAULT_BATCHID."""
+    if batchid:
+        return batchid
+    return DEFAULT_BATCHID
+
+
+def require_batchid(batchid: str | None = None) -> str:
+    """DB 조회용 batchid. 미지정 시 ValueError."""
+    bid = resolve_batchid(batchid)
+    if not bid:
+        raise ValueError(
+            "batchid 필수입니다. --batchid 지정 또는 .env에 DEFAULT_BATCHID 설정"
+        )
+    return bid
+
+
 def replace_file(path: str | Path) -> Path:
     """동일 경로 파일이 있으면 삭제 후 새로 쓸 수 있게 한다."""
     p = Path(path)

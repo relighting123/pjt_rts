@@ -44,10 +44,11 @@ def export_input_json(
     from db.adapter import resolve_timekey
 
     fac = config.require_facid(facid)
+    bid = config.require_batchid(batchid)
     rk = resolve_timekey(rule_timekey, facid=fac)
     out = output_path or input_json_path(rk, fac)
     path = export_from_db(
-        rk, output_path=out, horizon_hours=horizon_hours, facid=fac, batchid=batchid,
+        rk, output_path=out, horizon_hours=horizon_hours, facid=fac, batchid=bid,
     )
     return rk, fac, path
 
@@ -66,6 +67,7 @@ def export_train_snapshots(
     from db.export import export_from_db
 
     fac = config.require_facid(facid)
+    bid = config.require_batchid(batchid)
     out_dir = Path(output_dir) if output_dir else config.TRAIN_DATA_DIR
     out_dir.mkdir(parents=True, exist_ok=True)
     paths: list[Path] = []
@@ -73,7 +75,7 @@ def export_train_snapshots(
         stem = snapshot_key(rk, fac)
         paths.append(export_from_db(
             rk, output_path=out_dir / f"{stem}.json",
-            horizon_hours=horizon_hours, facid=fac, batchid=batchid,
+            horizon_hours=horizon_hours, facid=fac, batchid=bid,
         ))
     return paths
 
@@ -98,6 +100,7 @@ def run_inference(
 
     rk = str(rule_timekey) if rule_timekey else None
     fac = config.require_facid(facid)
+    bid = config.require_batchid(batchid)
     if input_path is None:
         if skip_input_export:
             if rk is None:
@@ -110,7 +113,7 @@ def run_inference(
                 )
         else:
             rk, fac, inp = export_input_json(
-                rk, horizon_hours, facid=fac, batchid=batchid,
+                rk, horizon_hours, facid=fac, batchid=bid,
             )
     else:
         inp = Path(input_path)
@@ -148,7 +151,7 @@ def run_inference(
     return {
         "rule_timekey": rk,
         "facid": fac,
-        "batchid": batchid,
+        "batchid": bid,
         "input_json": inp,
         "result_json": result_path,
         "plan_achievement": float(rate),
