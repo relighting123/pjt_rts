@@ -69,7 +69,7 @@ def rows_to_problem(rows, horizon_hours: int,
             assign_raw[(ppk, oper_id, eqp_model)] = int(float(val))
         elif gbn == "TOOL_QTY":
             tool_raw[(batch_id, eqp_model)] = int(float(val))
-        elif gbn == "D0_TARGET_QTY":
+        elif gbn == "EXEC_D0_PLAN":
             target_raw[key] = int(float(val))
         elif gbn == "AVAIL_WIP_QTY":
             wip_raw[key] = int(float(val))
