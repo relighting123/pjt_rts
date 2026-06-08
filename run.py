@@ -44,14 +44,13 @@ def _load_named_problems(args) -> list[tuple[str, object]]:
 
     if getattr(args, "timekey", None):
         from db.pipeline import input_json_path, snapshot_key
-        fac = config.require_fac_id(getattr(args, "fac_id", None))
+        fac = config.require_facid(getattr(args, "facid", None))
         key = snapshot_key(str(args.timekey), fac)
         path = input_json_path(str(args.timekey), fac)
         if not path.is_file():
-            hint = f" --fac-id {fac}" if fac else ""
             raise FileNotFoundError(
                 f"{path} 없음. DB export:\n"
-                f"  python run.py export --timekey {args.timekey}{hint}"
+                f"  python run.py export --timekey {args.timekey} --facid {fac}"
             )
         return [(key, load_problem(path))]
 
@@ -74,6 +73,7 @@ def cmd_train(args):
         from db.export import export_train_range
         paths = export_train_range(
             args.from_timekey, args.to_timekey, args.lookback_days, args.horizon,
+            facid=getattr(args, "facid", None),
         )
         print(f"DB → JSON {len(paths)}건 → {config.TRAIN_DATA_DIR}")
         args.use_db = True
@@ -126,7 +126,7 @@ def cmd_infer(args):
 
     out = run_inference(
         args.timekey,
-        fac_id=getattr(args, "fac_id", None),
+        facid=getattr(args, "facid", None),
         horizon_hours=args.horizon,
         skip_input_export=args.skip_export,
         write_db=not args.no_db,
@@ -134,7 +134,7 @@ def cmd_infer(args):
         report_path=Path(args.report) if getattr(args, "report", None) else None,
         html_path=Path(args.html) if getattr(args, "html", None) else None,
     )
-    label = out["rule_timekey"] + (f" [{out['fac_id']}]" if out.get("fac_id") else "")
+    label = out["rule_timekey"] + (f" [{out['facid']}]" if out.get("facid") else "")
     print(f"{label}: 입력 JSON → {out['input_json']}")
     print(f"{label}: 결과 JSON → {out['result_json']}")
     print(f"[동적 운영] 평균 계획달성률 {out['plan_achievement']:.3f}")
@@ -154,6 +154,7 @@ def cmd_export(args):
     if args.train:
         paths = export_train_range(
             args.from_timekey, args.to_timekey, args.lookback_days, args.horizon,
+            facid=getattr(args, "facid", None),
         )
         print(f"학습 JSON {len(paths)}건 → {config.TRAIN_DATA_DIR}")
         return
@@ -161,12 +162,11 @@ def cmd_export(args):
         from db.adapter import resolve_timekey
         args.timekey = resolve_timekey(None)
         print(f"--timekey 미지정 → MAX(RULE_TIMEKEY) = {args.timekey}")
-    fac = config.require_fac_id(getattr(args, "fac_id", None))
+    fac = config.require_facid(getattr(args, "facid", None))
     path = export_from_db(
-        args.timekey, output_path=args.output, horizon_hours=args.horizon, fac_id=fac,
+        args.timekey, output_path=args.output, horizon_hours=args.horizon, facid=fac,
     )
-    if fac:
-        print(f"FAC_ID={fac}")
+    print(f"facid={fac}")
     print(f"input JSON 저장 → {path}")
 
 
@@ -189,7 +189,7 @@ def build_parser():
     pi.add_argument("--dataset")
     pi.add_argument("--benchmark-dataset", dest="benchmark_dataset")
     pi.add_argument("--timekey", help="미지정 시 MAX(RULE_TIMEKEY)")
-    pi.add_argument("--fac-id", dest="fac_id", help="FAC_ID 필수 (.env DEFAULT_FAC_ID 가능)")
+    pi.add_argument("--facid", help="facid 필수 (.env DEFAULT_FACID 가능)")
     pi.add_argument("--horizon", type=int, default=12)
     pi.add_argument("--skip-export", action="store_true", help="기존 input JSON 사용")
     pi.add_argument("--no-db", action="store_true", help="결과 DB write 생략")
@@ -205,7 +205,8 @@ def build_parser():
 
     px = sub.add_parser("export", help="DB → JSON")
     px.add_argument("--timekey", help="추론 input (미지정=MAX)")
-    px.add_argument("--fac-id", dest="fac_id", help="FAC_ID 필수 (.env DEFAULT_FAC_ID 가능)")
+    px.add_argument("--facid", help="facid 필수 (.env DEFAULT_FACID 가능)")
+    pt.add_argument("--facid", help="facid 필수 (.env DEFAULT_FACID 가능)")
     px.add_argument("--train", action="store_true", help="학습 구간 → data/train/{RULE_TIMEKEY}.json")
     px.add_argument("--from-timekey", dest="from_timekey")
     px.add_argument("--to-timekey", dest="to_timekey")

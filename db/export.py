@@ -16,15 +16,15 @@ def export_from_rows(
     horizon_hours: int = 12,
     rule_timekey: str | None = None,
     switch_time_hours: int | None = None,
-    fac_id: str | None = None,
+    facid: str | None = None,
 ) -> Path:
     """DB long-format 행 → inference JSON."""
     from db.adapter import rows_to_problem
 
     sw = switch_time_hours if switch_time_hours is not None else config.DEFAULT_SWITCH_TIME_HOURS
-    fac = config.resolve_fac_id(fac_id)
+    fac = config.resolve_facid(facid)
     problem = rows_to_problem(
-        rows, horizon_hours, switch_time_hours=sw, rule_timekey=rule_timekey, fac_id=fac,
+        rows, horizon_hours, switch_time_hours=sw, rule_timekey=rule_timekey, facid=fac,
     )
     return save_problem(problem, output_path, include_ground_truth=False)
 
@@ -33,14 +33,14 @@ def export_from_db(
     rule_timekey: str,
     output_path: str | Path | None = None,
     horizon_hours: int = 12,
-    fac_id: str | None = None,
+    facid: str | None = None,
 ) -> Path:
     """Oracle RTS_LINEDSDB_INF → data/inference JSON."""
     from db.adapter import fetch_problem
     from db.pipeline import input_json_path
 
-    fac = config.require_fac_id(fac_id)
-    problem = fetch_problem(rule_timekey=rule_timekey, horizon_hours=horizon_hours, fac_id=fac)
+    fac = config.require_facid(facid)
+    problem = fetch_problem(rule_timekey=rule_timekey, horizon_hours=horizon_hours, facid=fac)
     out = Path(output_path) if output_path else input_json_path(rule_timekey, fac)
     return save_problem(problem, out, include_ground_truth=False)
 
@@ -51,12 +51,13 @@ def export_train_range(
     lookback_days: int | None = None,
     horizon_hours: int = 12,
     output_dir: Path | None = None,
+    facid: str | None = None,
 ) -> list[Path]:
     """학습 구간 DB 스냅샷 → data/train/{RULE_TIMEKEY}.json."""
     from db.pipeline import export_train_snapshots
 
     return export_train_snapshots(
-        from_timekey, to_timekey, lookback_days, horizon_hours, output_dir,
+        from_timekey, to_timekey, lookback_days, horizon_hours, output_dir, facid,
     )
 
 
@@ -73,5 +74,5 @@ def export_from_sample_rows(output_path: str | Path | None = None) -> Path:
         out,
         horizon_hours=int(meta.get("horizon_hours", 12)),
         rule_timekey=meta.get("rule_timekey"),
-        fac_id=meta.get("fac_id"),
+        facid=meta.get("facid") or meta.get("fac_id"),
     )

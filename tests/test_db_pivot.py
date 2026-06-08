@@ -1,4 +1,4 @@
-from db import rows_to_problem, filter_rows_by_fac_id
+from db import rows_to_problem, filter_rows_by_facid
 
 
 def test_rows_to_problem_pivots_gbn_cd():
@@ -18,7 +18,7 @@ def test_rows_to_problem_pivots_gbn_cd():
     assert p.tool_qty[("B1", "M1")] == 1
 
 
-def test_rows_to_problem_filters_fac_id():
+def test_rows_to_problem_filters_facid():
     rows = [
         ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "UPH", "100"),
         ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "D0_TARGET_QTY", "300"),
@@ -26,20 +26,20 @@ def test_rows_to_problem_filters_fac_id():
         ("20260529", "OTHER", "B2", "P2", "OP20", 1, "M2", "UPH", "200"),
         ("20260529", "OTHER", "B2", "P2", "OP20", 1, "M2", "D0_TARGET_QTY", "500"),
     ]
-    p = rows_to_problem(rows, horizon_hours=3, fac_id="ICPRB")
-    assert p.fac_id == "ICPRB"
+    p = rows_to_problem(rows, horizon_hours=3, facid="ICPRB")
+    assert p.facid == "ICPRB"
     assert len(p.tasks) == 1
     assert p.tasks[0].plan_prod_key == "P1"
 
     all_rows = rows_to_problem(rows, horizon_hours=3)
     assert len(all_rows.tasks) == 2
-    assert all_rows.fac_id is None
+    assert all_rows.facid is None
 
 
-def test_filter_rows_by_fac_id_raises_when_empty():
+def test_filter_rows_by_facid_raises_when_empty():
     rows = [("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "UPH", "100")]
     try:
-        filter_rows_by_fac_id(rows, "UNKNOWN")
+        filter_rows_by_facid(rows, "UNKNOWN")
         assert False, "expected ValueError"
     except ValueError as exc:
         assert "UNKNOWN" in str(exc)

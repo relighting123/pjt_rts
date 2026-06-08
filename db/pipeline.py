@@ -15,37 +15,37 @@ from report_output import (
 )
 
 
-def snapshot_key(rule_timekey: str, fac_id: str | None = None) -> str:
-    """JSON 파일 stem: {timekey} 또는 {timekey}_{fac_id}."""
+def snapshot_key(rule_timekey: str, facid: str | None = None) -> str:
+    """JSON 파일 stem: {timekey} 또는 {timekey}_{facid}."""
     rk = str(rule_timekey)
-    if fac_id:
-        return f"{rk}_{fac_id}"
+    if facid:
+        return f"{rk}_{facid}"
     return rk
 
 
-def input_json_path(rule_timekey: str, fac_id: str | None = None) -> Path:
-    return config.INFERENCE_DATA_DIR / f"{snapshot_key(rule_timekey, fac_id)}.json"
+def input_json_path(rule_timekey: str, facid: str | None = None) -> Path:
+    return config.INFERENCE_DATA_DIR / f"{snapshot_key(rule_timekey, facid)}.json"
 
 
-def result_json_path(rule_timekey: str, fac_id: str | None = None) -> Path:
-    return config.INFERENCE_DATA_DIR / f"{snapshot_key(rule_timekey, fac_id)}_result.json"
+def result_json_path(rule_timekey: str, facid: str | None = None) -> Path:
+    return config.INFERENCE_DATA_DIR / f"{snapshot_key(rule_timekey, facid)}_result.json"
 
 
 def export_input_json(
     rule_timekey: str | None = None,
     horizon_hours: int = 12,
     output_path: Path | None = None,
-    fac_id: str | None = None,
-) -> tuple[str, str | None, Path]:
-    """DB → data/inference JSON. (timekey, fac_id, path) 반환."""
+    facid: str | None = None,
+) -> tuple[str, str, Path]:
+    """DB → data/inference JSON. (timekey, facid, path) 반환."""
     from db.export import export_from_db
 
     from db.adapter import resolve_timekey
 
     rk = resolve_timekey(rule_timekey)
-    fac = config.require_fac_id(fac_id)
+    fac = config.require_facid(facid)
     out = output_path or input_json_path(rk, fac)
-    path = export_from_db(rk, output_path=out, horizon_hours=horizon_hours, fac_id=fac)
+    path = export_from_db(rk, output_path=out, horizon_hours=horizon_hours, facid=fac)
     return rk, fac, path
 
 
@@ -55,24 +55,29 @@ def export_train_snapshots(
     lookback_days: int | None = None,
     horizon_hours: int = 12,
     output_dir: Path | None = None,
+    facid: str | None = None,
 ) -> list[Path]:
     """DB 구간(또는 최근 N일) → data/train/{RULE_TIMEKEY}.json."""
     from db.adapter import list_timekeys_in_range
     from db.export import export_from_db
 
+    fac = config.require_facid(facid)
     out_dir = Path(output_dir) if output_dir else config.TRAIN_DATA_DIR
     out_dir.mkdir(parents=True, exist_ok=True)
     paths: list[Path] = []
     for rk in list_timekeys_in_range(from_timekey, to_timekey, lookback_days):
-        paths.append(export_from_db(rk, output_path=out_dir / f"{rk}.json",
-                                    horizon_hours=horizon_hours))
+        stem = snapshot_key(rk, fac)
+        paths.append(export_from_db(
+            rk, output_path=out_dir / f"{stem}.json",
+            horizon_hours=horizon_hours, facid=fac,
+        ))
     return paths
 
 
 def run_inference(
     rule_timekey: str | None = None,
     *,
-    fac_id: str | None = None,
+    facid: str | None = None,
     horizon_hours: int = 12,
     skip_input_export: bool = False,
     input_path: Path | None = None,
@@ -87,25 +92,24 @@ def run_inference(
     from pathlib import Path as P
 
     rk = str(rule_timekey) if rule_timekey else None
-    fac = config.require_fac_id(fac_id)
+    fac = config.require_facid(facid)
     if input_path is None:
         if skip_input_export:
             if rk is None:
                 raise ValueError("skip_input_export 시 rule_timekey 필요")
             inp = input_json_path(rk, fac)
             if not inp.is_file():
-                hint = f" --fac-id {fac}" if fac else ""
                 raise FileNotFoundError(
                     f"입력 JSON 없음: {inp}\n"
-                    f"  python run.py export --timekey {rk}{hint}"
+                    f"  python run.py export --timekey {rk} --facid {fac}"
                 )
         else:
-            rk, fac, inp = export_input_json(rk, horizon_hours, fac_id=fac)
+            rk, fac, inp = export_input_json(rk, horizon_hours, facid=fac)
     else:
         inp = Path(input_path)
         problem_probe = load_problem(inp)
         rk = problem_probe.rule_timekey
-        fac = problem_probe.fac_id or fac
+        fac = problem_probe.facid or fac
 
     problem = load_problem(inp)
     model = None
@@ -136,7 +140,7 @@ def run_inference(
     rate = eval_result.get("rl", eval_result["heuristic"])
     return {
         "rule_timekey": rk,
-        "fac_id": fac,
+        "facid": fac,
         "input_json": inp,
         "result_json": result_path,
         "plan_achievement": float(rate),
