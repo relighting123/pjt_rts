@@ -56,7 +56,7 @@ def main() -> int:
         return 1
 
     try:
-        tk = resolve_timekey(args.timekey)
+        tk = resolve_timekey(args.timekey, facid=fac)
         if args.timekey is None:
             print(f"timekey: MAX(RULE_TIMEKEY) = {tk}")
         else:

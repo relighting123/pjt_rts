@@ -29,6 +29,17 @@ def test_fetch_rows_sql_requires_facid():
     assert ":fac_id" not in sql
 
 
+def test_max_timekey_sql_requires_facid():
+    sql = load_sql("select", "max_timekey", table="RTS_LINEDSDB_INF")
+    assert ":facid" in sql
+    assert "FAC_ID = :facid" in sql
+
+
+def test_list_timekeys_sql_requires_facid():
+    sql = load_sql("select", "list_timekeys_in_range", table="RTS_LINEDSDB_INF")
+    assert ":facid" in sql
+
+
 def test_insert_assign_sql_formats_table():
     sql = load_sql("write", "insert_assign", table="RTS_ASSIGN_INF")
     assert "INSERT INTO RTS_ASSIGN_INF" in sql

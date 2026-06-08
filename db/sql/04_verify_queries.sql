@@ -2,8 +2,10 @@
 -- RTS 운영 확인 쿼리
 -- =============================================================================
 
--- 1) 최신 RULE_TIMEKEY (infer 기본값)
-SELECT MAX(RULE_TIMEKEY) AS MAX_RULE_TIMEKEY FROM RTS_LINEDSDB_INF;
+-- 1) 최신 RULE_TIMEKEY (facid별 — infer 기본값)
+SELECT MAX(RULE_TIMEKEY) AS MAX_RULE_TIMEKEY
+  FROM RTS_LINEDSDB_INF
+ WHERE FAC_ID = :facid;
 
 -- 2) 학습 구간 후보 (최근 30일 — 앱에서 TRAIN_LOOKBACK_DAYS=30)
 SELECT DISTINCT RULE_TIMEKEY

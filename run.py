@@ -158,11 +158,11 @@ def cmd_export(args):
         )
         print(f"학습 JSON {len(paths)}건 → {config.TRAIN_DATA_DIR}")
         return
+    fac = config.require_facid(getattr(args, "facid", None))
     if not args.timekey:
         from db.adapter import resolve_timekey
-        args.timekey = resolve_timekey(None)
-        print(f"--timekey 미지정 → MAX(RULE_TIMEKEY) = {args.timekey}")
-    fac = config.require_facid(getattr(args, "facid", None))
+        args.timekey = resolve_timekey(None, facid=fac)
+        print(f"--timekey 미지정 → MAX(RULE_TIMEKEY) [{fac}] = {args.timekey}")
     path = export_from_db(
         args.timekey, output_path=args.output, horizon_hours=args.horizon, facid=fac,
     )

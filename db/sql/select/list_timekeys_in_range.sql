@@ -1,6 +1,7 @@
--- 학습용 RULE_TIMEKEY 구간 목록
+-- 학습용 RULE_TIMEKEY 구간 목록 (facid별)
 SELECT DISTINCT RULE_TIMEKEY
   FROM {table}
  WHERE RULE_TIMEKEY >= :f
    AND RULE_TIMEKEY <= :t
+   AND FAC_ID = :facid
  ORDER BY RULE_TIMEKEY
