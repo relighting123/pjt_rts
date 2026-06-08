@@ -26,6 +26,7 @@ from db.pipeline import (
     input_json_path,
     result_json_path,
     snapshot_key,
+    clear_inference_dir,
     load_train_problems_from_export,
 )
 
@@ -57,5 +58,6 @@ __all__ = [
     "input_json_path",
     "result_json_path",
     "snapshot_key",
+    "clear_inference_dir",
     "load_train_problems_from_export",
 ]

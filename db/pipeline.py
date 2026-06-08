@@ -31,6 +31,15 @@ def result_json_path(rule_timekey: str, facid: str | None = None) -> Path:
     return config.INFERENCE_DATA_DIR / f"{snapshot_key(rule_timekey, facid)}_result.json"
 
 
+def clear_inference_dir() -> None:
+    """data/inference/ 기존 파일 제거 (.gitkeep 유지)."""
+    d = config.INFERENCE_DATA_DIR
+    d.mkdir(parents=True, exist_ok=True)
+    for path in d.iterdir():
+        if path.is_file() and path.name != ".gitkeep":
+            path.unlink()
+
+
 def export_input_json(
     rule_timekey: str | None = None,
     horizon_hours: int = 12,
@@ -101,6 +110,8 @@ def run_inference(
     rk = str(rule_timekey) if rule_timekey else None
     fac = config.require_facid(facid)
     bid = config.require_batchid(batchid)
+    if input_path is None and not skip_input_export:
+        clear_inference_dir()
     if input_path is None:
         if skip_input_export:
             if rk is None:
