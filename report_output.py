@@ -239,7 +239,7 @@ def build_guide_rows(
             "PLAN_PROD_KEY": ppk,
             "OPER_ID": oper,
             "EQP_MODEL_CD": row["model"],
-            "TARGET_EQP_CNT": round(row["target_count"], 4),
+            "TARGET_EQP_CNT": int(row["target_count"]),
             "GUIDE_SOURCE": guide_source,
             "CRT_USER_ID": sys_id,
         })
@@ -599,7 +599,7 @@ def guide_allocation_rows(problem, guide_allocation: dict) -> list[dict]:
         rows.append({
             "task": f"{t.plan_prod_key}/{t.oper_id}",
             "model": model,
-            "target_count": float(cnt),
+            "target_count": int(cnt),
         })
     return rows
 
@@ -612,7 +612,7 @@ def render_guide_table(problem, guide_allocation: dict) -> str:
     lines = ["**가이드 수량 (재공 무한 기준 목표 배치)**", "",
              "| 공정(PLAN_PROD_KEY/OPER) | 모델 | 목표 대수 |", "|---|---|---|"]
     for row in guide_allocation_rows(problem, guide_allocation):
-        lines.append(f"| {row['task']} | {row['model']} | {row['target_count']:.1f} |")
+        lines.append(f"| {row['task']} | {row['model']} | {row['target_count']} |")
     return "\n".join(lines)
 
 

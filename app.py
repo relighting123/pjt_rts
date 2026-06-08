@@ -301,7 +301,7 @@ def render_guide_section(bm_name: str, problem, result: dict) -> None:
                 "model": "모델",
                 "target_count": "목표 대수",
             })
-            df_guide["목표 대수"] = df_guide["목표 대수"].map(lambda x: f"{x:.1f}")
+            df_guide["목표 대수"] = df_guide["목표 대수"].map(lambda x: f"{int(x)}")
             st.dataframe(
                 df_guide,
                 use_container_width=True,
@@ -310,7 +310,7 @@ def render_guide_section(bm_name: str, problem, result: dict) -> None:
             )
         else:
             for row in rows:
-                st.write(f"{row['task']} · {row['model']}: **{row['target_count']:.1f}**대")
+                st.write(f"{row['task']} · {row['model']}: **{int(row['target_count'])}**대")
 
     with col_chart:
         if not _HAS_PLOTLY:

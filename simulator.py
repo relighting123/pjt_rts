@@ -15,6 +15,17 @@ class Move(NamedTuple):
     to_index: int
 
 
+def largest_remainder(fracs: list[float], total: int) -> list[int]:
+    """비례 실수 배분 → 정수. 합계 = total (최대잉여법). 장비 1대 단위 이동과 맞춤."""
+    floors = [int(f) for f in fracs]
+    remainders = [(fracs[i] - floors[i], i) for i in range(len(fracs))]
+    deficit = total - sum(floors)
+    remainders.sort(reverse=True)
+    for k in range(max(0, deficit)):
+        floors[remainders[k][1]] += 1
+    return floors
+
+
 @dataclass(frozen=True)
 class Task:
     plan_prod_key: str
@@ -79,20 +90,20 @@ class ProblemInstance:
 
     def complete_guide_allocation(
         self, guide: dict[tuple[str, int], float | int],
-    ) -> dict[tuple[str, int], float]:
-        """UPH 가능한 모든 (model, task) 슬롯을 포함. 미배분은 0."""
-        result: dict[tuple[str, int], float] = {}
+    ) -> dict[tuple[str, int], int]:
+        """UPH 가능한 모든 (model, task) 슬롯을 포함. 미배분은 0 (정수 대수)."""
+        result: dict[tuple[str, int], int] = {}
         for model in self.models():
             for ti in range(len(self.tasks)):
                 if self.uph_of(model, ti) is not None:
-                    result[(model, ti)] = float(guide.get((model, ti), 0))
+                    result[(model, ti)] = int(guide.get((model, ti), 0))
         return result
 
     def plan_target_allocation(self) -> dict[tuple[str, int], float]:
-        """계획달성율 극대화를 위한 공정별 목표 장비 수(실수).
+        """계획달성율 극대화를 위한 공정별 목표 장비 수(실수 · 내부용).
 
         weight[m,t] = plan_qty[t] / UPH[m,t]  →  eqp_qty[m]에 비례 배분.
-        전체 장비를 필요 기계-시간에 비례하여 나눈다.
+        표시/가이드용은 plan_target_allocation_int() 사용.
         """
         result: dict[tuple[str, int], float] = {}
         for model in self.models():
@@ -107,6 +118,20 @@ class ProblemInstance:
             eqp = float(self.eqp_qty[model])
             for ti, w in weights.items():
                 result[(model, ti)] = w / total_w * eqp
+        return result
+
+    def plan_target_allocation_int(self) -> dict[tuple[str, int], int]:
+        """해석식 가이드 — 모델별 합계가 eqp_qty와 일치하는 정수 배분."""
+        raw = self.plan_target_allocation()
+        result: dict[tuple[str, int], int] = {}
+        for model in self.models():
+            tasks = [ti for ti in range(len(self.tasks)) if self.uph_of(model, ti) is not None]
+            if not tasks:
+                continue
+            fracs = [raw.get((model, ti), 0.0) for ti in tasks]
+            counts = largest_remainder(fracs, self.eqp_qty[model])
+            for ti, cnt in zip(tasks, counts):
+                result[(model, ti)] = cnt
         return result
 
     def models(self) -> list[str]:

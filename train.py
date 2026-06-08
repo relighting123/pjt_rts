@@ -113,9 +113,9 @@ def _get_target_allocation(problem: ProblemInstance) -> dict:
             obs, _ = alloc_env.reset()
             action, _ = alloc_model.predict(obs, deterministic=True)
             alloc_env.step(action)
-            return problem.complete_guide_allocation(alloc_env.get_float_target())
-    # fallback: 비례공식
-    return problem.complete_guide_allocation(problem.plan_target_allocation())
+            return problem.complete_guide_allocation(alloc_env.get_allocation())
+    # fallback: 비례공식 → 정수 배분(최대잉여법)
+    return problem.complete_guide_allocation(problem.plan_target_allocation_int())
 
 
 def make_env(problem: ProblemInstance) -> ActionMasker:
