@@ -66,6 +66,37 @@ def test_task_and_equipment_batch_id_mismatch_breaks_tool_lookup():
     assert p.tool_qty.get(("9C", "M1"), 0) == 0
 
 
+def test_rows_to_problem_accepts_dict_rows():
+    rows = [
+        {
+            "rule_timekey": "20260529",
+            "fac_id": "ICPRB",
+            "batch_id": "B1",
+            "plan_prod_key": "P1",
+            "oper_id": "OP10",
+            "oper_seq": 1,
+            "eqp_model": "M1",
+            "gbn_cd": "EQUIP_UPH",
+            "attr_val": "100",
+        },
+        {
+            "RULE_TIMEKEY": "20260529",
+            "FAC_ID": "ICPRB",
+            "BATCH_ID": "B1",
+            "PLAN_PROD_KEY": "P1",
+            "OPER_ID": "OP10",
+            "OPER_SEQ": 1,
+            "EQP_MODEL_CD": "M1",
+            "GBN_CD": "EXEC_D0_PLAN",
+            "ATTR_VAL": "300",
+        },
+    ]
+    p = rows_to_problem(rows, horizon_hours=3)
+    assert len(p.tasks) == 1
+    assert p.tasks[0].plan_qty == 300
+    assert p.uph_of("M1", 0) == 100.0
+
+
 def test_filter_rows_by_facid_raises_when_empty():
     rows = [("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "EQUIP_UPH", "100")]
     try:
