@@ -4,7 +4,7 @@ from db import adapter
 
 
 def test_fetch_rows_logs_sql(monkeypatch, capsys):
-    rows = [("tk", "ICPRB", "B1", "P1", "OP10", 1, "M1", "UPH", "100")]
+    rows = [("tk", "ICPRB", "B1", "P1", "OP10", 1, "M1", "EQUIP_UPH", "100")]
     conn = MagicMock()
     cur = MagicMock()
     conn.cursor.return_value = cur

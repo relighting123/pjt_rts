@@ -4,10 +4,10 @@ from db import rows_to_problem, filter_rows_by_facid, filter_rows_by_batchid, ba
 def test_rows_to_problem_pivots_gbn_cd():
     # RTS_LINEDSDB_INF 한 줄 = (rule_timekey, fac_id, batch_id, ppk, oper_id, oper_seq, eqp_model, gbn_cd, attr_val)
     rows = [
-        ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "UPH", "100"),
+        ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "EQUIP_UPH", "100"),
         ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "ASSIGN_EQUIP_CNT", "1"),
         ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "D0_TARGET_QTY", "300"),
-        ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "WIP_QTY", "1000"),
+        ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "AVAIL_WIP_QTY", "1000"),
         ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "TOOL_QTY", "1"),
     ]
     p = rows_to_problem(rows, horizon_hours=3)
@@ -20,10 +20,10 @@ def test_rows_to_problem_pivots_gbn_cd():
 
 def test_rows_to_problem_filters_facid():
     rows = [
-        ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "UPH", "100"),
+        ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "EQUIP_UPH", "100"),
         ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "D0_TARGET_QTY", "300"),
-        ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "WIP_QTY", "1000"),
-        ("20260529", "OTHER", "B2", "P2", "OP20", 1, "M2", "UPH", "200"),
+        ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "AVAIL_WIP_QTY", "1000"),
+        ("20260529", "OTHER", "B2", "P2", "OP20", 1, "M2", "EQUIP_UPH", "200"),
         ("20260529", "OTHER", "B2", "P2", "OP20", 1, "M2", "D0_TARGET_QTY", "500"),
     ]
     p = rows_to_problem(rows, horizon_hours=3, facid="ICPRB")
@@ -38,9 +38,9 @@ def test_rows_to_problem_filters_facid():
 
 def test_rows_to_problem_filters_batchid():
     rows = [
-        ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "UPH", "100"),
+        ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "EQUIP_UPH", "100"),
         ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "D0_TARGET_QTY", "300"),
-        ("20260529", "ICPRB", "B2", "P2", "OP20", 1, "M2", "UPH", "200"),
+        ("20260529", "ICPRB", "B2", "P2", "OP20", 1, "M2", "EQUIP_UPH", "200"),
     ]
     p = rows_to_problem(rows, horizon_hours=3, batchid="B1")
     assert len(p.tasks) == 1
@@ -52,7 +52,7 @@ def test_batch_like_pattern_wraps_percent():
 
 
 def test_filter_rows_by_facid_raises_when_empty():
-    rows = [("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "UPH", "100")]
+    rows = [("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "EQUIP_UPH", "100")]
     try:
         filter_rows_by_facid(rows, "UNKNOWN")
         assert False, "expected ValueError"

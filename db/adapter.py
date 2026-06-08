@@ -63,7 +63,7 @@ def rows_to_problem(rows, horizon_hours: int,
         task_meta.setdefault(key, {"batch_id": batch_id, "oper_seq": int(oper_seq)})
         if eqp_model:
             eqp_models.add(eqp_model)
-        if gbn == "UPH" and float(val) > 0:
+        if gbn == "EQUIP_UPH" and float(val) > 0:
             uph_raw[(ppk, oper_id, eqp_model)] = float(val)
         elif gbn == "ASSIGN_EQUIP_CNT":
             assign_raw[(ppk, oper_id, eqp_model)] = int(float(val))
@@ -71,7 +71,7 @@ def rows_to_problem(rows, horizon_hours: int,
             tool_raw[(batch_id, eqp_model)] = int(float(val))
         elif gbn == "D0_TARGET_QTY":
             target_raw[key] = int(float(val))
-        elif gbn == "WIP_QTY":
+        elif gbn == "AVAIL_WIP_QTY":
             wip_raw[key] = int(float(val))
 
     keys = list(task_meta)
