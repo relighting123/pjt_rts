@@ -17,6 +17,7 @@ def export_from_rows(
     rule_timekey: str | None = None,
     switch_time_hours: int | None = None,
     facid: str | None = None,
+    batchid: str | None = None,
 ) -> Path:
     """DB long-format 행 → inference JSON."""
     from db.adapter import rows_to_problem
@@ -24,7 +25,8 @@ def export_from_rows(
     sw = switch_time_hours if switch_time_hours is not None else config.DEFAULT_SWITCH_TIME_HOURS
     fac = config.resolve_facid(facid)
     problem = rows_to_problem(
-        rows, horizon_hours, switch_time_hours=sw, rule_timekey=rule_timekey, facid=fac,
+        rows, horizon_hours, switch_time_hours=sw, rule_timekey=rule_timekey,
+        facid=fac, batchid=batchid,
     )
     return save_problem(problem, output_path, include_ground_truth=False)
 
@@ -34,13 +36,16 @@ def export_from_db(
     output_path: str | Path | None = None,
     horizon_hours: int = 12,
     facid: str | None = None,
+    batchid: str | None = None,
 ) -> Path:
     """Oracle RTS_LINEDSDB_INF → data/inference JSON."""
     from db.adapter import fetch_problem
     from db.pipeline import input_json_path
 
     fac = config.require_facid(facid)
-    problem = fetch_problem(rule_timekey=rule_timekey, horizon_hours=horizon_hours, facid=fac)
+    problem = fetch_problem(
+        rule_timekey=rule_timekey, horizon_hours=horizon_hours, facid=fac, batchid=batchid,
+    )
     out = Path(output_path) if output_path else input_json_path(rule_timekey, fac)
     return save_problem(problem, out, include_ground_truth=False)
 
@@ -52,12 +57,13 @@ def export_train_range(
     horizon_hours: int = 12,
     output_dir: Path | None = None,
     facid: str | None = None,
+    batchid: str | None = None,
 ) -> list[Path]:
     """학습 구간 DB 스냅샷 → data/train/{RULE_TIMEKEY}.json."""
     from db.pipeline import export_train_snapshots
 
     return export_train_snapshots(
-        from_timekey, to_timekey, lookback_days, horizon_hours, output_dir, facid,
+        from_timekey, to_timekey, lookback_days, horizon_hours, output_dir, facid, batchid,
     )
 
 

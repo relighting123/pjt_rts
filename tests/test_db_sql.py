@@ -8,6 +8,7 @@ import config
 def test_sql_files_exist():
     expected = [
         ("select", "fetch_rows"),
+        ("select", "fetch_rows_batch"),
         ("select", "max_timekey"),
         ("select", "list_timekeys_in_range"),
         ("write", "delete_by_timekey"),
@@ -27,6 +28,12 @@ def test_fetch_rows_sql_requires_facid():
     assert ":facid" in sql
     assert "AND FAC_ID = :facid" in sql
     assert ":fac_id" not in sql
+
+
+def test_fetch_rows_batch_sql_like_pattern():
+    sql = load_sql("select", "fetch_rows_batch", table="RTS_LINEDSDB_INF")
+    assert "BATCH_ID LIKE :batch_like" in sql
+    assert ":facid" in sql
 
 
 def test_max_timekey_sql_requires_facid():

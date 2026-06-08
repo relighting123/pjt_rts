@@ -1,4 +1,4 @@
-from db import rows_to_problem, filter_rows_by_facid
+from db import rows_to_problem, filter_rows_by_facid, filter_rows_by_batchid, batch_like_pattern
 
 
 def test_rows_to_problem_pivots_gbn_cd():
@@ -34,6 +34,21 @@ def test_rows_to_problem_filters_facid():
     all_rows = rows_to_problem(rows, horizon_hours=3)
     assert len(all_rows.tasks) == 2
     assert all_rows.facid is None
+
+
+def test_rows_to_problem_filters_batchid():
+    rows = [
+        ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "UPH", "100"),
+        ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "D0_TARGET_QTY", "300"),
+        ("20260529", "ICPRB", "B2", "P2", "OP20", 1, "M2", "UPH", "200"),
+    ]
+    p = rows_to_problem(rows, horizon_hours=3, batchid="B1")
+    assert len(p.tasks) == 1
+    assert p.tasks[0].batch_id == "B1"
+
+
+def test_batch_like_pattern_wraps_percent():
+    assert batch_like_pattern("B1") == "%B1%"
 
 
 def test_filter_rows_by_facid_raises_when_empty():
