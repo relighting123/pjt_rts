@@ -1,9 +1,10 @@
 """시뮬레이션 결과 → 출력 테이블별 행 빌더·HTML/MD 리포트.
 
-출력 Oracle 테이블 (config.py):
-  RTS_PLAN_ACHV_INF/HIS — 시간대별 계획·생산·달성 (task 단위)
-  RTS_ASSIGN_INF/HIS    — 장비 배치·생산 (eqp 단위)
-  RTS_EQPCONVPLAN_INF/HIS — 장비 전환 계획 (batch/tool 전환)
+출력 Oracle 테이블 (config.py) — 상세: db/sql/reference/00_output_tables.md
+  RTS_EQPALLOCATION_INF/HIS — Mode 1 가이드 (공정×모델 목표·현재 장비 대수)
+  RTS_PLAN_ACHV_INF/HIS     — Mode 2 시간대별 계획·생산·달성 (task×hour)
+  RTS_ASSIGN_INF/HIS        — Mode 2 장비 배치·생산 (eqp×hour)
+  RTS_EQPCONVPLAN_INF/HIS   — Mode 2 batch 전환 계획
 """
 from __future__ import annotations
 from datetime import datetime, timedelta
