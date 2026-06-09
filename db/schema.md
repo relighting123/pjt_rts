@@ -1,4 +1,7 @@
-"""DB 스냅샷·추론 결과 테이블 및 JSON 스키마."""
+"""DB 스냅샷·추론 결과 테이블 및 JSON 스키마.
+
+출력 테이블 상세: db/sql/reference/00_output_tables.md
+"""
 
 # ## 입력 JSON (data/inference/{RULE_TIMEKEY}.json)
 #
@@ -14,6 +17,7 @@
 #   "eqp_qty": {"M1": 1},
 #   "init_assign": [{"eqp_model","plan_prod_key","oper_id","count"}],
 #   "tool_qty": [{"batch_id","eqp_model","tool_qty"}],
+#   "facid": "ICPRB"
 # }
 # `conv_groups`는 JSON에 두지 않음 — config.py CONV_GROUPS로 설정.
 # ```
@@ -29,38 +33,27 @@
 #   "eqp_util_rate": 0.75,
 #   "guide": {
 #     "source": "ANALYTIC",
-#     "rows": [
-#       {
-#         "RULE_TIMEKEY": "2026052922500000",
-#         "PLAN_PROD_KEY": "P1",
-#         "OPER_ID": "OP10",
-#         "EQP_MODEL_CD": "M1",
-#         "TARGET_EQP_CNT": 1.0,
-#         "FAC_ID": "ICPRB",
-#         "BATCH_ID": "B1",
-#         "MODE_TYP": "Heuristic",
-#         "CUR_EQP_CNT": 1,
-#         "CRT_USER_ID": config.SYS_ID 값으로 기록
-#       }
-#     ]
+#     "eqpallocation_rows": [...],
+#     "rows": [...]
 #   },
 #   "dynamic": {
 #     "plan_achv_rows": [...],
 #     "assign_rows": [...],
 #     "eqpconvplan_rows": [...]
-#     "conv_rows": [...]  # eqpconvplan_rows alias
 #   }
 # }
 # ```
 #
-# `guide.eqpallocation_rows` → RTS_EQPALLOCATION_INF/HIS (`rows`는 alias)
-# `dynamic.*` → RTS_PLAN_ACHV / RTS_ASSIGN / RTS_EQPCONVPLAN
-# (`eqpconvplan_rows` 권장, `conv_rows`는 하위호환 alias)
+# ## 출력 Oracle 테이블 (infer 시 DELETE + INSERT)
 #
-# ## Oracle DDL — RTS_EQPALLOCATION_INF / RTS_EQPALLOCATION_HIS
+# | JSON 키 | INF / HIS | 설명 |
+# |---------|-----------|------|
+# | guide.eqpallocation_rows | RTS_EQPALLOCATION_* | Mode 1 장비 배분 가이드 |
+# | dynamic.plan_achv_rows | RTS_PLAN_ACHV_* | 시간대별 계획/달성 |
+# | dynamic.assign_rows | RTS_ASSIGN_* | 장비 배치·생산 |
+# | dynamic.eqpconvplan_rows | RTS_EQPCONVPLAN_* | batch 전환 계획 |
 #
-# FAC_ID, BATCH_ID, OPER_ID, MODE_TYP(RL|Heuristic), TARGET_EQP_CNT, CUR_EQP_CNT
-# HIS EVENT_TIMEKEY = TO_CHAR(CRT_TM, 'YYYYMMDDHH24MISS')
+# alias: guide.rows, dynamic.conv_rows, dynamic.allocation_rows
 #
 # ## 학습용 JSON (data/train/{RULE_TIMEKEY}.json)
 #

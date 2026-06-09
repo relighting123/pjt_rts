@@ -10,13 +10,15 @@ _REFERENCE_SQL = Path(__file__).resolve().parent.parent / "db" / "sql" / "refere
 
 
 def test_reference_sql_files_exist():
-    for name in (
-        "01_create_tables",
-        "02_sample_input_data",
-        "03_sample_output_data",
-        "04_verify_queries",
-    ):
-        assert (_REFERENCE_SQL / f"{name}.sql").is_file()
+    expected = [
+        ("00_output_tables", ".md"),
+        ("01_create_tables", ".sql"),
+        ("02_sample_input_data", ".sql"),
+        ("03_sample_output_data", ".sql"),
+        ("04_verify_queries", ".sql"),
+    ]
+    for name, ext in expected:
+        assert (_REFERENCE_SQL / f"{name}{ext}").is_file()
 
 
 def test_sql_files_exist():
