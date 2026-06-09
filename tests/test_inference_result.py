@@ -2,21 +2,22 @@ from simulator import load_problem
 from config import TEST_DATA_DIR
 import test as report
 from report_output import (
-    build_guide_rows,
+    build_eqpallocation_rows,
     build_inference_result_document,
     save_inference_result_document,
     load_inference_result_document,
-    GUIDE_KEYS,
+    EQPALLOCATION_KEYS,
 )
 
 
-def test_build_guide_rows_uses_integer_counts():
+def test_build_eqpallocation_rows_uses_integer_counts():
     p = load_problem(TEST_DATA_DIR / "benchmark_09.json")
     res = report.evaluate_benchmark(p, model=None)
-    rows = build_guide_rows(p, res["guide_allocation"], "ANALYTIC")
+    rows = build_eqpallocation_rows(p, res["guide_allocation"], "ANALYTIC")
     assert len(rows) == len(p.tasks) * len(p.models())
-    assert all(k in rows[0] for k in GUIDE_KEYS)
+    assert all(k in rows[0] for k in EQPALLOCATION_KEYS)
     assert all(isinstance(r["TARGET_EQP_CNT"], int) for r in rows)
+    assert all(isinstance(r["CUR_EQP_CNT"], int) for r in rows)
 
 
 def test_inference_result_document_roundtrip(tmp_path):
@@ -26,7 +27,8 @@ def test_inference_result_document_roundtrip(tmp_path):
     assert doc["schema_version"] == 1
     assert doc["guide"]["rows"]
     assert doc["dynamic"]["plan_achv_rows"]
-    assert "eqpconvplan_rows" in doc["dynamic"]
+    assert "eqpallocation_rows" in doc["guide"]
+    assert doc["guide"]["eqpallocation_rows"] == doc["guide"]["rows"]
     path = save_inference_result_document(doc, tmp_path / "r.json")
     loaded = load_inference_result_document(path)
     assert loaded["rule_timekey"] == p.rule_timekey

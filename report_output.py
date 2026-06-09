@@ -189,27 +189,25 @@ def avg_utilization(hourly_stats: list[dict]) -> float:
     return round(sum(s["util_rate"] for s in hourly_stats) / len(hourly_stats), 4)
 
 
+def build_eqpallocation_rows(
+    problem: ProblemInstance,
+    guide_allocation: dict,
+    guide_source: str = "ANALYTIC",
+    sys_id: str | None = None,
+) -> list[dict]:
+    """RTS_EQPALLOCATION_INF/HIS — 공정×모델 목표·현재 장비 대수 (0 포함)."""
+    from db.eqpallocation import build_eqpallocation_rows as _build
+    return _build(problem, guide_allocation, guide_source, sys_id)
+
+
 def build_guide_rows(
     problem: ProblemInstance,
     guide_allocation: dict,
     guide_source: str = "ANALYTIC",
     sys_id: str | None = None,
 ) -> list[dict]:
-    """RTS_GUIDE_INF/HIS — 공정×모델 목표 장비 대수 (0 포함)."""
-    sys_id = sys_id or config.SYS_ID
-    rows = []
-    for row in guide_allocation_rows(problem, guide_allocation):
-        ppk, oper = row["task"].split("/", 1)
-        rows.append({
-            "RULE_TIMEKEY": problem.rule_timekey,
-            "PLAN_PROD_KEY": ppk,
-            "OPER_ID": oper,
-            "EQP_MODEL_CD": row["model"],
-            "TARGET_EQP_CNT": int(row["target_count"]),
-            "GUIDE_SOURCE": guide_source,
-            "CRT_USER_ID": sys_id,
-        })
-    return rows
+    """하위호환 alias."""
+    return build_eqpallocation_rows(problem, guide_allocation, guide_source, sys_id)
 
 
 def detect_guide_source() -> str:
@@ -235,7 +233,7 @@ def build_inference_result_document(
     achievement = eval_result.get("rl" if use_rl else "heuristic", 0.0)
     util = eval_result.get("rl_avg_utilization" if use_rl else "avg_utilization", 0.0)
     guide_src = detect_guide_source()
-    guide_rows = build_guide_rows(
+    alloc_rows = build_eqpallocation_rows(
         problem, eval_result.get("guide_allocation", {}), guide_src, sys_id,
     )
     doc = {
@@ -246,7 +244,8 @@ def build_inference_result_document(
         "eqp_util_rate": float(util or 0.0),
         "guide": {
             "source": guide_src,
-            "rows": guide_rows,
+            "eqpallocation_rows": alloc_rows,
+            "rows": alloc_rows,
         },
         "dynamic": {
             "plan_achv_rows": eval_result.get(plan_achv_key, []),
@@ -324,14 +323,16 @@ EQPCONVPLAN_HEADERS = [
 CONV_KEYS = EQPCONVPLAN_KEYS
 CONV_HEADERS = EQPCONVPLAN_HEADERS
 
-GUIDE_KEYS = [
-    "RULE_TIMEKEY", "PLAN_PROD_KEY", "OPER_ID", "EQP_MODEL_CD",
-    "TARGET_EQP_CNT", "GUIDE_SOURCE", "CRT_USER_ID",
+EQPALLOCATION_KEYS = [
+    "FAC_ID", "RULE_TIMEKEY", "BATCH_ID", "PLAN_PROD_KEY", "OPER_ID", "EQP_MODEL_CD",
+    "TARGET_EQP_CNT", "CUR_EQP_CNT", "MODE_TYP", "CRT_USER_ID",
 ]
-GUIDE_HEADERS = [
-    "RULE_TIMEKEY", "PLAN_PROD_KEY", "OPER", "EQP_MODEL_CD",
-    "TARGET_EQP_CNT", "GUIDE_SOURCE", "CRT_USER_ID",
+EQPALLOCATION_HEADERS = [
+    "FAC_ID", "RULE_TIMEKEY", "BATCH_ID", "PLAN_PROD_KEY", "OPER_ID", "EQP_MODEL",
+    "TARGET_EQP_CNT", "CUR_EQP_CNT", "MODE_TYP", "CRT_USER_ID",
 ]
+GUIDE_KEYS = EQPALLOCATION_KEYS
+GUIDE_HEADERS = EQPALLOCATION_HEADERS
 
 # 하위호환 alias
 TASK_DETAIL_KEYS = PLAN_ACHV_KEYS

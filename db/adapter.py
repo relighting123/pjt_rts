@@ -291,16 +291,43 @@ def write_conv_results(rule_timekey: str, conv_rows: list[dict]) -> None:
     write_eqpconvplan_results(rule_timekey, conv_rows)
 
 
+def write_eqpallocation_results(rule_timekey: str, rows: list[dict]) -> None:
+    """RTS_EQPALLOCATION_INF/HIS 삭제 후 insert (HIS는 EVENT_TIMEKEY 포함)."""
+    if not rows:
+        return
+    conn = _connect()
+    try:
+        cur = conn.cursor()
+        for table in (config.EQPALLOCATION_TABLE, config.EQPALLOCATION_HIS_TABLE):
+            _execute_logged(
+                cur, f"delete_by_timekey:{table}", "write", "delete_by_timekey",
+                table=table, rk=rule_timekey,
+            )
+        _executemany_logged(
+            cur, f"insert_eqpallocation:{config.EQPALLOCATION_TABLE}",
+            "write", "insert_eqpallocation", rows, table=config.EQPALLOCATION_TABLE,
+        )
+        _executemany_logged(
+            cur, f"insert_eqpallocation_his:{config.EQPALLOCATION_HIS_TABLE}",
+            "write", "insert_eqpallocation_his", rows, table=config.EQPALLOCATION_HIS_TABLE,
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def write_guide_results(rule_timekey: str, guide_rows: list[dict]) -> None:
-    """RTS_GUIDE_INF/HIS 삭제 후 insert."""
-    _write_table_pair(
-        config.GUIDE_TABLE, config.GUIDE_HIS_TABLE, rule_timekey, guide_rows, "insert_guide",
-    )
+    """하위호환 alias → RTS_EQPALLOCATION_INF/HIS."""
+    write_eqpallocation_results(rule_timekey, guide_rows)
 
 
 def write_inference_result(rule_timekey: str, result_doc: dict) -> None:
     """추론 결과 JSON document → Oracle (가이드 + 동적 3종)."""
-    write_guide_results(rule_timekey, result_doc.get("guide", {}).get("rows", []))
+    guide = result_doc.get("guide", {})
+    write_eqpallocation_results(
+        rule_timekey,
+        guide.get("eqpallocation_rows", guide.get("rows", [])),
+    )
     dynamic = result_doc.get("dynamic", {})
     write_plan_achv_results(rule_timekey, dynamic.get("plan_achv_rows", []))
     write_assign_results(rule_timekey, dynamic.get("assign_rows", []))

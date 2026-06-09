@@ -36,7 +36,10 @@
 #         "OPER_ID": "OP10",
 #         "EQP_MODEL_CD": "M1",
 #         "TARGET_EQP_CNT": 1.0,
-#         "GUIDE_SOURCE": "ANALYTIC",
+#         "FAC_ID": "ICPRB",
+#         "BATCH_ID": "B1",
+#         "MODE_TYP": "Heuristic",
+#         "CUR_EQP_CNT": 1,
 #         "CRT_USER_ID": config.SYS_ID 값으로 기록
 #       }
 #     ]
@@ -50,29 +53,14 @@
 # }
 # ```
 #
-# `guide.rows` → RTS_GUIDE_INF/HIS
+# `guide.eqpallocation_rows` → RTS_EQPALLOCATION_INF/HIS (`rows`는 alias)
 # `dynamic.*` → RTS_PLAN_ACHV / RTS_ASSIGN / RTS_EQPCONVPLAN
 # (`eqpconvplan_rows` 권장, `conv_rows`는 하위호환 alias)
 #
-# ## Oracle DDL — RTS_GUIDE_INF / RTS_GUIDE_HIS (신규)
+# ## Oracle DDL — RTS_EQPALLOCATION_INF / RTS_EQPALLOCATION_HIS
 #
-# ```sql
-# CREATE TABLE RTS_GUIDE_INF (
-#   RULE_TIMEKEY     VARCHAR2(16)  NOT NULL,
-#   PLAN_PROD_KEY    VARCHAR2(50)  NOT NULL,
-#   OPER_ID          VARCHAR2(50)  NOT NULL,
-#   EQP_MODEL_CD     VARCHAR2(50)  NOT NULL,
-#   TARGET_EQP_CNT   NUMBER(10,4)  NOT NULL,
-#   GUIDE_SOURCE     VARCHAR2(20)  NOT NULL,  -- ANALYTIC | ALLOC_RL
-#   CRT_TM           TIMESTAMP     DEFAULT SYSTIMESTAMP NOT NULL,
-#   CRT_USER_ID      VARCHAR2(50)  NOT NULL,
-#   CONSTRAINT PK_RTS_GUIDE_INF PRIMARY KEY (
-#     RULE_TIMEKEY, PLAN_PROD_KEY, OPER_ID, EQP_MODEL_CD
-#   )
-# );
-#
-# CREATE TABLE RTS_GUIDE_HIS AS SELECT * FROM RTS_GUIDE_INF WHERE 1=0;
-# ```
+# FAC_ID, BATCH_ID, OPER_ID, MODE_TYP(RL|Heuristic), TARGET_EQP_CNT, CUR_EQP_CNT
+# HIS EVENT_TIMEKEY = TO_CHAR(CRT_TM, 'YYYYMMDDHH24MISS')
 #
 # ## 학습용 JSON (data/train/{RULE_TIMEKEY}.json)
 #

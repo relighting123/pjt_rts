@@ -29,7 +29,8 @@ def test_sql_files_exist():
         ("write", "insert_plan_achv"),
         ("write", "insert_eqpconvplan"),
         ("write", "insert_eqpconvplan_his"),
-        ("write", "insert_guide"),
+        ("write", "insert_eqpallocation"),
+        ("write", "insert_eqpallocation_his"),
     ]
     for category, name in expected:
         assert sql_file(category, name).is_file()
