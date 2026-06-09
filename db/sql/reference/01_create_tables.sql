@@ -95,9 +95,6 @@ CREATE TABLE RTS_EQPALLOCATION_HIS (
 COMMENT ON COLUMN RTS_EQPALLOCATION_INF.MODE_TYP IS 'RL | Heuristic';
 COMMENT ON COLUMN RTS_EQPALLOCATION_INF.CUR_EQP_CNT IS '현재 배치 장비 수량 (init_assign)';
 
--- ---------------------------------------------------------------------------
--- 3. 동적 운영 결과 — 계획/달성 (task × hour)
--- ---------------------------------------------------------------------------
 BEGIN
   EXECUTE IMMEDIATE 'DROP TABLE RTS_PLAN_ACHV_INF PURGE';
 EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF;
@@ -109,44 +106,8 @@ EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF;
 END;
 /
 
-CREATE TABLE RTS_PLAN_ACHV_INF (
-  RULE_TIMEKEY    VARCHAR2(16)  NOT NULL,
-  EVENT_TM        VARCHAR2(16)  NOT NULL,
-  BATCH_ID        VARCHAR2(50)  NOT NULL,
-  PLAN_PROD_KEY   VARCHAR2(50)  NOT NULL,
-  OPER_ID         VARCHAR2(50)  NOT NULL,
-  PLAN_QTY        NUMBER(12)    NOT NULL,
-  REMAIN_QTY      NUMBER(12)    NOT NULL,
-  PRODUCE_QTY     NUMBER(12)    NOT NULL,
-  ACHIEVE_RATE    NUMBER(8,4)   NOT NULL,
-  EQP_UTIL_RATE   NUMBER(8,4)   NOT NULL,
-  CRT_TM          TIMESTAMP     DEFAULT SYSTIMESTAMP NOT NULL,
-  CRT_USER_ID     VARCHAR2(50)  NOT NULL,
-  CONSTRAINT PK_RTS_PLAN_ACHV_INF PRIMARY KEY (
-    RULE_TIMEKEY, EVENT_TM, BATCH_ID, PLAN_PROD_KEY, OPER_ID
-  )
-);
-
-CREATE TABLE RTS_PLAN_ACHV_HIS (
-  RULE_TIMEKEY    VARCHAR2(16)  NOT NULL,
-  EVENT_TM        VARCHAR2(16)  NOT NULL,
-  BATCH_ID        VARCHAR2(50)  NOT NULL,
-  PLAN_PROD_KEY   VARCHAR2(50)  NOT NULL,
-  OPER_ID         VARCHAR2(50)  NOT NULL,
-  PLAN_QTY        NUMBER(12)    NOT NULL,
-  REMAIN_QTY      NUMBER(12)    NOT NULL,
-  PRODUCE_QTY     NUMBER(12)    NOT NULL,
-  ACHIEVE_RATE    NUMBER(8,4)   NOT NULL,
-  EQP_UTIL_RATE   NUMBER(8,4)   NOT NULL,
-  CRT_TM          TIMESTAMP     DEFAULT SYSTIMESTAMP NOT NULL,
-  CRT_USER_ID     VARCHAR2(50)  NOT NULL,
-  CONSTRAINT PK_RTS_PLAN_ACHV_HIS PRIMARY KEY (
-    RULE_TIMEKEY, EVENT_TM, BATCH_ID, PLAN_PROD_KEY, OPER_ID, CRT_TM
-  )
-);
-
 -- ---------------------------------------------------------------------------
--- 4. 동적 운영 결과 — 장비 배치·생산 (eqp × hour)
+-- 3. 동적 운영 결과 — 장비 배치·생산 (eqp × hour)
 -- ---------------------------------------------------------------------------
 BEGIN
   EXECUTE IMMEDIATE 'DROP TABLE RTS_ASSIGN_INF PURGE';
@@ -194,7 +155,7 @@ CREATE TABLE RTS_ASSIGN_HIS (
 );
 
 -- ---------------------------------------------------------------------------
--- 5. 동적 운영 결과 — 장비 전환 계획 (RTS_EQPCONVPLAN)
+-- 4. 동적 운영 결과 — 장비 전환 계획 (RTS_EQPCONVPLAN)
 -- ---------------------------------------------------------------------------
 BEGIN
   EXECUTE IMMEDIATE 'DROP TABLE RTS_EQPCONVPLAN_INF PURGE';

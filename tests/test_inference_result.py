@@ -26,7 +26,7 @@ def test_inference_result_document_roundtrip(tmp_path):
     doc = build_inference_result_document(p, res, policy="HEURISTIC")
     assert doc["schema_version"] == 1
     assert doc["guide"]["rows"]
-    assert doc["dynamic"]["plan_achv_rows"]
+    assert doc["dynamic"]["assign_rows"]
     assert "eqpallocation_rows" in doc["guide"]
     assert doc["guide"]["eqpallocation_rows"] == doc["guide"]["rows"]
     path = save_inference_result_document(doc, tmp_path / "r.json")

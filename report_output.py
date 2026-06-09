@@ -2,7 +2,6 @@
 
 출력 Oracle 테이블 (config.py) — 상세: db/sql/reference/00_output_tables.md
   RTS_EQPALLOCATION_INF/HIS — Mode 1 가이드 (공정×모델 목표·현재 장비 대수)
-  RTS_PLAN_ACHV_INF/HIS     — Mode 2 시간대별 계획·생산·달성 (task×hour)
   RTS_ASSIGN_INF/HIS        — Mode 2 장비 배치·생산 (eqp×hour)
   RTS_EQPCONVPLAN_INF/HIS   — Mode 2 batch 전환 계획
 """
@@ -50,40 +49,6 @@ def _split_hourly_produce(problem: ProblemInstance, stat: dict, ti: int) -> dict
             out[model] = share
             allocated += share
     return out
-
-
-def build_plan_achv_rows(
-    problem: ProblemInstance,
-    hourly_stats: list[dict],
-    sys_id: str | None = None,
-) -> list[dict]:
-    """RTS_PLAN_ACHV_INF/HIS — 시간대 × task 계획/생산/달성."""
-    sys_id = sys_id or config.SYS_ID
-    rows: list[dict] = []
-    rule_timekey = problem.rule_timekey
-    for stat in hourly_stats:
-        hour = stat["hour"]
-        event_tm = event_tm_for_hour(rule_timekey, hour)
-        cumulative = stat["cumulative_produced"]
-        hourly = stat["hourly_produce"]
-        for ti, task in enumerate(problem.tasks):
-            produced = cumulative.get(ti, 0)
-            plan = task.plan_qty
-            achieve = round(min(produced / plan, 1.0), 4) if plan > 0 else 1.0
-            rows.append({
-                "RULE_TIMEKEY": rule_timekey,
-                "EVENT_TM": event_tm,
-                "BATCH_ID": task.batch_id,
-                "PLAN_PROD_KEY": task.plan_prod_key,
-                "OPER_ID": task.oper_id,
-                "PLAN_QTY": plan,
-                "REMAIN_QTY": max(0, plan - produced),
-                "PRODUCE_QTY": hourly.get(ti, 0),
-                "ACHIEVE_RATE": achieve,
-                "EQP_UTIL_RATE": stat["util_rate"],
-                "CRT_USER_ID": sys_id,
-            })
-    return rows
 
 
 def build_assign_rows(
@@ -228,7 +193,6 @@ def build_inference_result_document(
     """추론 결과 JSON (가이드 + 동적 운영). schema_version=1."""
     sys_id = sys_id or config.SYS_ID
     use_rl = policy == "RL" and eval_result.get("rl") is not None
-    plan_achv_key = "rl_plan_achv_rows" if use_rl else "plan_achv_rows"
     assign_key = "rl_assign_rows" if use_rl else "assign_rows"
     conv_key = "rl_eqpconvplan_rows" if use_rl else "eqpconvplan_rows"
     achievement = eval_result.get("rl" if use_rl else "heuristic", 0.0)
@@ -249,7 +213,6 @@ def build_inference_result_document(
             "rows": alloc_rows,
         },
         "dynamic": {
-            "plan_achv_rows": eval_result.get(plan_achv_key, []),
             "assign_rows": eval_result.get(assign_key, []),
             "eqpconvplan_rows": eval_result.get(
                 conv_key,
@@ -289,15 +252,6 @@ def _markdown_table(headers: list[str], rows: list[dict], keys: list[str]) -> st
     return "\n".join(lines)
 
 
-PLAN_ACHV_KEYS = [
-    "RULE_TIMEKEY", "EVENT_TM", "BATCH_ID", "PLAN_PROD_KEY", "OPER_ID",
-    "PLAN_QTY", "REMAIN_QTY", "PRODUCE_QTY", "ACHIEVE_RATE", "EQP_UTIL_RATE",
-]
-PLAN_ACHV_HEADERS = [
-    "RULE_TIMEKEY", "EVENT_TM", "BATCH_ID", "PLAN_PROD_KEY", "OPER",
-    "PLAN_QTY", "REMAIN_QTY", "PRODUCE_QTY", "ACHIEVE_RATE", "EQP_UTIL_RATE",
-]
-
 ASSIGN_KEYS = [
     "RULE_TIMEKEY", "EQP_ID", "EQP_MODEL_CD", "SEQ_NO",
     "START_TIME", "END_TIME", "PLAN_PROD_KEY", "OPER_ID", "PRODUCE_QTY", "CRT_USER_ID",
@@ -335,9 +289,6 @@ EQPALLOCATION_HEADERS = [
 GUIDE_KEYS = EQPALLOCATION_KEYS
 GUIDE_HEADERS = EQPALLOCATION_HEADERS
 
-# 하위호환 alias
-TASK_DETAIL_KEYS = PLAN_ACHV_KEYS
-TASK_DETAIL_HEADERS = PLAN_ACHV_HEADERS
 ALLOC_DB_KEYS = [
     "RULE_TIMEKEY", "EQP_ID", "EQP_MODEL_CD", "SEQ_NO",
     "START_TIME", "END_TIME", "PLAN_PROD_KEY", "OPER_ID", "PRODUCE_QTY", "CRT_USER_ID",
@@ -353,15 +304,9 @@ def build_output_tables(
     """출력 테이블별 행 dict."""
     sid = sys_id or config.SYS_ID
     return {
-        config.PLAN_ACHV_TABLE: build_plan_achv_rows(problem, hourly_stats, sid),
         config.ASSIGN_TABLE: build_assign_rows(problem, hourly_stats, sid),
         config.EQPCONVPLAN_TABLE: build_eqpconvplan_rows(problem, trace),
     }
-
-
-# 하위호환
-def build_task_hourly_rows(problem: ProblemInstance, hourly_stats: list[dict]) -> list[dict]:
-    return build_plan_achv_rows(problem, hourly_stats)
 
 
 def build_allocation_rows(
@@ -380,14 +325,11 @@ def render_detail_sections(
     trace: list,
     policy_label: str = "heuristic",
 ) -> str:
-    """MD용 출력 테이블 3종."""
+    """MD용 출력 테이블 2종."""
     tables = build_output_tables(problem, hourly_stats, trace)
     util_avg = avg_utilization(hourly_stats)
     lines = [
         f"### {policy_label} — 출력 테이블 (평균 장비 가동률: {util_avg:.3f})",
-        "",
-        f"#### {config.PLAN_ACHV_TABLE} / {config.PLAN_ACHV_HIS_TABLE}",
-        _markdown_table(PLAN_ACHV_HEADERS, tables[config.PLAN_ACHV_TABLE], PLAN_ACHV_KEYS),
         "",
         f"#### {config.ASSIGN_TABLE} / {config.ASSIGN_HIS_TABLE}",
         _markdown_table(ASSIGN_HEADERS, tables[config.ASSIGN_TABLE], ASSIGN_KEYS),
@@ -507,7 +449,6 @@ def render_html_report(results: dict[str, tuple[ProblemInstance, dict]]) -> str:
         "<h1>모델 평가 리포트</h1>",
         f"<p class='summary'>{escape(summary)}</p>",
         "<p class='note'><strong>출력 테이블:</strong> "
-        f"{escape(config.PLAN_ACHV_TABLE)}(계획/달성), "
         f"{escape(config.ASSIGN_TABLE)}(장비배치), "
         f"{escape(config.EQPCONVPLAN_TABLE)}(전환계획). "
         "입력: "
@@ -545,8 +486,6 @@ def render_html_report(results: dict[str, tuple[ProblemInstance, dict]]) -> str:
             parts.append(f"<h3>{escape(label)} — 간트차트</h3>")
             parts.append(gantt_html_table(p, trace))
             parts.append(f"<h3>{escape(label)} — 출력 테이블</h3>")
-            parts.append(f"<h4>{escape(config.PLAN_ACHV_TABLE)} / {escape(config.PLAN_ACHV_HIS_TABLE)}</h4>")
-            parts.append(_html_table(PLAN_ACHV_HEADERS, tables[config.PLAN_ACHV_TABLE], PLAN_ACHV_KEYS))
             assign_merged = merge_assign_rows(tables[config.ASSIGN_TABLE])
             orig_n = len(tables[config.ASSIGN_TABLE])
             merged_n = len(assign_merged)
@@ -600,11 +539,9 @@ def enrich_eval_result(problem: ProblemInstance, trace: list, hourly_stats: list
     return {
         "hourly_stats": hourly_stats,
         "output_tables": tables,
-        "plan_achv_rows": tables[config.PLAN_ACHV_TABLE],
         "assign_rows": tables[config.ASSIGN_TABLE],
         "eqpconvplan_rows": tables[config.EQPCONVPLAN_TABLE],
         "conv_rows": tables[config.EQPCONVPLAN_TABLE],
-        "task_hourly_rows": tables[config.PLAN_ACHV_TABLE],
         "allocation_rows": [{k: row[k] for k in ALLOC_DB_KEYS} for row in tables[config.ASSIGN_TABLE]],
         "avg_utilization": avg_utilization(hourly_stats),
         "trace": trace,

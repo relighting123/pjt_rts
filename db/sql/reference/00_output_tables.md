@@ -1,6 +1,6 @@
 # RTS 출력 테이블 정리
 
-`python run.py infer` 실행 시 추론 결과가 아래 **4종 INF/HIS** 쌍에 기록됩니다.  
+`python run.py infer` 실행 시 추론 결과가 아래 **3종 INF/HIS** 쌍에 기록됩니다.  
 공통: 동일 `RULE_TIMEKEY` 기존 행 **DELETE 후 INSERT** (`delete_by_timekey.sql`).
 
 DDL: `01_create_tables.sql` · 샘플: `03_sample_output_data.sql` · 확인: `04_verify_queries.sql`
@@ -12,11 +12,10 @@ DDL: `01_create_tables.sql` · 샘플: `03_sample_output_data.sql` · 확인: `0
 | 구분 | INF / HIS | Mode | 행 단위 | 빌더 | DB writer |
 |------|-----------|------|---------|------|-----------|
 | 장비 배분 (가이드) | `RTS_EQPALLOCATION_*` | Mode 1 | 공정×모델 | `build_eqpallocation_rows()` | `write_eqpallocation_results()` |
-| 계획/달성 | `RTS_PLAN_ACHV_*` | Mode 2 | task×hour | `build_plan_achv_rows()` | `write_plan_achv_results()` |
 | 장비 배치 | `RTS_ASSIGN_*` | Mode 2 | eqp×hour | `build_assign_rows()` | `write_assign_results()` |
 | 전환 계획 | `RTS_EQPCONVPLAN_*` | Mode 2 | batch 전환 이벤트 | `build_eqpconvplan_rows()` | `write_eqpconvplan_results()` |
 
-`config.py` 상수: `EQPALLOCATION_TABLE`, `PLAN_ACHV_TABLE`, `ASSIGN_TABLE`, `EQPCONVPLAN_TABLE`  
+`config.py` 상수: `EQPALLOCATION_TABLE`, `ASSIGN_TABLE`, `EQPCONVPLAN_TABLE`  
 하위호환 alias: `GUIDE_TABLE`→EQPALLOCATION, `CONV_TABLE`→EQPCONVPLAN, `RESULT_TABLE`→ASSIGN
 
 ---
@@ -45,30 +44,7 @@ DDL: `01_create_tables.sql` · 샘플: `03_sample_output_data.sql` · 확인: `0
 
 ---
 
-## 2. RTS_PLAN_ACHV_INF / RTS_PLAN_ACHV_HIS
-
-**목적:** Mode 2 동적 시뮬 — 시간대별 task 계획·생산·달성.
-
-| 컬럼 | 설명 |
-|------|------|
-| `RULE_TIMEKEY` | 스냅샷 키 |
-| `EVENT_TM` | 시간대 (16자, `RULE_TIMEKEY + hour`) |
-| `BATCH_ID` | 배치 ID |
-| `PLAN_PROD_KEY` / `OPER_ID` | 공정 식별 |
-| `PLAN_QTY` | 계획 수량 |
-| `REMAIN_QTY` | 잔여 수량 |
-| `PRODUCE_QTY` | 해당 시간 생산량 |
-| `ACHIEVE_RATE` | 누적 달성률 (0~1) |
-| `EQP_UTIL_RATE` | 해당 시간 장비 가동률 |
-
-**PK (INF):** `RULE_TIMEKEY, EVENT_TM, BATCH_ID, PLAN_PROD_KEY, OPER_ID`  
-**HIS PK:** 위 + `CRT_TM`
-
-**JSON:** `dynamic.plan_achv_rows`
-
----
-
-## 3. RTS_ASSIGN_INF / RTS_ASSIGN_HIS
+## 2. RTS_ASSIGN_INF / RTS_ASSIGN_HIS
 
 **목적:** Mode 2 동적 시뮬 — 장비(호기)별 배치·생산 구간.
 
@@ -89,9 +65,9 @@ DDL: `01_create_tables.sql` · 샘플: `03_sample_output_data.sql` · 확인: `0
 
 ---
 
-## 4. RTS_EQPCONVPLAN_INF / RTS_EQPCONVPLAN_HIS
+## 3. RTS_EQPCONVPLAN_INF / RTS_EQPCONVPLAN_HIS
 
-**목적:** Mode 2 동적 시뮬 — **BATCH_ID가 바뀌는** 장비 이동( tool 전환) 계획.
+**목적:** Mode 2 동적 시뮬 — **BATCH_ID가 바뀌는** 장비 이동(tool 전환) 계획.
 
 | 컬럼 | 설명 |
 |------|------|
@@ -124,7 +100,6 @@ DDL: `01_create_tables.sql` · 샘플: `03_sample_output_data.sql` · 확인: `0
 {RULE_TIMEKEY}_result.json
 ├── guide.eqpallocation_rows  → RTS_EQPALLOCATION_INF/HIS
 └── dynamic
-    ├── plan_achv_rows        → RTS_PLAN_ACHV_INF/HIS
     ├── assign_rows         → RTS_ASSIGN_INF/HIS
     └── eqpconvplan_rows    → RTS_EQPCONVPLAN_INF/HIS
 ```
@@ -138,7 +113,6 @@ DDL: `01_create_tables.sql` · 샘플: `03_sample_output_data.sql` · 확인: `0
 | 테이블 | 이력 키 | insert SQL |
 |--------|---------|------------|
 | EQPALLOCATION | `EVENT_TIMEKEY` (VARCHAR14) | `insert_eqpallocation_his.sql` |
-| PLAN_ACHV | `CRT_TM` (TIMESTAMP, PK 일부) | `insert_plan_achv.sql` (INF/HIS 동일) |
 | ASSIGN | `CRT_TM` (TIMESTAMP, PK 일부) | `insert_assign.sql` (INF/HIS 동일) |
 | EQPCONVPLAN | `EVENT_TIMEKEY` (VARCHAR14) | `insert_eqpconvplan_his.sql` |
 
@@ -146,6 +120,7 @@ DDL: `01_create_tables.sql` · 샘플: `03_sample_output_data.sql` · 확인: `0
 
 ## 폐기 테이블 (DDL에서 DROP)
 
+- `RTS_PLAN_ACHV_*` (제거됨)
 - `RTS_GUIDE_*` → `RTS_EQPALLOCATION_*`
 - `RTS_CONV_*` → `RTS_EQPCONVPLAN_*`
 - `RTS_RSLT_MAS/HIS` (구 설계명, 미사용)
