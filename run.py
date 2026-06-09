@@ -142,7 +142,7 @@ def cmd_infer(args):
     print(f"{label}: 결과 JSON → {out['result_json']}")
     print(f"[동적 운영] 평균 계획달성률 {out['plan_achievement']:.3f}")
     if not args.no_db:
-        print("DB 기록 완료 (RTS_EQPALLOCATION / PLAN_ACHV / ASSIGN / EQPCONVPLAN)")
+        print("DB 기록 완료 (RTS_EQPALLOCATION / ASSIGN / EQPCONVPLAN)")
     if out.get("report_paths"):
         print(f"리포트 → {out['report_paths'][0]}")
     print(f"ops 로그 → {OPS_LOG_PATH}")

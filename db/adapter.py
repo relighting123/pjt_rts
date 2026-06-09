@@ -253,14 +253,6 @@ def write_assign_results(rule_timekey: str, assign_rows: list[dict]) -> None:
     )
 
 
-def write_plan_achv_results(rule_timekey: str, plan_rows: list[dict]) -> None:
-    """RTS_PLAN_ACHV_INF/HIS 삭제 후 insert."""
-    _write_table_pair(
-        config.PLAN_ACHV_TABLE, config.PLAN_ACHV_HIS_TABLE,
-        rule_timekey, plan_rows, "insert_plan_achv",
-    )
-
-
 def write_eqpconvplan_results(rule_timekey: str, rows: list[dict]) -> None:
     """RTS_EQPCONVPLAN_INF/HIS 삭제 후 insert (HIS는 EVENT_TIMEKEY 포함)."""
     if not rows:
@@ -329,7 +321,6 @@ def write_inference_result(rule_timekey: str, result_doc: dict) -> None:
         guide.get("eqpallocation_rows", guide.get("rows", [])),
     )
     dynamic = result_doc.get("dynamic", {})
-    write_plan_achv_results(rule_timekey, dynamic.get("plan_achv_rows", []))
     write_assign_results(rule_timekey, dynamic.get("assign_rows", []))
     write_eqpconvplan_results(
         rule_timekey,

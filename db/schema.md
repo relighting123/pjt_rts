@@ -37,7 +37,6 @@
 #     "rows": [...]
 #   },
 #   "dynamic": {
-#     "plan_achv_rows": [...],
 #     "assign_rows": [...],
 #     "eqpconvplan_rows": [...]
 #   }
@@ -49,7 +48,6 @@
 # | JSON 키 | INF / HIS | 설명 |
 # |---------|-----------|------|
 # | guide.eqpallocation_rows | RTS_EQPALLOCATION_* | Mode 1 장비 배분 가이드 |
-# | dynamic.plan_achv_rows | RTS_PLAN_ACHV_* | 시간대별 계획/달성 |
 # | dynamic.assign_rows | RTS_ASSIGN_* | 장비 배치·생산 |
 # | dynamic.eqpconvplan_rows | RTS_EQPCONVPLAN_* | batch 전환 계획 |
 #

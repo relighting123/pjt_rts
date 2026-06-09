@@ -40,7 +40,6 @@ from report_output import (
     avg_utilization,
     merge_assign_rows,
     guide_allocation_rows,
-    PLAN_ACHV_HEADERS, PLAN_ACHV_KEYS,
     ASSIGN_HEADERS, ASSIGN_KEYS,
     CONV_HEADERS, CONV_KEYS,
 )
@@ -86,7 +85,6 @@ def _algo_view(result: dict, algo: str):
             "per_task": result.get("heuristic_per_task", {}),
             "hourly_stats": result["hourly_stats"],
             "avg_utilization": result.get("avg_utilization", avg_utilization(result["hourly_stats"])),
-            "plan_achv_rows": result.get("plan_achv_rows", []),
             "assign_rows": result.get("assign_rows", []),
             "conv_rows": result.get("conv_rows", []),
             "has_detail": True,
@@ -99,7 +97,6 @@ def _algo_view(result: dict, algo: str):
             "per_task": result.get("rl_per_task", {}),
             "hourly_stats": result.get("rl_hourly_stats", []),
             "avg_utilization": result.get("rl_avg_utilization"),
-            "plan_achv_rows": result.get("rl_plan_achv_rows", []),
             "assign_rows": result.get("rl_assign_rows", []),
             "conv_rows": result.get("rl_conv_rows", []),
             "has_detail": True,
@@ -112,7 +109,6 @@ def _algo_view(result: dict, algo: str):
             "per_task": None,
             "hourly_stats": None,
             "avg_utilization": None,
-            "plan_achv_rows": None,
             "assign_rows": None,
             "conv_rows": None,
             "has_detail": False,
@@ -230,23 +226,10 @@ def render_charts(bm_name: str, algo: str, view) -> None:
 
 
 def render_tables(bm_name: str, algo: str, view) -> None:
-    plan_achv_rows = view["plan_achv_rows"]
     assign_rows = view["assign_rows"]
     assign_merged = merge_assign_rows(assign_rows) if assign_rows else []
     conv_rows = view["conv_rows"]
     key_prefix = f"{bm_name}_{algo}"
-
-    with st.expander(f"📋 {algo} — PLAN_ACHV_INF ({len(plan_achv_rows)}행)", expanded=False):
-        if plan_achv_rows and _HAS_PLOTLY:
-            df_pa = pd.DataFrame(plan_achv_rows)[PLAN_ACHV_KEYS].copy()
-            df_pa.columns = PLAN_ACHV_HEADERS
-            df_pa["ACHIEVE_RATE"] = df_pa["ACHIEVE_RATE"].map(lambda x: f"{float(x):.1%}")
-            df_pa["EQP_UTIL_RATE"] = df_pa["EQP_UTIL_RATE"].map(lambda x: f"{float(x):.1%}")
-            st.dataframe(df_pa, use_container_width=True, hide_index=True, key=f"tbl_pa_{key_prefix}")
-        elif plan_achv_rows:
-            st.json(plan_achv_rows[:10])
-        else:
-            st.info("데이터 없음")
 
     orig_n = len(assign_rows)
     mrgd_n = len(assign_merged)

@@ -11,8 +11,6 @@ DEFINE USER_ID = 'RL_AGENT'
 -- 기존 샘플 삭제
 DELETE FROM RTS_EQPALLOCATION_INF WHERE RULE_TIMEKEY = '&RK';
 DELETE FROM RTS_EQPALLOCATION_HIS WHERE RULE_TIMEKEY = '&RK';
-DELETE FROM RTS_PLAN_ACHV_INF WHERE RULE_TIMEKEY = '&RK';
-DELETE FROM RTS_PLAN_ACHV_HIS WHERE RULE_TIMEKEY = '&RK';
 DELETE FROM RTS_ASSIGN_INF    WHERE RULE_TIMEKEY = '&RK';
 DELETE FROM RTS_ASSIGN_HIS    WHERE RULE_TIMEKEY = '&RK';
 DELETE FROM RTS_EQPCONVPLAN_INF WHERE RULE_TIMEKEY = '&RK';
@@ -33,21 +31,7 @@ VALUES ('ICPRB', '&RK', 'B1', 'P1', 'OP10', 'M1', 1, 1, 'Heuristic', '&USER_ID',
         TO_CHAR(SYSTIMESTAMP, 'YYYYMMDDHH24MISS'));
 
 -- ---------------------------------------------------------------------------
--- 2. 계획/달성 (RTS_PLAN_ACHV_INF) — 3시간 horizon 예시
--- ---------------------------------------------------------------------------
-INSERT INTO RTS_PLAN_ACHV_INF
-  (RULE_TIMEKEY, EVENT_TM, BATCH_ID, PLAN_PROD_KEY, OPER_ID,
-   PLAN_QTY, REMAIN_QTY, PRODUCE_QTY, ACHIEVE_RATE, EQP_UTIL_RATE, CRT_USER_ID)
-VALUES ('&RK', '&RK', 'B1', 'P1', 'OP10', 300, 200, 100, 0.3333, 1.0, '&USER_ID');
-
-INSERT INTO RTS_PLAN_ACHV_INF VALUES
-  ('&RK', '2026052923500000', 'B1', 'P1', 'OP10', 300, 100, 100, 0.6667, 1.0, '&USER_ID');
-
-INSERT INTO RTS_PLAN_ACHV_INF VALUES
-  ('&RK', '2026053000500000', 'B1', 'P1', 'OP10', 300, 0, 100, 1.0, 1.0, '&USER_ID');
-
--- ---------------------------------------------------------------------------
--- 3. 장비 배치 (RTS_ASSIGN_INF)
+-- 2. 장비 배치 (RTS_ASSIGN_INF)
 -- ---------------------------------------------------------------------------
 INSERT INTO RTS_ASSIGN_INF
   (RULE_TIMEKEY, EQP_ID, EQP_MODEL_CD, SEQ_NO, START_TIME, END_TIME,
@@ -61,15 +45,13 @@ INSERT INTO RTS_ASSIGN_INF VALUES
   ('&RK', 'M1-001', 'M1', 3, '2026053000500000', '2026053001500000', 'P1', 'OP10', 100, '&USER_ID');
 
 -- ---------------------------------------------------------------------------
--- 4. 전환 계획 (RTS_EQPCONVPLAN_INF) — benchmark_01 은 전환 없음 (행 없음)
+-- 3. 전환 계획 (RTS_EQPCONVPLAN_INF) — benchmark_01 은 전환 없음 (행 없음)
 -- ---------------------------------------------------------------------------
 
 COMMIT;
 
 -- 확인
 SELECT 'EQPALLOCATION' AS TBL, COUNT(*) AS CNT FROM RTS_EQPALLOCATION_INF WHERE RULE_TIMEKEY = '&RK'
-UNION ALL
-SELECT 'PLAN_ACHV', COUNT(*) FROM RTS_PLAN_ACHV_INF WHERE RULE_TIMEKEY = '&RK'
 UNION ALL
 SELECT 'ASSIGN', COUNT(*) FROM RTS_ASSIGN_INF WHERE RULE_TIMEKEY = '&RK'
 UNION ALL

@@ -58,7 +58,6 @@ Batch id는 plan prod key와 oper id에 의해 정의된다. pla prod key||oper_
 | 테이블 | 내용 |
 |--------|------|
 | `RTS_EQPALLOCATION_INF/HIS` | Mode 1 가이드 — 공정×모델 목표·현재 장비 대수 (`FAC_ID`, `BATCH_ID`, `MODE_TYP`) |
-| `RTS_PLAN_ACHV_INF/HIS` | Mode 2 — 시간대별 task 계획·생산·달성 |
 | `RTS_ASSIGN_INF/HIS` | Mode 2 — 장비(호기)별 배치·생산 구간 |
 | `RTS_EQPCONVPLAN_INF/HIS` | Mode 2 — BATCH_ID 변경 시 tool 전환 계획 |
 
