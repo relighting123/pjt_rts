@@ -48,6 +48,13 @@ Batch id는 plan prod key와 oper id에 의해 정의된다. pla prod key||oper_
 계획 제품 Key / Oper 별 계획이 있고 세부 일자 시간대별 계획이 있다. 가령 P1 / PT1H / 2026051707 | 2026051708 | 100 이면 2026년 5월 17일 07시부터 08시까지 10000개를 생산하라는 계획이야. 그리고 2026051708 | 2026051807 | 300 이면 2026년 5월 17일 08시부터 18시까지 300개를 생산하라는 계획이야.
 이런식으로 동일 제품에 대해 여러 계획이 있을 수 있따.
 
+9. 장비 호기 명단 (실제 장비 매핑용)
+ RULE_TIMEKEY | EQP_MODEL_CD | EQP_ID | BATCH_ID | PLAN_PROD_KEY | OPER_ID
+장비 모델별 실제 호기(EQP_ID) 목록과 각 호기의 현재 BATCH_ID/PLAN_PROD_KEY/OPER 배치 정보.
+long-format으로는 GBN_CD='EQP_ID', ATTR_VAL=호기ID 행으로 제공한다 (JSON은 `equipments` 키).
+제공 시 출력 간트차트(RTS_ASSIGN)와 전환계획(RTS_EQPCONVPLAN)의 EQP_ID가
+가상 호기({model}-{seq:03d})가 아닌 **실제 장비 호기**로 매핑된다.
+
 위 정보는 실제 물리 테이블에서는 [8]영역에 RTS_LINEDSDB_INF 테이블 하나로 관리되며 쿼리를 통해 위 형태로 변경 후 강화학습 모델에 들어간다.
 
 
@@ -121,7 +128,7 @@ PLAN_PROD_KEY : ["M15/59C/H5UDGSTED/E1S/NA"]
 OPER_ID : ["Z1020000A","Z1040000A"]
 OPER_SEQ : 1,2,3..
 EQP_MODEL_CD : ["T5833","MAGNUM5"]
-GBN_CD : ["ASSIGN_EQUIP_CNT","EQUIP_UPH","AVAIL_WIP_QTY","EXEC_D0_PLAN","D1_TARGET_QTY","TOOL_QTY"]
+GBN_CD : ["ASSIGN_EQUIP_CNT","EQUIP_UPH","AVAIL_WIP_QTY","EXEC_D0_PLAN","D1_TARGET_QTY","TOOL_QTY","EQP_ID"]
 ATTR_VAL : 각 항목별 GBN_CD에 해당하는 값
 
 **만약 PLAN_PROD_KEY/EQP_MODEL 기준 조회시 EQUIP_UPH가 없다면 진행 불가로 판단함.
@@ -143,6 +150,29 @@ python run.py eval
 python run.py train --benchmark-dataset benchmarks/benchmark_01 --steps 50000
 python run.py infer --benchmark-dataset benchmarks/benchmark_01 --report artifacts/inference/allocation.md
 ```
+
+### 분석 대시보드 (FastAPI + React)
+
+Streamlit을 대체하는 다중 요청 처리 가능한 분석 UI.
+간트차트(실제 장비 호기 매핑)·전환횟수·move량·계획달성률·전환 예정 장비 정보를
+한 화면에서 확인하고, 전체 벤치마크/추론 결과를 비교한다.
+
+```bash
+# 1) API 서버 (평가 결과 캐시, 수평 확장은 --workers N)
+pip install -e .[web]
+uvicorn server.main:app --host 0.0.0.0 --port 8000 --workers 4
+
+# 2) UI — 개발 모드 (vite dev server, /api는 8000으로 프록시)
+cd web && npm install && npm run dev      # http://localhost:5173
+
+# 2') UI — 운영 빌드 (FastAPI가 web/dist를 루트(/)에서 정적 서빙)
+cd web && npm install && npm run build    # http://localhost:8000
+```
+
+REST API:
+- `GET /api/datasets` — 분석 가능 데이터셋 목록 (data/test 벤치마크 + data/inference 입력)
+- `GET /api/datasets/{name}` — 상세 분석 (KPI/간트/전환계획/시간별/가이드)
+- `GET /api/summary` — 전체 데이터셋 비교 요약
 
 ### 2-모드 운영 (가이드 + 동적)
 

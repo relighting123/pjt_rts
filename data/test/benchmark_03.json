@@ -57,6 +57,22 @@
       "tool_qty": 2
     }
   ],
+  "equipments": [
+    {
+      "eqp_id": "ETX-101",
+      "eqp_model": "M1",
+      "batch_id": "B1",
+      "plan_prod_key": "P1",
+      "oper_id": "OP10"
+    },
+    {
+      "eqp_id": "ETX-102",
+      "eqp_model": "M1",
+      "batch_id": "B1",
+      "plan_prod_key": "P1",
+      "oper_id": "OP10"
+    }
+  ],
   "ground_truth": {
     "plan_achievement": 1.0,
     "note": "OP10 2대 1h로 200 생산→OP20 WIP 확보. OP20(B2)로 전환해 후공정 달성. OP20 init_wip=0이라 앞공정 빌드 필수."

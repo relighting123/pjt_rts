@@ -35,11 +35,19 @@ def build_eqpconvplan_rows(
     *,
     facid: str | None = None,
 ) -> list[dict]:
-    """batch 전환 이동 → RTS_EQPCONVPLAN_INF/HIS 행."""
+    """batch 전환 이동 → RTS_EQPCONVPLAN_INF/HIS 행.
+
+    problem.equipments(실제 호기 명단)가 있으면 전환 호기 EQP_ID·모델을 채운다.
+    """
+    from eqp_units import track_units
+
     rk = problem.rule_timekey
     fac = facid or problem.facid or _DASH
     rows: list[dict] = []
     seq = 0
+    has_real_eqp = bool(problem.equipments)
+    # track_units conversions는 아래 루프와 동일 순서(batch 전환 이동만)로 생성됨
+    _, conversions = track_units(problem, trace)
 
     for hour, applied_moves, _snapshot in trace:
         event_tm = _event_tm_for_hour(rk, hour)
@@ -55,6 +63,9 @@ def build_eqpconvplan_rows(
             to_task = problem.tasks[mv.to_index]
             from_lot, from_temper = split_batch_lot_temper(from_batch)
             to_lot, to_temper = split_batch_lot_temper(to_batch)
+            conv = conversions[seq] if seq < len(conversions) else None
+            eqp_id = conv["eqp_id"] if (has_real_eqp and conv) else _DASH
+            eqp_model = mv.model if has_real_eqp else _DASH
             seq += 1
             rows.append({
                 "FAC_ID": fac,
@@ -62,8 +73,8 @@ def build_eqpconvplan_rows(
                 "PRCS_STAT_CD": "WAIT",
                 "JOB_ID": f"CONV_{seq:03d}_{rk}",
                 "RTS_GBN_CD": "RTS",
-                "EQP_ID": _DASH,
-                "EQP_MODEL_CD": _DASH,
+                "EQP_ID": eqp_id,
+                "EQP_MODEL_CD": eqp_model,
                 "TESTER_EQP_MODEL_CD": mv.model,
                 "CONV_START_TM": conv_start,
                 "CONV_END_TM": conv_end,

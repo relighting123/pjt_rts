@@ -9,7 +9,7 @@ import config
 from db.input_row import InputRow, coerce_input_row, coerce_input_rows, rows_from_cursor
 from db.sql_loader import filter_rows_for_sql, load_sql
 from db.sql_log import log_sql
-from simulator import Task, ProblemInstance
+from simulator import Equipment, Task, ProblemInstance
 
 
 def filter_rows_by_facid(rows, facid: str | None) -> list[InputRow]:
@@ -57,6 +57,7 @@ def rows_to_problem(rows, horizon_hours: int,
     target_raw: dict[tuple[str, str], int] = {}
     wip_raw: dict[tuple[str, str], int] = {}
     eqp_models: set[str] = set()
+    equipments: list[Equipment] = []
     rk = rule_timekey
 
     for raw in rows:
@@ -79,6 +80,12 @@ def rows_to_problem(rows, horizon_hours: int,
             target_raw[key] = int(float(val))
         elif gbn == "AVAIL_WIP_QTY":
             wip_raw[key] = int(float(val))
+        elif gbn == "EQP_ID":
+            # 실제 호기 명단: ATTR_VAL=호기ID, 행의 모델/BATCH_ID/PLAN_PROD_KEY/OPER_ID가 현재 배치
+            equipments.append(Equipment(
+                eqp_id=str(val), eqp_model=eqp_model,
+                batch_id=batch_id, plan_prod_key=ppk, oper_id=oper_id,
+            ))
 
     keys = list(task_meta)
     index = {k: i for i, k in enumerate(keys)}
@@ -89,11 +96,21 @@ def rows_to_problem(rows, horizon_hours: int,
     ]
     uph = {(m, index[(ppk, o)]): v for (ppk, o, m), v in uph_raw.items()}
     init_assign = {(m, index[(ppk, o)]): c for (ppk, o, m), c in assign_raw.items() if c > 0}
+    if not init_assign and equipments:
+        # ASSIGN_EQUIP_CNT 미제공 시 호기 명단으로 현재 배치 대수 유도
+        for e in equipments:
+            k = (e.plan_prod_key, e.oper_id)
+            if k in index:
+                slot = (e.eqp_model, index[k])
+                init_assign[slot] = init_assign.get(slot, 0) + 1
     eqp_qty: dict[str, int] = defaultdict(int)
     for (m, _ti), c in init_assign.items():
         eqp_qty[m] += c
     for m in eqp_models:
         eqp_qty.setdefault(m, 0)
+    for e in equipments:
+        eqp_models.add(e.eqp_model)
+        eqp_qty.setdefault(e.eqp_model, 0)
     resolved_fac = facid
     if resolved_fac is None and rows:
         facs = {coerce_input_row(r).fac_id for r in rows}
@@ -103,6 +120,7 @@ def rows_to_problem(rows, horizon_hours: int,
         rule_timekey=rk, horizon_hours=horizon_hours, switch_time_hours=switch_time_hours,
         tasks=tasks, _uph=uph, eqp_qty=dict(eqp_qty), init_assign=init_assign,
         tool_qty=tool_raw, conv_groups=config.load_conv_groups(), facid=resolved_fac,
+        equipments=equipments,
         ground_truth={},
     )
 

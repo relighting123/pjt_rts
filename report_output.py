@@ -55,40 +55,59 @@ def build_assign_rows(
     problem: ProblemInstance,
     hourly_stats: list[dict],
     sys_id: str | None = None,
+    trace: list | None = None,
 ) -> list[dict]:
-    """RTS_ASSIGN_INF/HIS — 시간대 × 장비 배치·생산. SEQ_NO는 EQP_ID(호기)별."""
+    """RTS_ASSIGN_INF/HIS — 시간대 × 장비 배치·생산. SEQ_NO는 EQP_ID(호기)별.
+
+    trace가 있으면 호기 단위 추적(eqp_units)으로 EQP_ID 연속성을 보장하고,
+    problem.equipments(실제 호기 명단)가 있으면 실제 호기 ID를 사용한다.
+    trace가 없으면 시간대별 가상 번호 부여(레거시)로 동작.
+    """
     sys_id = sys_id or config.SYS_ID
     rows: list[dict] = []
     seq_by_eqp: dict[str, int] = {}
     rule_timekey = problem.rule_timekey
-    for stat in hourly_stats:
+
+    hourly_positions = None
+    if trace is not None:
+        from eqp_units import track_units
+        hourly_positions, _ = track_units(problem, trace)
+
+    for k, stat in enumerate(hourly_stats):
         hour = stat["hour"]
         event_tm = event_tm_for_hour(rule_timekey, hour)
         start_time = event_tm
         end_time = event_tm_for_hour(rule_timekey, hour + 1)
         snapshot = stat["assign_snapshot"]
 
-        assignments: list[tuple[str, int, int]] = []
-        for model in problem.models():
-            for ti in range(len(problem.tasks)):
-                active = snapshot.get((model, ti), 0)
-                if active > 0:
-                    assignments.append((model, ti, active))
+        # (model, ti) -> [eqp_id]: 추적 결과 우선, 없으면 시간대별 가상 번호
+        if hourly_positions is not None and k < len(hourly_positions):
+            positions = hourly_positions[k]
+        else:
+            positions = {}
+            model_unit_offset: dict[str, int] = {}
+            for model in problem.models():
+                for ti in range(len(problem.tasks)):
+                    active = snapshot.get((model, ti), 0)
+                    if active <= 0:
+                        continue
+                    offset = model_unit_offset.get(model, 0)
+                    positions[(model, ti)] = [
+                        f"{model}-{offset + u + 1:03d}" for u in range(active)
+                    ]
+                    model_unit_offset[model] = offset + active
 
-        # 같은 hour 내에서 모델별 누적 unit 번호 (task마다 재시작하면 중복 EQP_ID 발생)
-        model_unit_offset: dict[str, int] = {}
-        for model, ti, active in sorted(assignments):
+        for (model, ti), unit_ids in sorted(positions.items()):
             task = problem.tasks[ti]
+            active = len(unit_ids)
             model_total = _split_hourly_produce(problem, stat, ti).get(model, 0)
             per_unit = model_total // active if active else 0
             remainder = model_total % active if active else 0
-            offset = model_unit_offset.get(model, 0)
-            for u in range(active):
+            for u, eqp_id in enumerate(sorted(unit_ids)):
                 qty = per_unit + (1 if u < remainder else 0)
                 if qty == 0:
                     # 재공 없음(WIP=0) 또는 idle 전환 중 — 배치 행 생략
                     continue
-                eqp_id = f"{model}-{offset + u + 1:03d}"
                 seq_by_eqp[eqp_id] = seq_by_eqp.get(eqp_id, 0) + 1
                 rows.append({
                     "RULE_TIMEKEY": rule_timekey,
@@ -102,7 +121,6 @@ def build_assign_rows(
                     "PRODUCE_QTY": qty,
                     "CRT_USER_ID": sys_id,
                 })
-            model_unit_offset[model] = offset + active
     return rows
 
 
@@ -304,7 +322,7 @@ def build_output_tables(
     """출력 테이블별 행 dict."""
     sid = sys_id or config.SYS_ID
     return {
-        config.ASSIGN_TABLE: build_assign_rows(problem, hourly_stats, sid),
+        config.ASSIGN_TABLE: build_assign_rows(problem, hourly_stats, sid, trace=trace),
         config.EQPCONVPLAN_TABLE: build_eqpconvplan_rows(problem, trace),
     }
 
@@ -313,10 +331,11 @@ def build_allocation_rows(
     problem: ProblemInstance,
     hourly_stats: list[dict],
     sys_id: str | None = None,
+    trace: list | None = None,
 ) -> list[dict]:
     sid = sys_id or config.SYS_ID
     return [{k: row[k] for k in ALLOC_DB_KEYS} for row in build_assign_rows(
-        problem, hourly_stats, sid)]
+        problem, hourly_stats, sid, trace=trace)]
 
 
 def render_detail_sections(
@@ -508,7 +527,7 @@ def render_html_report(results: dict[str, tuple[ProblemInstance, dict]]) -> str:
 
 
 def guide_allocation_rows(problem, guide_allocation: dict) -> list[dict]:
-    """Streamlit/HTML용 가이드 배분 행 목록 (미배분 공정은 0)."""
+    """대시보드/HTML용 가이드 배분 행 목록 (미배분 공정은 0)."""
     complete = problem.complete_guide_allocation(guide_allocation)
     rows = []
     for (model, ti), cnt in sorted(complete.items(), key=lambda x: (x[0][1], x[0][0])):
