@@ -49,13 +49,16 @@ Batch id는 plan prod key와 oper id에 의해 정의된다. pla prod key||oper_
 이런식으로 동일 제품에 대해 여러 계획이 있을 수 있따.
 
 9. 장비 호기 명단 (실제 장비 매핑용)
- RULE_TIMEKEY | EQP_MODEL_CD | EQP_ID | BATCH_ID | PLAN_PROD_KEY | OPER_ID
-장비 모델별 실제 호기(EQP_ID) 목록과 각 호기의 현재 BATCH_ID/PLAN_PROD_KEY/OPER 배치 정보.
-long-format으로는 GBN_CD='EQP_ID', ATTR_VAL=호기ID 행으로 제공한다 (JSON은 `equipments` 키).
+ RULE_TIMEKEY | FAC_ID | EQP_ID | EQP_MODEL_CD | BATCH_ID | PLAN_PROD_KEY
+장비 모델별 실제 호기(EQP_ID) 목록과 각 호기의 현재 BATCH_ID/PLAN_PROD_KEY 배치 정보.
+**RTD_ARRANGE_INF** 테이블에서 EQP_ID/EQP_MODEL_CD/BATCH_ID/PLAN_PROD_KEY를 조회해
+가져온다 (JSON은 `equipments` 키).
 제공 시 출력 간트차트(RTS_ASSIGN)와 전환계획(RTS_EQPCONVPLAN)의 EQP_ID가
-가상 호기({model}-{seq:03d})가 아닌 **실제 장비 호기**로 매핑된다.
+가상 호기({model}-{seq:03d})가 아닌 **실제 장비 호기**로 매핑되고,
+ASSIGN_EQUIP_CNT 미제공 시 호기 명단에서 현재 배치 대수를 자동 유도한다.
+RTD_ARRANGE_INF 미존재/미조회 시에는 가상 호기로 동작한다.
 
-위 정보는 실제 물리 테이블에서는 [8]영역에 RTS_LINEDSDB_INF 테이블 하나로 관리되며 쿼리를 통해 위 형태로 변경 후 강화학습 모델에 들어간다.
+위 정보 중 1~8은 실제 물리 테이블에서는 [8]영역에 RTS_LINEDSDB_INF 테이블 하나로 관리되며 쿼리를 통해 위 형태로 변경 후 강화학습 모델에 들어간다. 9(호기 명단)는 RTD_ARRANGE_INF에서 별도 조회한다.
 
 
 **output (추론 결과 DB 기록)**
@@ -128,8 +131,16 @@ PLAN_PROD_KEY : ["M15/59C/H5UDGSTED/E1S/NA"]
 OPER_ID : ["Z1020000A","Z1040000A"]
 OPER_SEQ : 1,2,3..
 EQP_MODEL_CD : ["T5833","MAGNUM5"]
-GBN_CD : ["ASSIGN_EQUIP_CNT","EQUIP_UPH","AVAIL_WIP_QTY","EXEC_D0_PLAN","D1_TARGET_QTY","TOOL_QTY","EQP_ID"]
+GBN_CD : ["ASSIGN_EQUIP_CNT","EQUIP_UPH","AVAIL_WIP_QTY","EXEC_D0_PLAN","D1_TARGET_QTY","TOOL_QTY"]
 ATTR_VAL : 각 항목별 GBN_CD에 해당하는 값
+
+테이블 명 : RTD_ARRANGE_INF (장비 호기 현재 배치 명단 — 실제 EQP_ID 매핑용)
+RULE_TIMEKEY VARCHAR2(16) PK
+FAC_ID VARCHAR2(20) PK
+EQP_ID VARCHAR2(50) PK
+EQP_MODEL_CD VARCHAR2(50)
+BATCH_ID VARCHAR2(50)
+PLAN_PROD_KEY VARCHAR2(50)
 
 **만약 PLAN_PROD_KEY/EQP_MODEL 기준 조회시 EQUIP_UPH가 없다면 진행 불가로 판단함.
 **D0_TARGET의 경우 RULE_TIMEKEY 기준에서 다음날 07시까지의 계획이며 D1 TARGET의 경우 다음날 07시에서 그 다음날 07시까지 계획으로 치환하여 처리

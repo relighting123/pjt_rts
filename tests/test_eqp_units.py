@@ -74,25 +74,52 @@ def test_problem_json_roundtrip_with_equipments(tmp_path):
     assert p2.equipments == p.equipments
 
 
-def test_rows_to_problem_parses_eqp_id_rows():
-    from db.adapter import rows_to_problem
+def test_arrange_rows_to_equipments_builds_roster():
+    from db.adapter import arrange_rows_to_equipments
+    # dict(대소문자 무관)·tuple(EQP_ID, EQP_MODEL_CD, BATCH_ID, PLAN_PROD_KEY) 모두 수용
+    rows = [
+        {"EQP_ID": "ETX-201", "EQP_MODEL_CD": "M1", "BATCH_ID": "B1", "PLAN_PROD_KEY": "P1"},
+        ["ETX-202", "M1", "B1", "P1"],
+    ]
+    equipments = arrange_rows_to_equipments(rows)
+    assert equipments == [
+        Equipment("ETX-201", "M1", "B1", "P1"),
+        Equipment("ETX-202", "M1", "B1", "P1"),
+    ]
+    assert arrange_rows_to_equipments(None) == []
+
+
+def test_rows_to_problem_uses_arrange_equipments():
+    from db.adapter import arrange_rows_to_equipments, rows_to_problem
     rows = [
         ["RK1", "F1", "B1", "P1", "OP10", 1, "M1", "EQUIP_UPH", "100"],
         ["RK1", "F1", "B1", "P1", "OP10", 1, "M1", "EXEC_D0_PLAN", "300"],
         ["RK1", "F1", "B1", "P1", "OP10", 1, "M1", "AVAIL_WIP_QTY", "500"],
         ["RK1", "F1", "B1", "P1", "OP10", 1, "M1", "TOOL_QTY", "2"],
-        ["RK1", "F1", "B1", "P1", "OP10", 1, "M1", "EQP_ID", "ETX-201"],
-        ["RK1", "F1", "B1", "P1", "OP10", 1, "M1", "EQP_ID", "ETX-202"],
     ]
-    p = rows_to_problem(rows, horizon_hours=3)
+    arrange = [["ETX-201", "M1", "B1", "P1"], ["ETX-202", "M1", "B1", "P1"]]
+    p = rows_to_problem(rows, horizon_hours=3, equipments=arrange_rows_to_equipments(arrange))
     assert [e.eqp_id for e in p.equipments] == ["ETX-201", "ETX-202"]
-    assert p.equipments[0] == Equipment("ETX-201", "M1", "B1", "P1", "OP10")
     # ASSIGN_EQUIP_CNT 미제공 → 호기 명단으로 init_assign 유도
+    # (RTD_ARRANGE_INF에는 OPER_ID가 없으므로 PLAN_PROD_KEY·BATCH_ID로 task 매칭)
     assert p.init_assign == {("M1", 0): 2}
     assert p.eqp_qty == {"M1": 2}
 
 
 def test_rows_to_problem_assign_cnt_takes_precedence():
+    from db.adapter import arrange_rows_to_equipments, rows_to_problem
+    rows = [
+        ["RK1", "F1", "B1", "P1", "OP10", 1, "M1", "EQUIP_UPH", "100"],
+        ["RK1", "F1", "B1", "P1", "OP10", 1, "M1", "ASSIGN_EQUIP_CNT", "1"],
+    ]
+    arrange = [["ETX-201", "M1", "B1", "P1"]]
+    p = rows_to_problem(rows, horizon_hours=3, equipments=arrange_rows_to_equipments(arrange))
+    assert p.init_assign == {("M1", 0): 1}
+    assert len(p.equipments) == 1
+
+
+def test_rows_to_problem_ignores_eqp_id_gbn():
+    """GBN_CD='EQP_ID' 행은 더 이상 호기 명단으로 쓰지 않는다 (RTD_ARRANGE_INF로 이관)."""
     from db.adapter import rows_to_problem
     rows = [
         ["RK1", "F1", "B1", "P1", "OP10", 1, "M1", "EQUIP_UPH", "100"],
@@ -100,5 +127,15 @@ def test_rows_to_problem_assign_cnt_takes_precedence():
         ["RK1", "F1", "B1", "P1", "OP10", 1, "M1", "EQP_ID", "ETX-201"],
     ]
     p = rows_to_problem(rows, horizon_hours=3)
-    assert p.init_assign == {("M1", 0): 1}
-    assert len(p.equipments) == 1
+    assert p.equipments == []
+
+
+def test_export_from_sample_rows_includes_arrange_equipments(tmp_path, monkeypatch):
+    import config
+    from db.export import export_from_sample_rows
+    from simulator import load_problem
+    monkeypatch.setattr(config, "INFERENCE_DATA_DIR", tmp_path)
+    out = export_from_sample_rows()
+    p = load_problem(out)
+    assert [e.eqp_id for e in p.equipments] == ["ETX-101"]
+    assert p.equipments[0].eqp_model == "M1"

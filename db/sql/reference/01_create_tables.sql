@@ -34,6 +34,31 @@ COMMENT ON TABLE RTS_LINEDSDB_INF IS '입력 스냅샷. GBN_CD: EQUIP_UPH|ASSIGN
 COMMENT ON COLUMN RTS_LINEDSDB_INF.GBN_CD IS 'EQUIP_UPH, ASSIGN_EQUIP_CNT, TOOL_QTY, EXEC_D0_PLAN, AVAIL_WIP_QTY';
 
 -- ---------------------------------------------------------------------------
+-- 1-1. 장비 호기 현재 배치 명단 (실제 EQP_ID 매핑 — RTD_ARRANGE_INF)
+-- ---------------------------------------------------------------------------
+BEGIN
+  EXECUTE IMMEDIATE 'DROP TABLE RTD_ARRANGE_INF PURGE';
+EXCEPTION WHEN OTHERS THEN IF SQLCODE != -942 THEN RAISE; END IF;
+END;
+/
+
+CREATE TABLE RTD_ARRANGE_INF (
+  RULE_TIMEKEY   VARCHAR2(16)   NOT NULL,
+  FAC_ID         VARCHAR2(20)   NOT NULL,
+  EQP_ID         VARCHAR2(50)   NOT NULL,
+  EQP_MODEL_CD   VARCHAR2(50)   NOT NULL,
+  BATCH_ID       VARCHAR2(50)   NOT NULL,
+  PLAN_PROD_KEY  VARCHAR2(50)   NOT NULL,
+  CONSTRAINT PK_RTD_ARRANGE_INF PRIMARY KEY (RULE_TIMEKEY, FAC_ID, EQP_ID)
+);
+
+CREATE INDEX IX_ARRANGE_RK ON RTD_ARRANGE_INF (RULE_TIMEKEY);
+
+COMMENT ON TABLE RTD_ARRANGE_INF IS '장비 호기 현재 배치 명단 — 출력(RTS_ASSIGN·RTS_EQPCONVPLAN) EQP_ID 실제 호기 매핑용';
+COMMENT ON COLUMN RTD_ARRANGE_INF.EQP_ID IS '실제 장비 호기 ID';
+COMMENT ON COLUMN RTD_ARRANGE_INF.BATCH_ID IS '해당 호기의 현재 배치 BATCH_ID';
+
+-- ---------------------------------------------------------------------------
 -- 2. 가이드 배분 (Mode 1 · 재공 무한 목표 장비 대수 — RTS_EQPALLOCATION)
 -- ---------------------------------------------------------------------------
 BEGIN

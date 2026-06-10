@@ -24,6 +24,7 @@ def test_reference_sql_files_exist():
 def test_sql_files_exist():
     expected = [
         ("select", "fetch_rows"),
+        ("select", "fetch_arrange"),
         ("select", "max_timekey"),
         ("select", "list_timekeys_in_range"),
         ("write", "delete_by_timekey"),
@@ -47,6 +48,16 @@ def test_fetch_rows_sql_requires_facid_and_batch_like():
     assert "BATCH_ID LIKE :batch_like" in sql
     assert "AS rule_timekey" in sql
     assert "EQP_MODEL_CD AS eqp_model" in sql
+
+
+def test_fetch_arrange_sql_selects_equipment_columns():
+    sql = load_sql("select", "fetch_arrange", table=config.ARRANGE_TABLE)
+    assert "FROM RTD_ARRANGE_INF" in sql
+    for col in ("EQP_ID", "EQP_MODEL_CD", "BATCH_ID", "PLAN_PROD_KEY"):
+        assert col in sql
+    assert ":rk" in sql
+    assert ":facid" in sql
+    assert "BATCH_ID LIKE :batch_like" in sql
 
 
 def test_max_timekey_sql_requires_facid():
