@@ -115,6 +115,8 @@ GUIDE_BAND_PCT = float(os.getenv("GUIDE_BAND_PCT", "0.20"))
 # --- DB 테이블 (INF=현행, HIS=이력) ---
 # 입력
 INPUT_TABLE = "RTS_LINEDSDB_INF"
+# 장비 호기 현재 배치 명단 (EQP_ID/EQP_MODEL_CD/BATCH_ID/PLAN_PROD_KEY)
+ARRANGE_TABLE = "RTD_ARRANGE_INF"
 
 # 출력 4종 — 스키마·JSON 매핑: db/sql/reference/00_output_tables.md
 # Mode 1: 가이드 배분 (공정×모델)

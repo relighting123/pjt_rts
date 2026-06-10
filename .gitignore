@@ -11,3 +11,6 @@ data/*
 !data/inference/**
 artifacts/
 .pytest_cache/
+web/node_modules/
+web/dist/
+web/*.tsbuildinfo

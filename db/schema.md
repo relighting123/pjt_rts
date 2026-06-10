@@ -17,9 +17,16 @@
 #   "eqp_qty": {"M1": 1},
 #   "init_assign": [{"eqp_model","plan_prod_key","oper_id","count"}],
 #   "tool_qty": [{"batch_id","eqp_model","tool_qty"}],
+#   "equipments": [{"eqp_id","eqp_model","batch_id","plan_prod_key","oper_id"}],
 #   "facid": "ICPRB"
 # }
 # `conv_groups`는 JSON에 두지 않음 — config.py CONV_GROUPS로 설정.
+#
+# `equipments` (선택): 실제 장비 호기 명단. DB에서는 RTD_ARRANGE_INF
+# 테이블에서 EQP_ID·EQP_MODEL_CD·BATCH_ID·PLAN_PROD_KEY를 조회해 채운다
+# (db.adapter.fetch_equipments → arrange_rows_to_equipments).
+# 제공 시 RTS_ASSIGN(간트차트)·RTS_EQPCONVPLAN의 EQP_ID가 실제 호기로
+# 매핑되고, 미제공/조회 실패 시 가상 호기({model}-{seq:03d})를 사용한다.
 # ```
 #
 # ## 추론 결과 JSON (data/inference/{RULE_TIMEKEY}_result.json)

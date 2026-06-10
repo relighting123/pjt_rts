@@ -15,6 +15,16 @@ class Move(NamedTuple):
     to_index: int
 
 
+@dataclass(frozen=True)
+class Equipment:
+    """실제 장비 호기 1대 — 모델/호기ID/현재 BATCH_ID/PLAN_PROD_KEY(/OPER_ID)."""
+    eqp_id: str
+    eqp_model: str
+    batch_id: str = ""
+    plan_prod_key: str = ""
+    oper_id: str = ""
+
+
 def largest_remainder(fracs: list[float], total: int) -> list[int]:
     """비례 실수 배분 → 정수. 합계 = total (최대잉여법). 장비 1대 단위 이동과 맞춤."""
     floors = [int(f) for f in fracs]
@@ -53,6 +63,7 @@ class ProblemInstance:
     tool_qty: dict[tuple[str, str], int]         # (batch_id, model) -> tools
     conv_groups: dict[str, list[str]]            # group_id -> [batch_id, ...]
     facid: str | None = None
+    equipments: list[Equipment] = field(default_factory=list)  # 실제 호기 명단 (없으면 가상)
     ground_truth: dict = field(default_factory=dict)
 
     def uph_of(self, model: str, task_index: int) -> float | None:
@@ -419,6 +430,16 @@ def load_problem(path: str | Path) -> ProblemInstance:
         for a in data["init_assign"]
     }
     tool_qty = {(t["batch_id"], t["eqp_model"]): int(t["tool_qty"]) for t in data["tool_qty"]}
+    equipments = [
+        Equipment(
+            eqp_id=str(e["eqp_id"]),
+            eqp_model=str(e["eqp_model"]),
+            batch_id=str(e.get("batch_id", "")),
+            plan_prod_key=str(e.get("plan_prod_key", "")),
+            oper_id=str(e.get("oper_id", "")),
+        )
+        for e in data.get("equipments", [])
+    ]
     return ProblemInstance(
         rule_timekey=data["rule_timekey"],
         horizon_hours=int(data["horizon_hours"]),
@@ -430,6 +451,7 @@ def load_problem(path: str | Path) -> ProblemInstance:
         tool_qty=tool_qty,
         conv_groups=config.load_conv_groups(),
         facid=data.get("facid") or data.get("fac_id"),
+        equipments=equipments,
         ground_truth=data.get("ground_truth", {}),
     )
 
@@ -482,6 +504,17 @@ def problem_to_dict(problem: ProblemInstance, include_ground_truth: bool = True)
     }
     if problem.facid:
         data["facid"] = problem.facid
+    if problem.equipments:
+        data["equipments"] = [
+            {
+                "eqp_id": e.eqp_id,
+                "eqp_model": e.eqp_model,
+                "batch_id": e.batch_id,
+                "plan_prod_key": e.plan_prod_key,
+                "oper_id": e.oper_id,
+            }
+            for e in problem.equipments
+        ]
     if include_ground_truth and problem.ground_truth:
         data["ground_truth"] = problem.ground_truth
     return data

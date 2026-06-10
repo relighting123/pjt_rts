@@ -22,6 +22,13 @@ INSERT INTO RTS_LINEDSDB_INF VALUES
 INSERT INTO RTS_LINEDSDB_INF VALUES
   ('2026052922500000', 'ICPRB', 'B1', 'P1', 'OP10', 1, 'M1', 'TOOL_QTY', '1');
 
+-- 실제 장비 호기 명단 → RTD_ARRANGE_INF
+-- (EQP_MODEL_CD·BATCH_ID·PLAN_PROD_KEY = 해당 호기의 현재 배치)
+DELETE FROM RTD_ARRANGE_INF;
+INSERT INTO RTD_ARRANGE_INF
+  (RULE_TIMEKEY, FAC_ID, EQP_ID, EQP_MODEL_CD, BATCH_ID, PLAN_PROD_KEY)
+VALUES ('2026052922500000', 'ICPRB', 'ETX-101', 'M1', 'B1', 'P1');
+
 -- ---------------------------------------------------------------------------
 -- 스냅샷 2: benchmark_02 (PA/PB batch 전환, plan 200+100)
 -- RULE_TIMEKEY = 2026053000500000  (학습 구간·MAX 조회 테스트용 2번째 키)

@@ -2,7 +2,7 @@
 
 데이터 경로:
   data/train/              — 학습 JSON ({RULE_TIMEKEY}.json, DB export 포함)
-  data/test/               — 평가·Streamlit 벤치마크
+  data/test/               — 평가·대시보드 벤치마크
   data/inference/          — 추론 입력·결과 JSON
 
 추론(운영): DB → data/inference/{timekey}.json → infer → {timekey}_result.json → DB write
