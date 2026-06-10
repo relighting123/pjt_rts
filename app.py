@@ -247,7 +247,10 @@ if not benchmark_files:
     st.stop()
 
 benchmark_names = [f.stem for f in benchmark_files]
-tab_labels = [f"BM-{i+1:02d}" for i in range(len(benchmark_names))] + ["📊 전체 비교"]
+tab_labels = (
+    [f"BM-{i+1:02d}" for i in range(len(benchmark_names))]
+    + ["📊 전체 비교", "📈 학습 추이"]
+)
 
 # ────────────────────────────────────────────────────────────────
 # 메인 타이틀
@@ -259,7 +262,7 @@ all_tabs = st.tabs(tab_labels)
 # ────────────────────────────────────────────────────────────────
 # 벤치마크별 탭 (BM-01 ~ BM-09)
 # ────────────────────────────────────────────────────────────────
-for i, (tab, bm_name) in enumerate(zip(all_tabs[:-1], benchmark_names)):
+for i, (tab, bm_name) in enumerate(zip(all_tabs[:-2], benchmark_names)):
     with tab:
         bm_path = config.BENCHMARKS_DIR / f"{bm_name}.json"
         problem, result = _load_and_eval(str(bm_path))
@@ -280,7 +283,7 @@ for i, (tab, bm_name) in enumerate(zip(all_tabs[:-1], benchmark_names)):
 # ────────────────────────────────────────────────────────────────
 # 전체 비교 탭
 # ────────────────────────────────────────────────────────────────
-with all_tabs[-1]:
+with all_tabs[-2]:
     st.subheader("전체 벤치마크 비교")
 
     summary_rows = []
@@ -383,3 +386,58 @@ with all_tabs[-1]:
                 f"**{row['벤치마크']}**: 달성률 {row['계획달성률']:.1%}, "
                 f"가동률 {row['장비가동률']:.1%}, move {row['move량']:,}"
             )
+
+
+# ────────────────────────────────────────────────────────────────
+# 학습 추이 탭 (Reward · 계획달성률 수렴)
+# ────────────────────────────────────────────────────────────────
+with all_tabs[-1]:
+    st.subheader("학습 수렴 추이 (Reward · 계획달성률)")
+    st.caption(
+        "`python run.py train` 실행 시 episode마다 reward·계획달성률을 "
+        f"`{config.TRAINING_LOG_PATH.relative_to(config.ROOT)}`에 기록합니다."
+    )
+
+    log_path = config.TRAINING_LOG_PATH
+    if not log_path.exists():
+        st.info("학습 로그가 없습니다. 모델을 학습(`python run.py train ...`)하면 이 탭에 수렴 추이가 표시됩니다.")
+    elif not _HAS_PLOTLY:
+        st.warning("`pip install plotly pandas` 설치 후 재시작하면 차트가 표시됩니다.")
+    else:
+        df_log = pd.read_csv(log_path)
+        if df_log.empty:
+            st.info("학습 로그가 비어 있습니다.")
+        else:
+            window = min(20, max(1, len(df_log) // 5))
+            df_log["reward_ma"] = df_log["reward"].rolling(window, min_periods=1).mean()
+            df_log["achv_ma"] = df_log["plan_achievement"].rolling(window, min_periods=1).mean()
+
+            k1, k2, k3 = st.columns(3)
+            k1.metric("총 episode 수", f"{len(df_log):,}")
+            k2.metric(f"최근 평균 reward (이동평균 {window})", f"{df_log['reward_ma'].iloc[-1]:.3f}")
+            k3.metric(f"최근 평균 계획달성률 (이동평균 {window})", f"{df_log['achv_ma'].iloc[-1]:.1%}")
+            st.divider()
+
+            cl, cr = st.columns(2)
+            with cl:
+                fig_r = px.line(
+                    df_log, x="timestep", y=["reward", "reward_ma"],
+                    title="Reward 수렴 추이",
+                    labels={"value": "reward", "variable": ""},
+                    color_discrete_map={"reward": "#B0BEC5", "reward_ma": "#1f77b4"},
+                )
+                fig_r.update_layout(height=320, margin=dict(l=10, r=10, t=50, b=10), legend_title_text="")
+                st.plotly_chart(fig_r, use_container_width=True)
+            with cr:
+                fig_a = px.line(
+                    df_log, x="timestep", y=["plan_achievement", "achv_ma"],
+                    title="계획달성률 수렴 추이",
+                    labels={"value": "계획달성률", "variable": ""},
+                    color_discrete_map={"plan_achievement": "#B0BEC5", "achv_ma": "#2ca02c"},
+                )
+                fig_a.update_yaxes(range=[0, 1.05], tickformat=".0%")
+                fig_a.update_layout(height=320, margin=dict(l=10, r=10, t=50, b=10), legend_title_text="")
+                st.plotly_chart(fig_a, use_container_width=True)
+
+            with st.expander(f"📄 학습 로그 원본 ({len(df_log)}행)", expanded=False):
+                st.dataframe(df_log, use_container_width=True, hide_index=True)

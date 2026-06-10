@@ -13,6 +13,7 @@ HTML_REPORT_PATH = ROOT / "MODEL_REPORT.html"
 
 MODEL_PATH = SAVED_MODELS_DIR / "ppo_dispatch.zip"
 BC_POLICY_PATH = SAVED_MODELS_DIR / "bc_init.pt"
+TRAINING_LOG_PATH = SAVED_MODELS_DIR / "training_log.csv"
 
 # 학습 하이퍼파라미터
 DEFAULT_PPO_STEPS = 50_000

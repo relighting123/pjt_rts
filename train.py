@@ -5,6 +5,7 @@ teacher(휴리스틱) 궤적을 환경 위에서 재현하며 (obs, action, mask
 """
 from __future__ import annotations
 import copy
+import csv
 import random
 from pathlib import Path
 import numpy as np
@@ -12,6 +13,8 @@ import torch
 
 from sb3_contrib import MaskablePPO
 from sb3_contrib.common.wrappers import ActionMasker
+from stable_baselines3.common.callbacks import BaseCallback
+from stable_baselines3.common.monitor import Monitor
 
 from simulator import ProblemInstance, Simulator, heuristic_actions
 from env import DispatchEnv
@@ -23,7 +26,45 @@ def _mask_fn(env) -> np.ndarray:
 
 
 def make_env(problem: ProblemInstance) -> ActionMasker:
-    return ActionMasker(DispatchEnv(problem), _mask_fn)
+    return ActionMasker(Monitor(DispatchEnv(problem)), _mask_fn)
+
+
+class RewardLogCallback(BaseCallback):
+    """에피소드 종료마다 (timestep, reward, 계획달성률)을 CSV로 기록해 학습 수렴 추이를 추적."""
+
+    def __init__(self, log_path: Path, verbose: int = 0):
+        super().__init__(verbose)
+        self.log_path = Path(log_path)
+        self._episode = 0
+        self._fh = None
+        self._writer = None
+
+    def _on_training_start(self) -> None:
+        self.log_path.parent.mkdir(parents=True, exist_ok=True)
+        self._fh = open(self.log_path, "w", newline="", encoding="utf-8")
+        self._writer = csv.writer(self._fh)
+        self._writer.writerow(["episode", "timestep", "reward", "plan_achievement", "length"])
+
+    def _on_step(self) -> bool:
+        for info in self.locals.get("infos", []):
+            ep = info.get("episode")
+            if ep is None:
+                continue
+            self._episode += 1
+            self._writer.writerow([
+                self._episode,
+                self.num_timesteps,
+                ep["r"],
+                info.get("plan_achievement", ""),
+                ep["l"],
+            ])
+            self._fh.flush()
+        return True
+
+    def _on_training_end(self) -> None:
+        if self._fh is not None:
+            self._fh.close()
+            self._fh = None
 
 
 def collect_teacher_dataset(problems: list[ProblemInstance]):
@@ -80,9 +121,10 @@ def behavior_clone(model: MaskablePPO, obs, acts, masks, epochs: int, lr: float)
 
 def train_model(problems: list[ProblemInstance], ppo_steps: int = config.DEFAULT_PPO_STEPS,
                 bc_epochs: int = config.BC_EPOCHS, lr: float = config.BC_LR,
-                save_path: Path | None = None) -> MaskablePPO:
+                save_path: Path | None = None, log_path: Path | None = None) -> MaskablePPO:
     save_path = Path(save_path) if save_path else config.MODEL_PATH
     save_path.parent.mkdir(parents=True, exist_ok=True)
+    log_path = Path(log_path) if log_path else save_path.parent / "training_log.csv"
 
     # 단일 정책은 동일 (관측/액션) shape만 학습 가능 → 첫 문제 기준으로 필터
     def _shape(p):
@@ -104,7 +146,7 @@ def train_model(problems: list[ProblemInstance], ppo_steps: int = config.DEFAULT
     behavior_clone(model, obs, acts, masks, bc_epochs, lr)
     # 2) PPO 강화
     model.set_env(env_fn())
-    model.learn(total_timesteps=ppo_steps, progress_bar=False)
+    model.learn(total_timesteps=ppo_steps, progress_bar=False, callback=RewardLogCallback(log_path))
     model.save(save_path)
     return model
 
