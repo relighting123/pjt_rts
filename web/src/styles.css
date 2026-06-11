@@ -1,14 +1,15 @@
 :root {
-  --bg: #0f1420;
-  --panel: #1a2030;
-  --panel-2: #202a40;
-  --border: #2c3650;
-  --text: #e6eaf2;
-  --muted: #8b96ad;
-  --accent: #5b8ff9;
-  --good: #5ad8a6;
-  --warn: #f6bd16;
-  --bad: #e8684a;
+  /* 화이트 기반 라이트 테마 */
+  --bg: #f5f7fa;
+  --panel: #ffffff;
+  --panel-2: #f0f3f8;
+  --border: #dde3ec;
+  --text: #1f2733;
+  --muted: #6b7689;
+  --accent: #3b6fe0;
+  --good: #18a06c;
+  --warn: #c98a00;
+  --bad: #d6492a;
 }
 
 * { box-sizing: border-box; }
@@ -49,8 +50,8 @@ select {
   display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px;
   margin-left: 8px; vertical-align: 1px;
 }
-.badge.real { background: rgba(90, 216, 166, 0.15); color: var(--good); border: 1px solid var(--good); }
-.badge.virtual { background: rgba(246, 189, 22, 0.12); color: var(--warn); border: 1px solid var(--warn); }
+.badge.real { background: rgba(24, 160, 108, 0.10); color: var(--good); border: 1px solid var(--good); }
+.badge.virtual { background: rgba(201, 138, 0, 0.10); color: var(--warn); border: 1px solid var(--warn); }
 
 .kpi-grid {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -58,7 +59,7 @@ select {
 }
 .kpi {
   background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
-  padding: 14px 16px;
+  padding: 14px 16px; box-shadow: 0 1px 3px rgba(31, 39, 51, 0.06);
 }
 .kpi .label { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
 .kpi .value { font-size: 26px; font-weight: 700; }
@@ -70,6 +71,7 @@ select {
 .panel {
   background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
   padding: 16px; margin-bottom: 16px; overflow-x: auto;
+  box-shadow: 0 1px 3px rgba(31, 39, 51, 0.06);
 }
 .panel h2 { font-size: 15px; margin: 0 0 12px; color: var(--text); }
 .panel h2 .sub { color: var(--muted); font-weight: 400; font-size: 12px; margin-left: 8px; }

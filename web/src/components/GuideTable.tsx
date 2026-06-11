@@ -30,7 +30,7 @@ export default function GuideTable({ guide }: Props) {
               const alpha = v / max;
               return (
                 <td key={m} className="num"
-                    style={{ background: v > 0 ? `rgba(91,143,249,${0.12 + alpha * 0.35})` : undefined }}>
+                    style={{ background: v > 0 ? `rgba(59,111,224,${0.08 + alpha * 0.25})` : undefined }}>
                   {v}
                 </td>
               );
