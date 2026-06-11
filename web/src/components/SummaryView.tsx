@@ -89,9 +89,9 @@ export default function SummaryView({ summary, onSelect }: Props) {
 
 function MiniBars({ heuristic, rl, optimal }: { heuristic: number | null; rl: number | null; optimal: number | null }) {
   const rows: Array<[string, number | null, string]> = [
-    ["H", heuristic, "#5b8ff9"],
-    ["RL", rl, "#5ad8a6"],
-    ["OPT", optimal, "#e8684a"],
+    ["H", heuristic, "#3b6fe0"],
+    ["RL", rl, "#18a06c"],
+    ["OPT", optimal, "#d6492a"],
   ];
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>

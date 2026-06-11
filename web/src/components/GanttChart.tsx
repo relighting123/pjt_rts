@@ -40,8 +40,8 @@ export default function GanttChart({ segments }: Props) {
         {/* 눈금 + 그리드 */}
         {ticks.map((t) => (
           <g key={t}>
-            <line x1={x(t)} y1={AXIS_H - 4} x2={x(t)} y2={height - 6} stroke="#2c3650" />
-            <text x={x(t) + 3} y={AXIS_H - 9} fill="#8b96ad" fontSize={11}>
+            <line x1={x(t)} y1={AXIS_H - 4} x2={x(t)} y2={height - 6} stroke="#e1e6ef" />
+            <text x={x(t) + 3} y={AXIS_H - 9} fill="#6b7689" fontSize={11}>
               {fmtTime(new Date(t).toISOString())}
             </text>
           </g>
@@ -51,8 +51,8 @@ export default function GanttChart({ segments }: Props) {
           const y = AXIS_H + i * ROW_H;
           return (
             <g key={eqp}>
-              <rect x={0} y={y} width={width} height={ROW_H} fill={i % 2 ? "#1c2335" : "none"} />
-              <text x={8} y={y + ROW_H / 2 + 4} fill="#e6eaf2" fontSize={12} fontWeight={600}>
+              <rect x={0} y={y} width={width} height={ROW_H} fill={i % 2 ? "#f3f6fb" : "none"} />
+              <text x={8} y={y + ROW_H / 2 + 4} fill="#1f2733" fontSize={12} fontWeight={600}>
                 {eqp}
               </text>
             </g>
@@ -71,7 +71,7 @@ export default function GanttChart({ segments }: Props) {
                 </title>
               </rect>
               {w > 56 && (
-                <text x={x0 + w / 2} y={y + BAR_H / 2 + 4} fill="#0f1420" fontSize={11}
+                <text x={x0 + w / 2} y={y + BAR_H / 2 + 4} fill="#ffffff" fontSize={11}
                       fontWeight={700} textAnchor="middle" pointerEvents="none">
                   {s.task}
                 </text>
@@ -87,13 +87,13 @@ export default function GanttChart({ segments }: Props) {
           return (
             <g key={`conv-${idx}`}>
               <rect x={x0} y={y} width={w} height={BAR_H} rx={4}
-                    fill="rgba(232,104,74,0.25)" stroke="#e8684a" strokeDasharray="4 3">
+                    fill="rgba(214,73,42,0.12)" stroke="#d6492a" strokeDasharray="4 3">
                 <title>
                   {`[전환] ${s.eqp_id} (${s.model})\n${s.from_batch} → ${s.to_batch} (${s.from_task} → ${s.to_task})\n${fmtTime(s.start)} ~ ${fmtTime(s.end)}`}
                 </title>
               </rect>
               {w > 50 && (
-                <text x={x0 + w / 2} y={y + BAR_H / 2 + 4} fill="#e8684a" fontSize={11}
+                <text x={x0 + w / 2} y={y + BAR_H / 2 + 4} fill="#d6492a" fontSize={11}
                       fontWeight={700} textAnchor="middle" pointerEvents="none">
                   {s.from_batch}→{s.to_batch}
                 </text>
@@ -110,7 +110,7 @@ export default function GanttChart({ segments }: Props) {
         ))}
         <span className="item">
           <span className="swatch"
-                style={{ background: "rgba(232,104,74,0.25)", border: "1px dashed #e8684a" }} />
+                style={{ background: "rgba(214,73,42,0.12)", border: "1px dashed #d6492a" }} />
           tool 전환 (batch 변경)
         </span>
       </div>
