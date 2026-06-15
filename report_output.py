@@ -527,15 +527,27 @@ def render_html_report(results: dict[str, tuple[ProblemInstance, dict]]) -> str:
 
 
 def guide_allocation_rows(problem, guide_allocation: dict) -> list[dict]:
-    """대시보드/HTML용 가이드 배분 행 목록 (미배분 공정은 0)."""
+    """대시보드/HTML용 가이드 배분 행 목록 (미배분 공정은 0).
+
+    각 행에 UPH, 이론 capa, 공정 계획수량을 포함한다.
+    capacity = target_count × uph × effective_hours
+    effective_hours = horizon - (신규 투입 대수 × switch_time)
+    """
     complete = problem.complete_guide_allocation(guide_allocation)
     rows = []
     for (model, ti), cnt in sorted(complete.items(), key=lambda x: (x[0][1], x[0][0])):
         t = problem.tasks[ti]
+        uph = problem.uph_of(model, ti) or 0.0
+        switches_in = max(0, int(cnt) - problem.init_assign.get((model, ti), 0))
+        eff_h = max(0.0, float(problem.horizon_hours) - switches_in * problem.switch_time_hours)
+        capacity = round(int(cnt) * uph * eff_h, 1)
         rows.append({
             "task": f"{t.plan_prod_key}/{t.oper_id}",
             "model": model,
             "target_count": int(cnt),
+            "uph": round(uph, 2),
+            "capacity": capacity,
+            "plan_qty": t.plan_qty,
         })
     return rows
 

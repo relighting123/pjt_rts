@@ -7,6 +7,7 @@ import HourlyChart from "./components/HourlyChart";
 import TaskAchievement from "./components/TaskAchievement";
 import ConversionTable from "./components/ConversionTable";
 import GuideTable from "./components/GuideTable";
+import GuideCapacityChart from "./components/GuideCapacityChart";
 import SummaryView from "./components/SummaryView";
 
 type Algo = "heuristic" | "rl";
@@ -150,9 +151,17 @@ export default function App() {
             <ConversionTable conversions={algoView.conversions} />
           </div>
 
+          <div className="panel">
+            <h2>
+              가이드 CAPA vs 계획
+              <span className="sub">공정별 합산Capa / 계획수량 / 달성률 (Mode 1)</span>
+            </h2>
+            <GuideCapacityChart guide={detail.guide} />
+          </div>
+
           <div className="grid-2">
             <div className="panel">
-              <h2>가이드 수량 <span className="sub">공정×모델 목표 대수 (Mode 1)</span></h2>
+              <h2>가이드 수량 <span className="sub">공정×모델 목표 대수 · Capa (Mode 1)</span></h2>
               <GuideTable guide={detail.guide} />
             </div>
             <div className="panel">

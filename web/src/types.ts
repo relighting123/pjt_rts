@@ -86,6 +86,9 @@ export interface GuideRow {
   task: string;
   model: string;
   target_count: number;
+  uph: number;
+  capacity: number;
+  plan_qty: number;
 }
 
 export interface DatasetDetail {
