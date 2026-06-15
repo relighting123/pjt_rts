@@ -1,8 +1,5 @@
 """DB 어댑터, export, inference/train 파이프라인."""
 from db.adapter import (
-    arrange_rows_to_equipments,
-    fetch_arrange_rows,
-    fetch_equipments,
     fetch_problem,
     fetch_max_timekey,
     fetch_rows,
@@ -36,9 +33,6 @@ from db.pipeline import (
 )
 
 __all__ = [
-    "arrange_rows_to_equipments",
-    "fetch_arrange_rows",
-    "fetch_equipments",
     "fetch_problem",
     "fetch_max_timekey",
     "fetch_rows",

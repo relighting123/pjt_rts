@@ -1,12 +1,9 @@
 """Oracle 어댑터 (oracledb 선택적). RTS_LINEDSDB_INF → ProblemInstance, 결과 테이블 기록.
 
-장비 호기 명단은 RTD_ARRANGE_INF(EQP_ID/EQP_MODEL_CD/BATCH_ID/PLAN_PROD_KEY)에서
-별도 조회해 ProblemInstance.equipments로 주입한다.
 oracledb 미설치/미접속이어도 rows_to_problem(순수 변환)은 동작한다.
 """
 from __future__ import annotations
 from collections import defaultdict
-from collections.abc import Mapping
 from datetime import datetime, timedelta
 import config
 from db.input_row import InputRow, coerce_input_row, coerce_input_rows, rows_from_cursor
@@ -41,60 +38,14 @@ def batch_like_pattern(batchid: str) -> str:
     return f"%{batchid}%"
 
 
-# RTD_ARRANGE_INF 레거시 tuple 순서 (fetch_arrange.sql SELECT 순서와 동일)
-ARRANGE_ROW_FIELDS: tuple[str, ...] = (
-    "eqp_id", "eqp_model_cd", "batch_id", "plan_prod_key",
-)
-
-
-def arrange_rows_to_equipments(rows) -> list[Equipment]:
-    """RTD_ARRANGE_INF 행 → Equipment 명단.
-
-    row: dict(EQP_ID/EQP_MODEL_CD/BATCH_ID/PLAN_PROD_KEY, 대소문자 무관)
-    또는 tuple(ARRANGE_ROW_FIELDS 순서).
-    """
-    equipments: list[Equipment] = []
-    for raw in rows or []:
-        if isinstance(raw, Mapping):
-            data = {str(k).strip().lower(): v for k, v in raw.items()}
-        else:
-            data = dict(zip(ARRANGE_ROW_FIELDS, raw))
-        model = data.get("eqp_model_cd") or data.get("eqp_model") or ""
-        equipments.append(Equipment(
-            eqp_id=str(data["eqp_id"]),
-            eqp_model=str(model),
-            batch_id=str(data.get("batch_id") or ""),
-            plan_prod_key=str(data.get("plan_prod_key") or ""),
-        ))
-    return equipments
-
-
-def _equipment_task_key(e: Equipment, index: dict, tasks: list):
-    """호기 현재 배치 → task 키. RTD_ARRANGE_INF는 OPER_ID가 없으므로
-    PLAN_PROD_KEY 일치 task 중 BATCH_ID 일치 → OPER_SEQ 순으로 매칭."""
-    k = (e.plan_prod_key, e.oper_id)
-    if k in index:
-        return k
-    cands = [key for key in index if key[0] == e.plan_prod_key]
-    if not cands:
-        return None
-    cands.sort(key=lambda key: (
-        tasks[index[key]].batch_id != e.batch_id,
-        tasks[index[key]].oper_seq,
-    ))
-    return cands[0]
-
-
 def rows_to_problem(rows, horizon_hours: int,
                     switch_time_hours: int = config.DEFAULT_SWITCH_TIME_HOURS,
                     rule_timekey: str | None = None,
                     facid: str | None = None,
-                    batchid: str | None = None,
-                    equipments: list[Equipment] | None = None) -> ProblemInstance:
+                    batchid: str | None = None) -> ProblemInstance:
     """GBN_CD가 long-format인 행들을 ProblemInstance로 피벗.
 
     row: InputRow 또는 dict(컬럼명)·tuple(레거시 순서).
-    equipments: RTD_ARRANGE_INF에서 조회한 호기 명단 (fetch_equipments).
     """
     rows = filter_rows_by_facid(rows, facid)
     if batchid:
@@ -106,7 +57,7 @@ def rows_to_problem(rows, horizon_hours: int,
     target_raw: dict[tuple[str, str], int] = {}
     wip_raw: dict[tuple[str, str], int] = {}
     eqp_models: set[str] = set()
-    equipments = list(equipments or [])
+    equipments: list[Equipment] = []
     rk = rule_timekey
 
     for raw in rows:
@@ -129,6 +80,12 @@ def rows_to_problem(rows, horizon_hours: int,
             target_raw[key] = int(float(val))
         elif gbn == "AVAIL_WIP_QTY":
             wip_raw[key] = int(float(val))
+        elif gbn == "EQP_ID":
+            # 실제 호기 명단: ATTR_VAL=호기ID, 행의 모델/BATCH_ID/PLAN_PROD_KEY/OPER_ID가 현재 배치
+            equipments.append(Equipment(
+                eqp_id=str(val), eqp_model=eqp_model,
+                batch_id=batch_id, plan_prod_key=ppk, oper_id=oper_id,
+            ))
 
     keys = list(task_meta)
     index = {k: i for i, k in enumerate(keys)}
@@ -142,8 +99,8 @@ def rows_to_problem(rows, horizon_hours: int,
     if not init_assign and equipments:
         # ASSIGN_EQUIP_CNT 미제공 시 호기 명단으로 현재 배치 대수 유도
         for e in equipments:
-            k = _equipment_task_key(e, index, tasks)
-            if k is not None:
+            k = (e.plan_prod_key, e.oper_id)
+            if k in index:
                 slot = (e.eqp_model, index[k])
                 init_assign[slot] = init_assign.get(slot, 0) + 1
     eqp_qty: dict[str, int] = defaultdict(int)
@@ -289,55 +246,13 @@ def fetch_rows(
         conn.close()
 
 
-def fetch_arrange_rows(
-    rule_timekey: str,
-    facid: str,
-    batchid: str,
-    table: str = config.ARRANGE_TABLE,
-) -> list[dict]:
-    """RTD_ARRANGE_INF 조회 — EQP_ID/EQP_MODEL_CD/BATCH_ID/PLAN_PROD_KEY."""
-    conn = _connect()
-    try:
-        cur = conn.cursor()
-        _execute_logged(
-            cur, "fetch_arrange", "select", "fetch_arrange", table=table,
-            rk=rule_timekey, facid=facid, batch_like=batch_like_pattern(batchid),
-        )
-        columns = [d[0].lower() for d in cur.description]
-        return [dict(zip(columns, rec)) for rec in cur.fetchall()]
-    finally:
-        conn.close()
-
-
-def fetch_equipments(
-    rule_timekey: str,
-    facid: str,
-    batchid: str,
-) -> list[Equipment]:
-    """RTD_ARRANGE_INF → 실제 장비 호기 명단.
-
-    명단은 선택 입력이므로 테이블 미존재/조회 실패 시 빈 목록을 반환하고
-    가상 호기({model}-{seq:03d})로 동작한다.
-    """
-    try:
-        rows = fetch_arrange_rows(rule_timekey, facid=facid, batchid=batchid)
-    except Exception as exc:
-        from ops_log import log_ops
-        log_ops(
-            "arrange.fetch_failed",
-            rule_timekey=rule_timekey, facid=facid, batchid=batchid, error=str(exc),
-        )
-        return []
-    return arrange_rows_to_equipments(rows)
-
-
 def fetch_problem(
     rule_timekey: str | None = None,
     horizon_hours: int = 12,
     facid: str | None = None,
     batchid: str | None = None,
 ) -> ProblemInstance:
-    """RTS_LINEDSDB_INF 스냅샷 + RTD_ARRANGE_INF 호기 명단 → ProblemInstance."""
+    """RTS_LINEDSDB_INF에서 스냅샷을 읽어 ProblemInstance로 변환."""
     fac = config.require_facid(facid)
     bid = config.require_batchid(batchid)
     rk = resolve_timekey(rule_timekey, facid=fac)
@@ -346,11 +261,7 @@ def fetch_problem(
         raise ValueError(
             f"RULE_TIMEKEY={rk}, facid={fac}, batchid LIKE %{bid}% 에 해당하는 행 없음"
         )
-    equipments = fetch_equipments(rk, facid=fac, batchid=bid)
-    return rows_to_problem(
-        rows, horizon_hours, rule_timekey=rk, facid=fac, batchid=bid,
-        equipments=equipments,
-    )
+    return rows_to_problem(rows, horizon_hours, rule_timekey=rk, facid=fac, batchid=bid)
 
 
 def write_assign_results(rule_timekey: str, assign_rows: list[dict]) -> None:
