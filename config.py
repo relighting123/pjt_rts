@@ -85,8 +85,9 @@ BC_LR = 1e-3
 DEFAULT_SWITCH_TIME_HOURS = 1
 
 # RL obs/action 패딩 상한 · batch(tool) 전환 그룹 — 여기서만 수정
-MAX_TASKS = 30
-MAX_MODELS = 20
+# 현재 벤치마크 최대: tasks=3, models=2 → 여유분 포함해 tasks=5, models=3
+MAX_TASKS = 5
+MAX_MODELS = 3
 CONV_GROUPS: dict[str, list[str]] = {"G1": ["B1", "B2", "B3"]}
 SYS_ID = "RL_AGENT"
 

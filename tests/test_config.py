@@ -9,6 +9,7 @@ def test_load_conv_groups_returns_config_copy():
 
 
 def test_max_shape_constants():
-    assert config.MAX_TASKS == 30
-    assert config.MAX_MODELS == 20
+    # 현재 벤치마크 최대(tasks=3, models=2)를 커버하는 여유 크기
+    assert config.MAX_TASKS == 5
+    assert config.MAX_MODELS == 3
     assert config.SYS_ID == "RL_AGENT"
