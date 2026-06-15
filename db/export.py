@@ -18,10 +18,9 @@ def export_from_rows(
     switch_time_hours: int | None = None,
     facid: str | None = None,
     batchid: str | None = None,
-    arrange_rows=None,
 ) -> Path:
-    """DB long-format 행 (+ RTD_ARRANGE_INF 호기 명단) → inference JSON."""
-    from db.adapter import arrange_rows_to_equipments, rows_to_problem
+    """DB long-format 행 → inference JSON."""
+    from db.adapter import rows_to_problem
 
     sw = switch_time_hours if switch_time_hours is not None else config.DEFAULT_SWITCH_TIME_HOURS
     fac = config.resolve_facid(facid)
@@ -29,7 +28,6 @@ def export_from_rows(
     problem = rows_to_problem(
         rows, horizon_hours, switch_time_hours=sw, rule_timekey=rule_timekey,
         facid=fac, batchid=bid,
-        equipments=arrange_rows_to_equipments(arrange_rows),
     )
     return save_problem(problem, output_path, include_ground_truth=False)
 
@@ -86,5 +84,4 @@ def export_from_sample_rows(output_path: str | Path | None = None) -> Path:
         rule_timekey=meta.get("rule_timekey"),
         facid=meta.get("facid") or meta.get("fac_id"),
         batchid=meta.get("batchid") or "B1",
-        arrange_rows=meta.get("arrange_rows"),
     )
