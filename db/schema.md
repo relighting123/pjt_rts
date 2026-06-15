@@ -22,11 +22,9 @@
 # }
 # `conv_groups`는 JSON에 두지 않음 — config.py CONV_GROUPS로 설정.
 #
-# `equipments` (선택): 실제 장비 호기 명단. DB에서는 RTD_ARRANGE_INF
-# 테이블에서 EQP_ID·EQP_MODEL_CD·BATCH_ID·PLAN_PROD_KEY를 조회해 채운다
-# (db.adapter.fetch_equipments → arrange_rows_to_equipments).
-# 제공 시 RTS_ASSIGN(간트차트)·RTS_EQPCONVPLAN의 EQP_ID가 실제 호기로
-# 매핑되고, 미제공/조회 실패 시 가상 호기({model}-{seq:03d})를 사용한다.
+# `equipments` (선택): 실제 장비 호기 명단. JSON 벤치마크에만 직접 기재하며
+# DB 조회 시에는 빈 목록으로 시작해 eqp_units.virtual_roster()가
+# 가상 호기({model}-{seq:03d})를 생성한다.
 # ```
 #
 # ## 추론 결과 JSON (data/inference/{RULE_TIMEKEY}_result.json)

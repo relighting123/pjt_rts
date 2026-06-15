@@ -48,17 +48,8 @@ Batch id는 plan prod key와 oper id에 의해 정의된다. pla prod key||oper_
 계획 제품 Key / Oper 별 계획이 있고 세부 일자 시간대별 계획이 있다. 가령 P1 / PT1H / 2026051707 | 2026051708 | 100 이면 2026년 5월 17일 07시부터 08시까지 10000개를 생산하라는 계획이야. 그리고 2026051708 | 2026051807 | 300 이면 2026년 5월 17일 08시부터 18시까지 300개를 생산하라는 계획이야.
 이런식으로 동일 제품에 대해 여러 계획이 있을 수 있따.
 
-9. 장비 호기 명단 (실제 장비 매핑용)
- RULE_TIMEKEY | FAC_ID | EQP_ID | EQP_MODEL_CD | BATCH_ID | PLAN_PROD_KEY
-장비 모델별 실제 호기(EQP_ID) 목록과 각 호기의 현재 BATCH_ID/PLAN_PROD_KEY 배치 정보.
-**RTD_ARRANGE_INF** 테이블에서 EQP_ID/EQP_MODEL_CD/BATCH_ID/PLAN_PROD_KEY를 조회해
-가져온다 (JSON은 `equipments` 키).
-제공 시 출력 간트차트(RTS_ASSIGN)와 전환계획(RTS_EQPCONVPLAN)의 EQP_ID가
-가상 호기({model}-{seq:03d})가 아닌 **실제 장비 호기**로 매핑되고,
-ASSIGN_EQUIP_CNT 미제공 시 호기 명단에서 현재 배치 대수를 자동 유도한다.
-RTD_ARRANGE_INF 미존재/미조회 시에는 가상 호기로 동작한다.
-
-위 정보 중 1~8은 실제 물리 테이블에서는 [8]영역에 RTS_LINEDSDB_INF 테이블 하나로 관리되며 쿼리를 통해 위 형태로 변경 후 강화학습 모델에 들어간다. 9(호기 명단)는 RTD_ARRANGE_INF에서 별도 조회한다.
+위 정보 1~8은 실제 물리 테이블에서는 [8]영역에 RTS_LINEDSDB_INF 테이블 하나로 관리되며 쿼리를 통해 위 형태로 변경 후 강화학습 모델에 들어간다.
+장비 호기는 ASSIGN_EQUIP_CNT 기반으로 가상 ID({model}-{seq:03d})를 자동 생성한다.
 
 
 **output (추론 결과 DB 기록)**
@@ -134,14 +125,6 @@ EQP_MODEL_CD : ["T5833","MAGNUM5"]
 GBN_CD : ["ASSIGN_EQUIP_CNT","EQUIP_UPH","AVAIL_WIP_QTY","EXEC_D0_PLAN","D1_TARGET_QTY","TOOL_QTY"]
 ATTR_VAL : 각 항목별 GBN_CD에 해당하는 값
 
-테이블 명 : RTD_ARRANGE_INF (장비 호기 현재 배치 명단 — 실제 EQP_ID 매핑용)
-RULE_TIMEKEY VARCHAR2(16) PK
-FAC_ID VARCHAR2(20) PK
-EQP_ID VARCHAR2(50) PK
-EQP_MODEL_CD VARCHAR2(50)
-BATCH_ID VARCHAR2(50)
-PLAN_PROD_KEY VARCHAR2(50)
-
 **만약 PLAN_PROD_KEY/EQP_MODEL 기준 조회시 EQUIP_UPH가 없다면 진행 불가로 판단함.
 **D0_TARGET의 경우 RULE_TIMEKEY 기준에서 다음날 07시까지의 계획이며 D1 TARGET의 경우 다음날 07시에서 그 다음날 07시까지 계획으로 치환하여 처리
 
@@ -194,8 +177,7 @@ REST API:
 1. **헤더** — `상세 분석 / 전체 비교` 뷰 토글, 데이터셋 선택(벤치마크·추론),
    `휴리스틱 / RL` 알고리즘 토글 (RL 결과 없으면 비활성).
 2. **메타 라인** — RULE_TIMEKEY · FAC · Horizon · Task 수 · 장비 대수(모델 수)
-   + 배지: 초록 `실제 장비 호기 매핑`(RTD_ARRANGE_INF 명단 제공 시) /
-   노랑 `가상 호기`(명단 미제공 시).
+   + 배지: 노랑 `가상 호기` (가상 ID {model}-{seq:03d}) / 초록 `실제 호기` (JSON equipments 제공 시).
 3. **KPI 카드 5장** — 계획달성률(최적 대비 ▲▼ 갭) · 평균 장비 가동률 ·
    move량(총 생산) · 전환 횟수 · 전환 예정 장비 수.
 4. **장비 배치 간트차트** — 행 = 호기(EQP_ID, 실제 호기 매핑 시 ETX-101 등),
@@ -205,7 +187,7 @@ REST API:
 6. **전환 예정 장비 정보** — RTS_EQPCONVPLAN 행 그대로 (JOB_ID·EQP_ID·전환
    시각·FROM→TO BATCH/PPK·상태).
 7. **가이드 수량** (Mode 1 공정×모델 목표 대수 히트맵) / **장비 호기 명단**
-   (RTD_ARRANGE_INF 입력 roster) — 좌우 2단.
+   (가상 호기 roster — {model}-{seq:03d}) — 좌우 2단.
 8. **전체 비교 뷰** — 데이터셋별 휴리스틱/RL/최적 달성률 미니 바 비교 표,
    행 클릭 시 해당 상세 분석으로 이동.
 
