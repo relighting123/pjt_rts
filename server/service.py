@@ -177,26 +177,26 @@ def _algo_view(problem: ProblemInstance, result: dict, prefix: str = "") -> dict
     }
 
 
-def analyze(name: str) -> dict:
+def analyze(name: str, env_type: str = "dispatch") -> dict:
     """데이터셋 1건 평가 → UI payload (캐시)."""
     paths = list_dataset_paths()
     if name not in paths:
         raise KeyError(name)
     path = paths[name]
-    key = (str(path), path.stat().st_mtime)
+    key = (str(path), path.stat().st_mtime, env_type)
     if key in _cache:
         return _cache[key]
     with _locks_guard:
-        lock = _locks.setdefault(str(path), threading.Lock())
+        lock = _locks.setdefault(str(path) + env_type, threading.Lock())
     with lock:
         if key in _cache:
             return _cache[key]
-        payload = _analyze_uncached(name, path)
+        payload = _analyze_uncached(name, path, env_type)
         _cache[key] = payload
     return payload
 
 
-def _analyze_uncached(name: str, path: Path) -> dict:
+def _analyze_uncached(name: str, path: Path, env_type: str = "dispatch") -> dict:
     import test as report
 
     problem = load_problem(path)
@@ -265,11 +265,11 @@ def list_datasets() -> list[dict]:
     return out
 
 
-def summary() -> dict:
+def summary(env_type: str = "dispatch") -> dict:
     """전체 데이터셋 비교."""
     rows = []
     for name in list_dataset_paths():
-        a = analyze(name)
+        a = analyze(name, env_type)
         h = a["algorithms"]["heuristic"]
         rl = a["algorithms"]["rl"]
         best = rl or h
@@ -302,5 +302,6 @@ def summary() -> dict:
             "optimal": _avg("optimal"),
             "gap": _avg("gap"),
             "avg_utilization": _avg("avg_utilization"),
+            "avg_conversion_count": _avg("conversion_count"),
         },
     }

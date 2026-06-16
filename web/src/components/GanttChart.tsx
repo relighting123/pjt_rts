@@ -5,29 +5,54 @@ interface Props {
   segments: GanttSegment[];
 }
 
-const ROW_H = 34;
+const ROW_H = 36;
 const BAR_H = 24;
-const LABEL_W = 110;
-const AXIS_H = 26;
+const LABEL_W = 120;
+const GROUP_H = 22;
+const AXIS_H = 28;
 
-/** 장비 호기(EQP_ID)별 배치 타임라인 + 전환(CONV) 구간 오버레이 SVG 간트. */
 export default function GanttChart({ segments }: Props) {
   if (segments.length === 0) return <div className="empty">배치 데이터가 없습니다.</div>;
 
-  const eqpIds = [...new Set(segments.map((s) => s.eqp_id))].sort();
   const t0 = Math.min(...segments.map((s) => +new Date(s.start)));
   const t1 = Math.max(...segments.map((s) => +new Date(s.end)));
   const span = Math.max(t1 - t0, 1);
-
-  const chartW = Math.max(720, Math.min(1280, Math.round((span / 3.6e6) * 110)));
-  const width = LABEL_W + chartW + 16;
-  const height = AXIS_H + eqpIds.length * ROW_H + 8;
+  const chartW = Math.max(720, Math.min(1400, Math.round((span / 3.6e6) * 120)));
   const x = (ms: number) => LABEL_W + ((ms - t0) / span) * chartW;
 
-  const runTasks = segments.filter((s) => s.kind === "RUN").map((s) => s.task);
-  const color = colorScale(runTasks);
+  // group: model → sorted eqp_ids
+  const modelOrder: string[] = [];
+  const modelEqps: Record<string, string[]> = {};
+  for (const s of segments) {
+    if (!modelEqps[s.model]) { modelEqps[s.model] = []; modelOrder.push(s.model); }
+    if (!modelEqps[s.model].includes(s.eqp_id)) modelEqps[s.model].push(s.eqp_id);
+  }
+  const uniqueModels = [...new Set(modelOrder)];
+  uniqueModels.forEach((m) => modelEqps[m].sort());
 
-  // 시간 눈금: 1시간 간격 (너무 많으면 간격 확대)
+  // Build ordered list: [(eqp_id, yOffset, modelGroupStart)]
+  type Row = { eqp_id: string; y: number; model: string };
+  const rows: Row[] = [];
+  const groupHeaders: { model: string; y: number }[] = [];
+  let curY = AXIS_H;
+  for (const model of uniqueModels) {
+    groupHeaders.push({ model, y: curY });
+    curY += GROUP_H;
+    for (const eqp of modelEqps[model]) {
+      rows.push({ eqp_id: eqp, y: curY, model });
+      curY += ROW_H;
+    }
+  }
+
+  const totalHeight = curY + 8;
+  const totalWidth = LABEL_W + chartW + 16;
+  const eqpYMap = new Map(rows.map((r) => [r.eqp_id, r.y]));
+
+  // color by plan_prod_key
+  const ppks = [...new Set(segments.filter((s) => s.kind === "RUN").map((s) => s.plan_prod_key))];
+  const color = colorScale(ppks);
+
+  // time ticks
   const hourMs = 3.6e6;
   const hours = Math.ceil(span / hourMs);
   const tickStep = hours > 18 ? Math.ceil(hours / 18) : 1;
@@ -35,65 +60,81 @@ export default function GanttChart({ segments }: Props) {
   for (let t = t0; t <= t1 + 1; t += hourMs * tickStep) ticks.push(t);
 
   return (
-    <div>
-      <svg width={width} height={height} role="img">
-        {/* 눈금 + 그리드 */}
+    <div className="gantt-wrap">
+      <svg width={totalWidth} height={totalHeight} role="img">
+        <defs>
+          <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <line x1="0" y1="0" x2="0" y2="6" stroke="#d6492a" strokeWidth="2" strokeOpacity="0.5" />
+          </pattern>
+        </defs>
+
+        {/* X-axis ticks */}
         {ticks.map((t) => (
           <g key={t}>
-            <line x1={x(t)} y1={AXIS_H - 4} x2={x(t)} y2={height - 6} stroke="#e1e6ef" />
-            <text x={x(t) + 3} y={AXIS_H - 9} fill="#6b7689" fontSize={11}>
+            <line x1={x(t)} y1={AXIS_H - 4} x2={x(t)} y2={totalHeight - 6} stroke="#e1e6ef" />
+            <text x={x(t) + 3} y={AXIS_H - 10} fill="#6b7689" fontSize={11}>
               {fmtTime(new Date(t).toISOString())}
             </text>
           </g>
         ))}
-        {/* 호기 행 */}
-        {eqpIds.map((eqp, i) => {
-          const y = AXIS_H + i * ROW_H;
-          return (
-            <g key={eqp}>
-              <rect x={0} y={y} width={width} height={ROW_H} fill={i % 2 ? "#f3f6fb" : "none"} />
-              <text x={8} y={y + ROW_H / 2 + 4} fill="#1f2733" fontSize={12} fontWeight={600}>
-                {eqp}
-              </text>
-            </g>
-          );
-        })}
-        {/* RUN 바 */}
+
+        {/* Model group headers */}
+        {groupHeaders.map(({ model, y }) => (
+          <g key={`grp-${model}`}>
+            <rect x={0} y={y} width={totalWidth} height={GROUP_H} fill="#eef1f8" />
+            <text x={8} y={y + GROUP_H / 2 + 4} fill="#3b6fe0" fontSize={12} fontWeight={700}>
+              {model}
+            </text>
+          </g>
+        ))}
+
+        {/* EQP rows */}
+        {rows.map(({ eqp_id, y }, i) => (
+          <g key={eqp_id}>
+            <rect x={0} y={y} width={totalWidth} height={ROW_H} fill={i % 2 ? "#f3f6fb" : "none"} />
+            <text x={8} y={y + ROW_H / 2 + 4} fill="#1f2733" fontSize={12} fontWeight={500}>
+              {eqp_id}
+            </text>
+          </g>
+        ))}
+
+        {/* RUN bars */}
         {segments.filter((s) => s.kind === "RUN").map((s, idx) => {
-          const y = AXIS_H + eqpIds.indexOf(s.eqp_id) * ROW_H + (ROW_H - BAR_H) / 2;
+          const rowY = eqpYMap.get(s.eqp_id);
+          if (rowY == null) return null;
+          const by = rowY + (ROW_H - BAR_H) / 2;
           const x0 = x(+new Date(s.start));
           const w = Math.max(x(+new Date(s.end)) - x0, 2);
           return (
             <g key={`run-${idx}`}>
-              <rect x={x0} y={y} width={w} height={BAR_H} rx={4} fill={color(s.task)}>
-                <title>
-                  {`${s.eqp_id} (${s.model})\n작업: ${s.task} · BATCH ${s.batch_id}\n${fmtTime(s.start)} ~ ${fmtTime(s.end)}\n생산량: ${num(s.qty)}`}
-                </title>
+              <rect x={x0} y={by} width={w} height={BAR_H} rx={4} fill={color(s.plan_prod_key)}>
+                <title>{`${s.eqp_id} (${s.model})\n제품: ${s.plan_prod_key}/${s.oper_id} · BATCH ${s.batch_id}\n${fmtTime(s.start)} ~ ${fmtTime(s.end)}\n생산량: ${num(s.qty)}`}</title>
               </rect>
-              {w > 56 && (
-                <text x={x0 + w / 2} y={y + BAR_H / 2 + 4} fill="#ffffff" fontSize={11}
+              {w > 52 && (
+                <text x={x0 + w / 2} y={by + BAR_H / 2 + 4} fill="#fff" fontSize={11}
                       fontWeight={700} textAnchor="middle" pointerEvents="none">
-                  {s.task}
+                  {s.plan_prod_key}
                 </text>
               )}
             </g>
           );
         })}
-        {/* CONV(전환) 바 */}
+
+        {/* CONV bars */}
         {segments.filter((s) => s.kind === "CONV").map((s, idx) => {
-          const y = AXIS_H + eqpIds.indexOf(s.eqp_id) * ROW_H + (ROW_H - BAR_H) / 2;
+          const rowY = eqpYMap.get(s.eqp_id);
+          if (rowY == null) return null;
+          const by = rowY + (ROW_H - BAR_H) / 2;
           const x0 = x(+new Date(s.start));
           const w = Math.max(x(+new Date(s.end)) - x0, 2);
           return (
             <g key={`conv-${idx}`}>
-              <rect x={x0} y={y} width={w} height={BAR_H} rx={4}
-                    fill="rgba(214,73,42,0.12)" stroke="#d6492a" strokeDasharray="4 3">
-                <title>
-                  {`[전환] ${s.eqp_id} (${s.model})\n${s.from_batch} → ${s.to_batch} (${s.from_task} → ${s.to_task})\n${fmtTime(s.start)} ~ ${fmtTime(s.end)}`}
-                </title>
+              <rect x={x0} y={by} width={w} height={BAR_H} rx={4} fill="url(#hatch)"
+                    stroke="#d6492a" strokeWidth={1.5} strokeDasharray="4 3">
+                <title>{`[전환] ${s.eqp_id} (${s.model})\n${s.from_batch} → ${s.to_batch}\n${fmtTime(s.start)} ~ ${fmtTime(s.end)}`}</title>
               </rect>
-              {w > 50 && (
-                <text x={x0 + w / 2} y={y + BAR_H / 2 + 4} fill="#d6492a" fontSize={11}
+              {w > 52 && (
+                <text x={x0 + w / 2} y={by + BAR_H / 2 + 4} fill="#d6492a" fontSize={10}
                       fontWeight={700} textAnchor="middle" pointerEvents="none">
                   {s.from_batch}→{s.to_batch}
                 </text>
@@ -102,16 +143,16 @@ export default function GanttChart({ segments }: Props) {
           );
         })}
       </svg>
+
       <div className="legend">
-        {[...new Set(runTasks)].sort().map((t) => (
-          <span className="item" key={t}>
-            <span className="swatch" style={{ background: color(t) }} /> {t}
+        {ppks.sort().map((k) => (
+          <span className="item" key={k}>
+            <span className="swatch" style={{ background: color(k) }} /> {k}
           </span>
         ))}
         <span className="item">
-          <span className="swatch"
-                style={{ background: "rgba(214,73,42,0.12)", border: "1px dashed #d6492a" }} />
-          tool 전환 (batch 변경)
+          <span className="swatch" style={{ background: "url(#hatch)", border: "1.5px dashed #d6492a", borderRadius: 3 }} />
+          <span style={{ borderLeft: "3px solid #d6492a", paddingLeft: 4 }}>전환(CONV)</span>
         </span>
       </div>
     </div>

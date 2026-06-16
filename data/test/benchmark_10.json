@@ -59,6 +59,7 @@
   ],
   "ground_truth": {
     "plan_achievement": 1.0,
-    "note": "목표배분: PA weight=8, PB weight=2 → 3:1(PA:3대/PB:1대). h0에 M1 1대 PA→PB 전환(1h idle) → h0:PA300, h1~h2:PA300+PB100 → PA=900≥800, PB=200≥200. 휴리스틱은 PA 잔여>0 동안 이동 거부 → PB=0 달성율=0.5. RL 에이전트가 선제적 배분으로 1.0 달성해야 함."
+    "note": "목표배분: PA weight=8, PB weight=2 → 3:1(PA:3대/PB:1대). h0에 M1 1대 PA→PB 전환(1h idle) → h0:PA300, h1~h2:PA300+PB100 → PA=900≥800, PB=200≥200. 휴리스틱은 PA 잔여>0 동안 이동 거부 → PB=0 달성율=0.5. RL 에이전트가 선제적 배분으로 1.0 달성해야 함.",
+    "heuristic_target": 0.5
   }
 }

@@ -7,9 +7,10 @@ async function getJson<T>(url: string): Promise<T> {
 }
 
 export const fetchDatasets = () => getJson<DatasetInfo[]>("/api/datasets");
-export const fetchDetail = (name: string) =>
-  getJson<DatasetDetail>(`/api/datasets/${encodeURIComponent(name)}`);
-export const fetchSummary = () => getJson<Summary>("/api/summary");
+export const fetchDetail = (name: string, envType = "dispatch") =>
+  getJson<DatasetDetail>(`/api/datasets/${encodeURIComponent(name)}?env_type=${envType}`);
+export const fetchSummary = (envType = "dispatch") =>
+  getJson<Summary>(`/api/summary?env_type=${envType}`);
 
 export const pct = (v: number | null | undefined, digits = 1) =>
   v == null ? "N/A" : `${(v * 100).toFixed(digits)}%`;

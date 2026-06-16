@@ -2,28 +2,22 @@ import subprocess, sys
 from config import ROOT
 
 
-def test_cli_eval_runs_and_writes_report(tmp_path):
-    out = tmp_path / "report.md"
+def test_cli_eval_runs(tmp_path):
     r = subprocess.run(
-        [sys.executable, "run.py", "eval", "--no-model", "--report", str(out)],
+        [sys.executable, "run.py", "eval", "--no-model"],
         cwd=ROOT, capture_output=True, text=True)
     assert r.returncode == 0, r.stderr
-    assert out.exists()
-    assert "평균 계획달성률" in out.read_text(encoding="utf-8")
+    assert "H=" in r.stdout
+    assert "결과 확인" in r.stdout
 
 
-def test_cli_infer_writes_html(tmp_path):
-    html_out = tmp_path / "out.html"
-    md_out = tmp_path / "out.md"
+def test_cli_infer_benchmark_prints_summary(tmp_path):
     r = subprocess.run(
-        [sys.executable, "run.py", "infer",
-         "--benchmark-dataset", "benchmark_01",
-         "--html", str(html_out), "--report", str(md_out)],
+        [sys.executable, "run.py", "infer", "--benchmark-dataset", "benchmark_01"],
         cwd=ROOT, capture_output=True, text=True)
     assert r.returncode == 0, r.stderr
-    assert html_out.exists(), r.stdout + r.stderr
-    assert "RTS_ASSIGN_INF" in html_out.read_text(encoding="utf-8")
-    assert "리포트" in r.stdout
+    assert "H=" in r.stdout
+    assert "결과 확인" in r.stdout
 
 
 def test_cli_help():
@@ -33,13 +27,13 @@ def test_cli_help():
     assert "train" in r.stdout and "infer" in r.stdout and "eval" in r.stdout and "export" in r.stdout
 
 
-def test_infer_prints_guide_and_dynamic(capsys, tmp_path):
+def test_infer_prints_ui_url(capsys, tmp_path):
     import run
     from config import BENCHMARKS_DIR
     args = run.build_parser().parse_args([
         "infer", "--benchmark-dataset", str(BENCHMARKS_DIR / "benchmark_01"),
-        "--report", str(tmp_path / "r.md"), "--html", str(tmp_path / "r.html"),
     ])
     args.func(args)
     out = capsys.readouterr().out
-    assert "리포트" in out
+    assert "결과 확인" in out
+    assert "H=" in out
