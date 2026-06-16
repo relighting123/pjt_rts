@@ -83,15 +83,15 @@ class DispatchEnv(gym.Env):
             cap = max(1, p.eqp_qty[m])
             for i in range(self.n_tasks):
                 assign_part[mi * self.mt + i] = s.assign.get((m, i), 0) / cap
-        # ④ 전환상태 비율 (mm×mt 차원): change_part[model][task_i] > 0 → task_i로 전환 중인 장비 존재
-        # s.idle 키가 (model, 목적지_task)이므로 "어디로 전환 중인지"가 그대로 인코딩됨
+        # ④ 전환중 장비 비율 (mm×mt 차원): change_part[model][task_i] > 0 → task_i로 전환 중인 장비 존재
+        # s.switching 키가 (model, 목적지_task)이므로 "어디로 전환 중인지"가 그대로 인코딩됨
         # 과도전환 방지는 valid_moves()의 tool_qty 마스킹이 담당 (이 obs는 정보 제공만)
         change_part = [0.0] * (self.mm * self.mt)
         for mi, m in enumerate(self.models):
             max_change = p.switch_time_hours * max(1, p.eqp_qty[m])
             for i in range(self.n_tasks):
                 change_part[mi * self.mt + i] = min(
-                    1.0, s.idle.get((m, i), 0) / max_change
+                    1.0, s.switching.get((m, i), 0) / max_change
                 )
         # ⑤ hour 비율 (1 차원)
         hour_part = [s.hour / max(1, p.horizon_hours)]

@@ -64,7 +64,7 @@ def _task_label(t) -> str:
 
 
 def _gantt_rows(problem: ProblemInstance, assign_rows: list[dict], trace: list) -> list[dict]:
-    """간트 세그먼트: RUN(병합 배치 구간) + CONV(전환 idle 구간)."""
+    """간트 세그먼트: RUN(병합 배치 구간) + CONV(전환중 구간)."""
     task_by_key = {(t.plan_prod_key, t.oper_id): t for t in problem.tasks}
     segments: list[dict] = []
     for r in merge_assign_rows(assign_rows):

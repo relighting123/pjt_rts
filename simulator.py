@@ -155,7 +155,7 @@ class SimState:
     produced: dict[int, int]                  # task_index -> 누적 생산
     wip: dict[int, int]                        # task_index -> 현재 가용 유입재공
     assign: dict[tuple[str, int], int]         # (model, task_index) -> 배치 대수
-    idle: dict[tuple[str, int], int]           # (model, task_index) -> 전환 Idle 잔여대수
+    switching: dict[tuple[str, int], int]       # (model, task_index) -> 전환중 잔여 대수
     tool_used: dict[tuple[str, str], int]      # (batch_id, model) -> 사용중 tool
 
 
@@ -170,12 +170,12 @@ class Simulator:
         wip = {i: t.init_wip for i, t in enumerate(p.tasks)}
         produced = {i: 0 for i in range(len(p.tasks))}
         assign = dict(p.init_assign)
-        idle: dict[tuple[str, int], int] = {}
+        switching: dict[tuple[str, int], int] = {}
         tool_used: dict[tuple[str, str], int] = {}
         for (model, ti), cnt in assign.items():
             key = (p.batch_of(ti), model)
             tool_used[key] = tool_used.get(key, 0) + cnt
-        return SimState(0, produced, wip, assign, idle, tool_used)
+        return SimState(0, produced, wip, assign, switching, tool_used)
 
     def advance_hour(self, s: SimState) -> None:
         """배치된(Idle 아닌) 장비로 1시간 생산 후 WIP를 다음 공정으로 흘린다."""
@@ -194,13 +194,13 @@ class Simulator:
         # 생산분은 다음 시간에 가용 (지금 더해두면 다음 advance에서 읽힘)
         for ti, v in inflow.items():
             s.wip[ti] += v
-        # 전환 Idle 차감: 배치된 장비 대수만큼 소진 (N대 동시 전환 시 N배 누적 해소)
-        for key in list(s.idle):
+        # 전환중 잔여 차감: 배치된 장비 대수만큼 소진 (N대 동시 전환 시 N배 누적 해소)
+        for key in list(s.switching):
             model, ti = key
             machines_here = s.assign.get((model, ti), 0)
-            s.idle[key] = max(0, s.idle[key] - machines_here)
-            if s.idle[key] == 0:
-                del s.idle[key]
+            s.switching[key] = max(0, s.switching[key] - machines_here)
+            if s.switching[key] == 0:
+                del s.switching[key]
         s.hour += 1
 
     def is_done(self, s: SimState) -> bool:
@@ -229,7 +229,7 @@ class Simulator:
         for model in p.models():
             for fi in range(n):
                 # 옮길 수 있는 (Idle 아닌) 대수가 있어야 함
-                movable = s.assign.get((model, fi), 0) - s.idle.get((model, fi), 0)
+                movable = s.assign.get((model, fi), 0) - s.switching.get((model, fi), 0)
                 if movable <= 0:
                     continue
                 for ti in range(n):
@@ -258,7 +258,7 @@ class Simulator:
             del s.assign[(model, fi)]
         s.assign[(model, ti)] = s.assign.get((model, ti), 0) + 1
         if fb != tb:
-            s.idle[(model, ti)] = s.idle.get((model, ti), 0) + p.switch_time_hours
+            s.switching[(model, ti)] = s.switching.get((model, ti), 0) + p.switch_time_hours
             s.tool_used[(fb, model)] = max(0, s.tool_used.get((fb, model), 0) - 1)
             s.tool_used[(tb, model)] = s.tool_used.get((tb, model), 0) + 1
 
@@ -266,7 +266,7 @@ class Simulator:
         """task_index에 배치된 활성(Idle 제외) 장비의 총 UPH 합."""
         cap = 0.0
         for model in self.p.models():
-            active = s.assign.get((model, task_index), 0) - s.idle.get((model, task_index), 0)
+            active = s.assign.get((model, task_index), 0) - s.switching.get((model, task_index), 0)
             if active > 0 and (uph := self.p.uph_of(model, task_index)):
                 cap += active * uph
         return cap
@@ -345,7 +345,7 @@ def heuristic_actions(sim: "Simulator", s: SimState) -> list[Move]:
 def _active_eqp_count(p: ProblemInstance, s: SimState) -> int:
     """Idle 제외, 처리할 WIP가 남아 실제로 생산에 기여 중인 장비 대수 합."""
     return sum(
-        max(0, s.assign.get((m, ti), 0) - s.idle.get((m, ti), 0))
+        max(0, s.assign.get((m, ti), 0) - s.switching.get((m, ti), 0))
         for m in p.models()
         for ti in range(len(p.tasks))
         if s.wip[ti] > 0 and p.uph_of(m, ti)
