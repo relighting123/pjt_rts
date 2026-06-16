@@ -134,5 +134,6 @@ export interface Summary {
     optimal: number | null;
     gap: number | null;
     avg_utilization: number | null;
+    avg_conversion_count: number | null;
   };
 }

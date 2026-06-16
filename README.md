@@ -151,6 +151,55 @@ PLAN_PROD_KEY VARCHAR2(50)
 **API parameters (rl_inference)**
 - `rule_timekey` (task 또는 parameters) — 조회·출력 공통
 
+## 실행법
+
+### 1) 의존성 설치
+```bash
+pip install -e .[rl,web]   # RL + FastAPI + uvicorn
+cd web && npm install      # React UI 의존성
+```
+
+### 2) UI 실행 — 개발 모드
+```bash
+# 터미널 1: API 서버
+uvicorn server.main:app --host 0.0.0.0 --port 8000 --reload
+# 터미널 2: Vite 개발 서버 (자동 프록시 /api → :8000)
+cd web && npm run dev   # http://localhost:5173
+```
+
+### 3) UI 실행 — 운영 빌드
+```bash
+cd web && npm run build
+uvicorn server.main:app --host 0.0.0.0 --port 8000
+# → http://localhost:8000
+```
+
+### 4) 벤치마크 평가 (결과는 UI에서 확인)
+```bash
+python run.py eval              # 휴리스틱 vs 최적 비교
+python run.py eval --no-model   # RL 모델 제외
+```
+
+### 5) 학습
+```bash
+python run.py train --benchmark-dataset data/test/benchmark_03.json --steps 50000
+```
+
+### 6) 추론 (로컬 파일)
+```bash
+python run.py infer --benchmark-dataset data/test/benchmark_01.json
+```
+
+### 7) 추론 (DB 연동)
+```bash
+# .env에 Oracle 접속 정보 설정 후
+pip install -e .[rl,web,oracle]
+python run.py infer --timekey 20260529225000
+python run.py infer   # 미지정 시 MAX(RULE_TIMEKEY)
+```
+
+---
+
 ## Created Project Usage
 
 > 회사 환경 배포(Oracle 스키마/권한/연결 점검/운영 검증)는

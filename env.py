@@ -47,6 +47,7 @@ class DispatchEnv(gym.Env):
             if fi != ti
         ]
         self.action_space = spaces.Discrete(len(self.move_list) + 1)  # 0=commit
+        self._move_to_idx: dict[Move, int] = {mv: i + 1 for i, mv in enumerate(self.move_list)}
         # obs: [잔여계획×mt | WIP×mt | 배치대수×(mm×mt) | 전환상태×(mm×mt) | hour×1]
         obs_dim = self.mt * 2 + 2 * self.mm * self.mt + 1
         self.observation_space = spaces.Box(low=0.0, high=1.0, shape=(obs_dim,), dtype=np.float32)
@@ -82,15 +83,15 @@ class DispatchEnv(gym.Env):
             cap = max(1, p.eqp_qty[m])
             for i in range(self.n_tasks):
                 assign_part[mi * self.mt + i] = s.assign.get((m, i), 0) / cap
-        # ④ 전환상태 비율 (mm×mt 차원): change_part[model][task_i] > 0 → task_i로 전환 중인 장비 존재
-        # s.idle 키가 (model, 목적지_task)이므로 "어디로 전환 중인지"가 그대로 인코딩됨
+        # ④ 전환중 장비 비율 (mm×mt 차원): change_part[model][task_i] > 0 → task_i로 전환 중인 장비 존재
+        # s.switching 키가 (model, 목적지_task)이므로 "어디로 전환 중인지"가 그대로 인코딩됨
         # 과도전환 방지는 valid_moves()의 tool_qty 마스킹이 담당 (이 obs는 정보 제공만)
         change_part = [0.0] * (self.mm * self.mt)
         for mi, m in enumerate(self.models):
             max_change = p.switch_time_hours * max(1, p.eqp_qty[m])
             for i in range(self.n_tasks):
                 change_part[mi * self.mt + i] = min(
-                    1.0, s.idle.get((m, i), 0) / max_change
+                    1.0, s.switching.get((m, i), 0) / max_change
                 )
         # ⑤ hour 비율 (1 차원)
         hour_part = [s.hour / max(1, p.horizon_hours)]
@@ -105,11 +106,11 @@ class DispatchEnv(gym.Env):
         return np.asarray(base, dtype=np.float32)
 
     def action_masks(self) -> np.ndarray:
-        valid = set(self.sim.valid_moves(self._state))
         mask = np.zeros(self.action_space.n, dtype=bool)
         mask[0] = True  # commit 항상 허용
-        for idx, mv in enumerate(self.move_list, start=1):
-            if mv in valid:
+        for mv in self.sim.valid_moves(self._state):
+            idx = self._move_to_idx.get(mv)
+            if idx is not None:
                 mask[idx] = True
         return mask
 

@@ -85,42 +85,50 @@ def cmd_train(args):
         raise SystemExit("학습 문제 없음. --use-db 또는 data/train/ JSON 확인.")
     train.train_model(problems, ppo_steps=args.steps)
     print(f"학습 완료 → {config.MODEL_PATH}")
-    import test as report
-    from sb3_contrib import MaskablePPO
-    model = MaskablePPO.load(config.MODEL_PATH)
-    report.run_eval(model=model)
-    print(f"평가 리포트 → {config.REPORT_PATH}")
+    print("결과 확인: http://localhost:8000 (UI)")
 
 
 def cmd_eval(args):
     import test as report
+    from simulator import load_problem
     model = None
     if Path(config.MODEL_PATH).exists() and not args.no_model:
         from sb3_contrib import MaskablePPO
         model = MaskablePPO.load(config.MODEL_PATH)
-    report_path = Path(args.report) if args.report else config.REPORT_PATH
-    report.run_eval(model=model, report_path=report_path)
-    print(f"평가 리포트 → {report_path}")
+    results = {}
+    for path in sorted(config.TEST_DATA_DIR.glob("*.json")):
+        p = load_problem(path)
+        res = report.evaluate_benchmark(p, model)
+        results[path.stem] = res
+        parts = [f"H={res['heuristic']:.3f}"]
+        if res.get("rl") is not None:
+            parts.append(f"RL={res['rl']:.3f}")
+        if res.get("optimal") is not None:
+            parts.append(f"OPT={res['optimal']:.3f}")
+        print(f"  {path.stem}: {' / '.join(parts)}")
+    if results:
+        avg_h = sum(r["heuristic"] for r in results.values()) / len(results)
+        print(f"\n평균 휴리스틱 달성률: {avg_h:.3f}")
+    print("결과 확인: http://localhost:8000 (UI)")
 
 
 def cmd_infer(args):
     if getattr(args, "dataset", None) or args.benchmark_dataset:
         import test as report
         named = _load_named_problems(args)
-        problems = [p for _, p in named]
         model = None
         if Path(config.MODEL_PATH).exists():
             from sb3_contrib import MaskablePPO
             model = MaskablePPO.load(config.MODEL_PATH)
-        results = {}
         for name, p in named:
             res = report.evaluate_benchmark(p, model)
-            results[name] = (p, res)
-        md_default, html_default = report.default_infer_report_paths(problems, args)
-        report_path = Path(args.report) if getattr(args, "report", None) else md_default
-        html_path = Path(args.html) if getattr(args, "html", None) else html_default
-        report.write_report_files(results, report_path, html_path)
-        print(f"평가 리포트 → {report_path}")
+            parts = [f"H={res['heuristic']:.3f}"]
+            if res.get("rl") is not None:
+                parts.append(f"RL={res['rl']:.3f}")
+            if res.get("optimal") is not None:
+                parts.append(f"OPT={res['optimal']:.3f}")
+            print(f"  {name}: {' / '.join(parts)}")
+        print("결과 확인: http://localhost:8000 (UI)")
         return
 
     from db.pipeline import run_inference

@@ -106,7 +106,7 @@ def build_assign_rows(
             for u, eqp_id in enumerate(sorted(unit_ids)):
                 qty = per_unit + (1 if u < remainder else 0)
                 if qty == 0:
-                    # 재공 없음(WIP=0) 또는 idle 전환 중 — 배치 행 생략
+                    # 재공 없음(WIP=0) 또는 전환중 — 배치 행 생략
                     continue
                 seq_by_eqp[eqp_id] = seq_by_eqp.get(eqp_id, 0) + 1
                 rows.append({
@@ -138,7 +138,7 @@ def build_conv_rows(problem: ProblemInstance, trace: list, sys_id: str | None = 
 def merge_assign_rows(rows: list[dict]) -> list[dict]:
     """ASSIGN_INF rows에서 EQP_ID·EQP_MODEL_CD·PLAN_PROD_KEY·OPER_ID가 같고
     시간이 연속(현재 END_TIME == 다음 START_TIME)인 행만 병합.
-    재공 없는 구간(WIP=0·idle)은 build_assign_rows에서 이미 제외되므로
+    재공 없는 구간(WIP=0·전환중)은 build_assign_rows에서 이미 제외되므로
     비연속 구간은 병합하지 않아 갭이 유지된다.
     """
     if not rows:

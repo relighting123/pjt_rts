@@ -39,18 +39,20 @@ def datasets():
 
 
 @app.get("/api/datasets/{name}")
-def dataset_detail(name: str):
-    """데이터셋 1건 분석 결과 — 간트/전환/move/달성률/가이드."""
+def dataset_detail(name: str, env_type: str = "dispatch"):
+    """데이터셋 1건 분석 결과 — 간트/전환/move/달성률/가이드.
+    env_type: dispatch(기본) | alloc
+    """
     try:
-        return service.analyze(name)
+        return service.analyze(name, env_type=env_type)
     except KeyError:
         raise HTTPException(status_code=404, detail=f"dataset not found: {name}")
 
 
 @app.get("/api/summary")
-def summary():
+def summary(env_type: str = "dispatch"):
     """전체 데이터셋 비교 요약."""
-    return service.summary()
+    return service.summary(env_type=env_type)
 
 
 _DIST = Path(config.ROOT) / "web" / "dist"

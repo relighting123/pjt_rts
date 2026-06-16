@@ -82,11 +82,14 @@ BC_POLICY_PATH = SAVED_MODELS_DIR / "bc_init.pt"
 DEFAULT_PPO_STEPS = 50_000
 BC_EPOCHS = 300
 BC_LR = 1e-3
+BC_LOSS_TARGET = 0.05  # 이 손실 이하가 되면 모방학습 조기 종료
 DEFAULT_SWITCH_TIME_HOURS = 1
 
 # RL obs/action 패딩 상한 · batch(tool) 전환 그룹 — 여기서만 수정
-MAX_TASKS = 30
-MAX_MODELS = 20
+# 현재 벤치마크 최대: 3 task / 2 model → 여유분 포함 8/5로 설정
+# DB 실데이터가 더 크면 이 값을 늘릴 것
+MAX_TASKS = 8
+MAX_MODELS = 5
 CONV_GROUPS: dict[str, list[str]] = {"G1": ["B1", "B2", "B3"]}
 SYS_ID = "RL_AGENT"
 
