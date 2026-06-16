@@ -47,6 +47,7 @@ class DispatchEnv(gym.Env):
             if fi != ti
         ]
         self.action_space = spaces.Discrete(len(self.move_list) + 1)  # 0=commit
+        self._move_to_idx: dict[Move, int] = {mv: i + 1 for i, mv in enumerate(self.move_list)}
         # obs: [잔여계획×mt | WIP×mt | 배치대수×(mm×mt) | 전환상태×(mm×mt) | hour×1]
         obs_dim = self.mt * 2 + 2 * self.mm * self.mt + 1
         self.observation_space = spaces.Box(low=0.0, high=1.0, shape=(obs_dim,), dtype=np.float32)
@@ -105,11 +106,11 @@ class DispatchEnv(gym.Env):
         return np.asarray(base, dtype=np.float32)
 
     def action_masks(self) -> np.ndarray:
-        valid = set(self.sim.valid_moves(self._state))
         mask = np.zeros(self.action_space.n, dtype=bool)
         mask[0] = True  # commit 항상 허용
-        for idx, mv in enumerate(self.move_list, start=1):
-            if mv in valid:
+        for mv in self.sim.valid_moves(self._state):
+            idx = self._move_to_idx.get(mv)
+            if idx is not None:
                 mask[idx] = True
         return mask
 

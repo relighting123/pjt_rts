@@ -171,7 +171,8 @@ def collect_teacher_dataset(problems: list[ProblemInstance]):
     return np.array(obs_buf, dtype=np.float32), np.array(act_buf), np.array(mask_buf)
 
 
-def behavior_clone(model: MaskablePPO, obs, acts, masks, epochs: int, lr: float):
+def behavior_clone(model: MaskablePPO, obs, acts, masks, epochs: int, lr: float,
+                   loss_target: float = config.BC_LOSS_TARGET):
     """정책망을 teacher 액션에 대해 마스킹된 교차엔트로피로 사전학습."""
     if len(obs) == 0:
         return
@@ -181,7 +182,7 @@ def behavior_clone(model: MaskablePPO, obs, acts, masks, epochs: int, lr: float)
     obs_t = torch.as_tensor(np.asarray(obs), dtype=torch.float32)
     act_t = torch.as_tensor(np.asarray(acts), dtype=torch.long)
     mask_t = torch.as_tensor(np.asarray(masks), dtype=torch.bool)
-    for _ in range(epochs):
+    for epoch in range(epochs):
         opt.zero_grad()
         features = policy.extract_features(obs_t)
         latent_pi, _ = policy.mlp_extractor(features)
@@ -190,6 +191,9 @@ def behavior_clone(model: MaskablePPO, obs, acts, masks, epochs: int, lr: float)
         loss = torch.nn.functional.cross_entropy(logits, act_t)
         loss.backward()
         opt.step()
+        if loss.item() < loss_target:
+            print(f"[BC] 조기종료: epoch {epoch+1}/{epochs}, loss={loss.item():.4f}")
+            break
     policy.set_training_mode(False)
 
 
