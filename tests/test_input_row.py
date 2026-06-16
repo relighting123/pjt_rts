@@ -1,6 +1,6 @@
 import pytest
 
-from db.input_row import InputRow, coerce_input_row, row_from_mapping
+from src.db.input_row import InputRow, coerce_input_row, row_from_mapping
 
 
 def test_row_from_mapping_db_column_names():

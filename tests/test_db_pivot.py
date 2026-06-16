@@ -1,4 +1,4 @@
-from db import rows_to_problem, filter_rows_by_facid, filter_rows_by_batchid, batch_like_pattern
+from src.db import rows_to_problem, filter_rows_by_facid, filter_rows_by_batchid, batch_like_pattern
 
 
 def test_rows_to_problem_pivots_gbn_cd():

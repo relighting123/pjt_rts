@@ -1,8 +1,9 @@
 """장비 호기(EQP_ID) 추적·실제 호기 매핑 테스트."""
 from config import TEST_DATA_DIR
-from eqp_units import initial_positions, track_units, virtual_roster
-from simulator import Equipment, load_problem
-import test as report
+from src.utils.eqp_units import initial_positions, track_units, virtual_roster
+from src.simulation.domain.problem import Equipment
+from src.utils.json_io import load_problem, save_problem
+import src.evaluate as report
 
 
 def test_virtual_roster_numbering():
@@ -66,7 +67,7 @@ def test_conv_rows_without_roster_keep_dash():
 
 
 def test_problem_json_roundtrip_with_equipments(tmp_path):
-    from simulator import save_problem
+    from src.utils.json_io import save_problem
     p = load_problem(TEST_DATA_DIR / "benchmark_03.json")
     out = tmp_path / "rt.json"
     save_problem(p, out)
@@ -75,7 +76,7 @@ def test_problem_json_roundtrip_with_equipments(tmp_path):
 
 
 def test_rows_to_problem_parses_eqp_id_rows():
-    from db.adapter import rows_to_problem
+    from src.db.adapter import rows_to_problem
     rows = [
         ["RK1", "F1", "B1", "P1", "OP10", 1, "M1", "EQUIP_UPH", "100"],
         ["RK1", "F1", "B1", "P1", "OP10", 1, "M1", "EXEC_D0_PLAN", "300"],
@@ -93,7 +94,7 @@ def test_rows_to_problem_parses_eqp_id_rows():
 
 
 def test_rows_to_problem_assign_cnt_takes_precedence():
-    from db.adapter import rows_to_problem
+    from src.db.adapter import rows_to_problem
     rows = [
         ["RK1", "F1", "B1", "P1", "OP10", 1, "M1", "EQUIP_UPH", "100"],
         ["RK1", "F1", "B1", "P1", "OP10", 1, "M1", "ASSIGN_EQUIP_CNT", "1"],

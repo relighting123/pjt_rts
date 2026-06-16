@@ -1,12 +1,12 @@
 import json
 
-from ops_log import log_ops, OPS_LOG_PATH
+from src.utils.ops_log import log_ops, OPS_LOG_PATH
 import config
 
 
 def test_log_ops_writes_jsonl(tmp_path, monkeypatch, capsys):
     log_file = tmp_path / "ops.jsonl"
-    monkeypatch.setattr("ops_log.OPS_LOG_PATH", log_file)
+    monkeypatch.setattr("src.utils.ops_log.OPS_LOG_PATH", log_file)
 
     log_ops("test.event", facid="ICPRB", batchid="B1", count=3)
 

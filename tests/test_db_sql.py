@@ -3,10 +3,10 @@ from pathlib import Path
 
 import pytest
 
-from db.sql_loader import filter_rows_for_sql, load_sql, sql_bind_names, sql_file
+from src.db.sql_loader import filter_rows_for_sql, load_sql, sql_bind_names, sql_file
 import config
 
-_REFERENCE_SQL = Path(__file__).resolve().parent.parent / "db" / "sql" / "reference"
+_REFERENCE_SQL = Path(__file__).resolve().parent.parent / "src" / "db" / "sql" / "reference"
 
 
 def test_reference_sql_files_exist():

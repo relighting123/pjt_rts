@@ -1,6 +1,7 @@
 import numpy as np
-from simulator import load_problem
-from env import DispatchEnv
+from src.utils.json_io import load_problem
+from envs.dispatch_env import DispatchEnv
+from src.simulation.kernel.simulator import Simulator
 from config import BENCHMARKS_DIR
 
 
@@ -36,14 +37,13 @@ def test_env_masks_invalid_moves_match_simulator():
     env.reset(seed=0)
     mask = env.action_masks()
     # 유효 이동 수 + 1(commit) == 마스크 True 개수
-    from simulator import Simulator
     sim = Simulator(p)
     s = sim.reset()
     assert mask.sum() == len(sim.valid_moves(s)) + 1
 
 
 def _env_with_guide(util_threshold, band):
-    from env import DispatchEnv
+    from envs.dispatch_env import DispatchEnv
     p = load_problem(BENCHMARKS_DIR / "benchmark_02.json")
     models = p.models()
     target = {(models[0], 0): float(p.eqp_qty[models[0]])}
@@ -70,7 +70,7 @@ def test_guide_reward_skips_zero_wip_tasks():
 
 def test_guide_reward_band_tolerates_small_deviation():
     p = load_problem(BENCHMARKS_DIR / "benchmark_02.json")
-    from env import DispatchEnv
+    from envs.dispatch_env import DispatchEnv
     target = {(m, ti): float(c) for (m, ti), c in p.init_assign.items()}
     env = DispatchEnv(
         p, alloc_lambda=1.0, target_allocation=target,

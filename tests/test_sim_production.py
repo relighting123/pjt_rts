@@ -1,4 +1,5 @@
-from simulator import load_problem, Simulator
+from src.utils.json_io import load_problem
+from src.simulation.kernel.simulator import Simulator
 from config import BENCHMARKS_DIR
 
 

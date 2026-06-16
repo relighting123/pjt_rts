@@ -1,9 +1,9 @@
-from simulator import load_problem
+from src.utils.json_io import load_problem
 from config import TEST_DATA_DIR
 
 
 def test_largest_remainder_preserves_total():
-    from simulator import largest_remainder
+    from src.simulation.domain.problem import largest_remainder
     assert sum(largest_remainder([0.67, 0.67, 0.67], 2)) == 2
     assert largest_remainder([1.2, 0.8], 2) == [1, 1]
 

@@ -1,16 +1,16 @@
 from pathlib import Path
-from simulator import load_problem
+from src.utils.json_io import load_problem
 from config import BENCHMARKS_DIR
-import train
+from src.training.allocation import train_alloc_model
 
 
 def test_train_alloc_model_saves_and_respects_caps(tmp_path):
     p = load_problem(BENCHMARKS_DIR / "benchmark_02.json")
     out = tmp_path / "ppo_alloc.zip"
-    model = train.train_alloc_model([p], ppo_steps=200, bc_epochs=5, save_path=out)
+    model = train_alloc_model([p], ppo_steps=200, bc_epochs=5, save_path=out)
     assert out.exists()
 
-    from alloc_env import AllocationEnv
+    from envs.allocation_env import AllocationEnv
     import config as cfg
     env = AllocationEnv(p, max_tasks=cfg.MAX_TASKS, max_models=cfg.MAX_MODELS)
     obs, _ = env.reset()

@@ -1,7 +1,7 @@
 import json
 
-from db.sql_log import log_sql, render_sql
-from ops_log import OPS_LOG_PATH
+from src.db.sql_log import log_sql, render_sql
+from src.utils.ops_log import OPS_LOG_PATH
 
 
 def test_render_sql_substitutes_binds():
@@ -22,7 +22,7 @@ SELECT *
 
 
 def test_log_sql_prints_and_writes_jsonl(tmp_path, monkeypatch, capsys):
-    monkeypatch.setattr("ops_log.OPS_LOG_PATH", tmp_path / "ops.jsonl")
+    monkeypatch.setattr("src.utils.ops_log.OPS_LOG_PATH", tmp_path / "ops.jsonl")
     sql = "SELECT 1 FROM DUAL WHERE FAC_ID = :facid"
     log_sql("max_timekey", sql, {"facid": "ICPRB"})
 

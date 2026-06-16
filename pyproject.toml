@@ -1,13 +1,17 @@
-[project]
-name = "equipment-dispatch-rl"
-version = "0.1.0"
-requires-python = ">=3.11"
-dependencies = ["numpy"]
-
-[project.optional-dependencies]
-rl = ["gymnasium>=1.0", "stable-baselines3>=2.7", "sb3-contrib>=2.7", "torch"]
-oracle = ["oracledb", "python-dotenv"]
-web = ["fastapi>=0.110", "uvicorn[standard]>=0.29"]
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
+[project]
+name = "equipment-dispatch-rl"
+version = "0.2.0"
+requires-python = ">=3.11"
+dependencies = ["numpy"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*", "envs*", "agents*"]
+
+[project.optional-dependencies]
+rl = ["gymnasium>=1.0", "stable-baselines3>=2.7", "sb3-contrib>=2.7", "torch"]
+oracle = ["oracledb", "python-dotenv"]
+web = ["fastapi>=0.110", "uvicorn[standard]>=0.29"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,372 +1,138 @@
-해당 프로젝트는 장비 전환 스케줄링 시스템이다.(파일명에 스냅샹이나 dsdb 등의 용어는 쓰지 말고 일반적 용어로 해줘)
+﻿# Equipment Dispatch RL
 
-[1] 프로젝트 구성
-아래 폴더 구조가 되었으면 하고 가장 가볍고 간단한 방식이면 좋겠어
-├── data/               
-├── saved_models/       
-│
-├── .env                # [추가] DB 접속 정보 및 패스워드 등 민감 정보 저장
-├── .gitignore          # [추가] .env 파일이 깃허브 등에 올라가지 않도록 방지
-├── config.py           
-├── db.py               # .env의 환경변수를 읽어서 DB에 접속
-├── simulator.py        
-├── env.py              
-├── train.py            
-└── test.py
-[2] 강화학습 모델링
-주어진 plan prod key/OPER별 계획량에 대해 장비배치를 수행하여 전체 평균 달성율을 높이는 데 그 목적이 있다.
-plan prod key/OPER별 가능한 모델과 uph는 차이가 있으므로 이를 고려하여 최적 배치를 모방학습과 강화학습을 통해 해결해나가고자 한다.
+장비 배치/전환 스케줄링을 강화학습(PPO) + 휴리스틱으로 수행하는 프로젝트입니다.
+입력 데이터(JSON 또는 Oracle)로 시뮬레이션을 실행하고, 계획달성률/가동률/전환 정보를 API와 UI로 확인할 수 있습니다.
 
-[4] 시스템 세부 정보
-해당 비즈니스는 강화학습과 모방학습을 결합한다.
-학습 모듈과 추론 모듈이 있다.
-강화학습은 Stablebaseline을 활용한다.
-강화학습은 모방학습으로 초기 정책을 학습하고 이후 PPO 모델을 통해 학습한다.
-학습 후에 지정한 벤치마크 데이터 기반으로 평가하여 어느정도 수준의 모델인지 관리하는 md 파일을 업데이트한다.(기록용)
+## 프로젝트 구조
 
-1. 제품별 공정 수순 정보 및 재공 정보
- RULE_TIMEKEY | PLAN_PROD_KEY  | OPER_ID | OPER_SEQ | AVAIL_WIP_QTY
-
-2. 제품별 공정별 장비 모델별 시간당 생산량
- RULE_TIMEKEY | PLAN_PROD_KEY  | OPER_ID | EQP_MODEL_CD | EQUIP_UPH 
-
-3. 제품별 공정별 장비 모델별 댓수
- RULE_TIMEKEY | BATCH_ID | EQP_MODEL_CD |  EQP_QTY
-
-5. 제품별 공정별 장비 모델별 처리가능여부
- RULE_TIMEKEY | PLAN_PROD_KEY  | OPER_ID | EQP_MODEL_CD | AVAIL_YN
-
-6. Tool 교체 단위 정보
- RULE_TIMEKEY | BATCH_ID | PLAN_PROD_KEY | OPER_ID
-Batch id는 plan prod key와 oper id에 의해 정의된다. pla prod key||oper_I와 batch id는 N:1 관계이다.
-
-7. Tool 갯수 정보
- RULE_TIMEKEY | BATCH_ID | EQP_MODEL_CD | TOOL_QTY
-
-8. 계획 정보
- RULE_TIMEKEY | PLAN_PROD_KEY  | OPER_ID | START TIME | END TIME | PLAN_QTY
-계획 제품 Key / Oper 별 계획이 있고 세부 일자 시간대별 계획이 있다. 가령 P1 / PT1H / 2026051707 | 2026051708 | 100 이면 2026년 5월 17일 07시부터 08시까지 10000개를 생산하라는 계획이야. 그리고 2026051708 | 2026051807 | 300 이면 2026년 5월 17일 08시부터 18시까지 300개를 생산하라는 계획이야.
-이런식으로 동일 제품에 대해 여러 계획이 있을 수 있따.
-
-9. 장비 호기 명단 (실제 장비 매핑용)
- RULE_TIMEKEY | FAC_ID | EQP_ID | EQP_MODEL_CD | BATCH_ID | PLAN_PROD_KEY
-장비 모델별 실제 호기(EQP_ID) 목록과 각 호기의 현재 BATCH_ID/PLAN_PROD_KEY 배치 정보.
-**RTD_ARRANGE_INF** 테이블에서 EQP_ID/EQP_MODEL_CD/BATCH_ID/PLAN_PROD_KEY를 조회해
-가져온다 (JSON은 `equipments` 키).
-제공 시 출력 간트차트(RTS_ASSIGN)와 전환계획(RTS_EQPCONVPLAN)의 EQP_ID가
-가상 호기({model}-{seq:03d})가 아닌 **실제 장비 호기**로 매핑되고,
-ASSIGN_EQUIP_CNT 미제공 시 호기 명단에서 현재 배치 대수를 자동 유도한다.
-RTD_ARRANGE_INF 미존재/미조회 시에는 가상 호기로 동작한다.
-
-위 정보 중 1~8은 실제 물리 테이블에서는 [8]영역에 RTS_LINEDSDB_INF 테이블 하나로 관리되며 쿼리를 통해 위 형태로 변경 후 강화학습 모델에 들어간다. 9(호기 명단)는 RTD_ARRANGE_INF에서 별도 조회한다.
-
-
-**output (추론 결과 DB 기록)**
-
-`python run.py infer` 시 동일 `RULE_TIMEKEY`로 기존 행 삭제 후 INF/HIS에 insert.
-
-| 테이블 | 내용 |
-|--------|------|
-| `RTS_EQPALLOCATION_INF/HIS` | Mode 1 가이드 — 공정×모델 목표·현재 장비 대수 (`FAC_ID`, `BATCH_ID`, `MODE_TYP`) |
-| `RTS_ASSIGN_INF/HIS` | Mode 2 — 장비(호기)별 배치·생산 구간 |
-| `RTS_EQPCONVPLAN_INF/HIS` | Mode 2 — BATCH_ID 변경 시 tool 전환 계획 |
-
-상세 스키마·JSON 매핑: `db/sql/reference/00_output_tables.md`
-
-[5] 장비 Tool 전환 범위
-Tool 전환에 대해 점진적 적용을 위해 특정 batch id 별 그루핑.정의하며 해당 그룹 내에서만 전환하게 한다.
-가령 G001 : [9C/92,9C/102] 라면 tool 전환은 9c/92와 9C/102 끼리만 가능하며 나머지는 Tool 전환은 없다 단 batch id가 동일하다면 세부 Plan prod key와 oper 간 전환은 자유롭다
-
-[6] 배경지식
- batch id가 달라지는 경우는 tool 교체가 일어나며 to batch id의 tool은 소진하고 from batch id의 tool은 반환한다. 동일 BATCH_ID 내 PLAN PROD KEY가 변경되는 부분에 대해서는 시간 소요 및 TOOL 교체는 없다.
-
-[7] 학습·추론 RULE_TIMEKEY 운영
-
-**학습**
-- `from_rule_timekey` ~ `to_rule_timekey` 구간의 각 스냅샷을 DB에서 조회하여 학습 (구간에 여러 키가 있으면 에피소드마다 무작위 스냅샷).
-- 단일 스냅샷만 지정할 때는 `rule_timekey` 또는 `from`/`to`에 동일 값 지정.
-- 학습 완료 후 **전체 벤치마크** 데이터셋으로 Optimal·휴리스틱·RL 성능 비교 (`evaluate_all_benchmark_datasets`). 작업을 수행한다.
-- 요약 결과에는 벤치마크별로 시간대별 PLAN PROD KEY / MODEL별 댓수 및 계획달성률과 장비 달성율이 나오고 상단에 평균 계획 제품 달성률과 장비 달성률이 나오고 실제 최적해 기준 동일 형태로 데이터를 제시한다. 
-아래에는 장비별 간트차트 형태가 나온다.
-- 벤치마크 입력: json 형태로 나오며 conversion이 발생하는 복잡한 문제와 단순히 휴리스틱으로 풀기 어려운 문제로 한다.
-- 벤치 마크 데이터는 무조건 최적 정답을 이미 알고 있는 문제로 만들어야 하며 7개 정도 벤치마크 데이터가 필요하다.
-문제의 경우 특정 공정에만 장비가 몰려서 전환을 해야 최종 공정 달성이 가능한 경우 등으로 다양한 문제가 필요하다.
-**추론**
-- `rule_timekey`: 조회 스냅샷·RTD_CONV 등 **결과 출력 키 동일**. 미지정·N/A 시 `MAX(RULE_TIMEKEY)` (WIP_INFO).
-
-**CLI 예시**
-```bash
-python run.py train --from-timekey 20251020070000 --to-timekey 20251020120000 --steps 50000
-python run.py infer --timekey 20251020070000
-python run.py infer   # RULE_TIMEKEY=DB MAX (입력·출력 동일)
+```text
+pjt_rts/
+├── configs/                  # train.yaml, eval.yaml
+├── data/
+│   ├── raw/
+│   │   ├── test/             # 벤치마크 입력
+│   │   ├── train/            # 학습 입력
+│   │   └── inference/        # 추론 입력
+│   └── processed/
+│       └── inference/        # 추론 결과 JSON
+├── envs/                     # Gym env (dispatch/allocation)
+├── agents/                   # 정책/모델 로딩/registry
+├── models/
+│   ├── checkpoints/          # ppo_dispatch.zip, ppo_alloc.zip
+│   └── best/
+├── logs/
+│   └── tensorboard/
+├── src/
+│   ├── simulation/           # domain + simulator kernel
+│   ├── stages/               # allocation/dispatch use-case
+│   ├── training/             # BC + PPO 학습 로직
+│   ├── db/                   # Oracle adapter + SQL + pipeline
+│   ├── api/                  # FastAPI
+│   ├── views/                # API view-model (gantt/pivot)
+│   ├── utils/                # json_io / eqp_units / ops_log / rows
+│   ├── train.py              # 학습 파이프라인
+│   ├── evaluate.py           # 평가 파이프라인
+│   ├── inference.py          # 추론 파이프라인 래퍼
+│   └── export.py             # export 래퍼
+├── web/                      # React 대시보드
+├── tests/
+├── main.py                   # CLI 진입점
+└── requirements.txt
 ```
 
-[8]
-##대상 DB
-오라클 DB -> config 관리
+## 설치
 
-oracle db는 하기 정보를 활용해
-서비스 이름 : XEPDB1
-IP와 포트 : localhost:1521
-계정/암호 : dispatcher/dispatcher
-
-### 데이터 구조
-테이블 명 : RTS_LINEDSDB_INF
-테이블 스키마
-RULE_TIMEKEY VARCHAR2(50) PK
-FAC_ID VARCHAR2(50) PK,
-BATCH_ID VARCHAR2(50),PK
-PLAN_PROD_KEY VARCHAR2(200),PK
-OPER_ID  VARCHAR2(50),PK
-OPER_SEQ NUMBER,
-EQP_MODEL_CD VARCHAR2(50),PK
-GBN_CD VARCHAR2(50), PK
-ATTR_VAL VARCHAR2(50) 
-
-데이터 값(예시)
-RULE_TIMEKEY  : "2026052922500000"
-FAC_ID : ["ICPRB","CJPRB"]
-BATCH_ID : ["9C/92","9C/102",..]
-PLAN_PROD_KEY : ["M15/59C/H5UDGSTED/E1S/NA"]
-OPER_ID : ["Z1020000A","Z1040000A"]
-OPER_SEQ : 1,2,3..
-EQP_MODEL_CD : ["T5833","MAGNUM5"]
-GBN_CD : ["ASSIGN_EQUIP_CNT","EQUIP_UPH","AVAIL_WIP_QTY","EXEC_D0_PLAN","D1_TARGET_QTY","TOOL_QTY"]
-ATTR_VAL : 각 항목별 GBN_CD에 해당하는 값
-
-테이블 명 : RTD_ARRANGE_INF (장비 호기 현재 배치 명단 — 실제 EQP_ID 매핑용)
-RULE_TIMEKEY VARCHAR2(16) PK
-FAC_ID VARCHAR2(20) PK
-EQP_ID VARCHAR2(50) PK
-EQP_MODEL_CD VARCHAR2(50)
-BATCH_ID VARCHAR2(50)
-PLAN_PROD_KEY VARCHAR2(50)
-
-**만약 PLAN_PROD_KEY/EQP_MODEL 기준 조회시 EQUIP_UPH가 없다면 진행 불가로 판단함.
-**D0_TARGET의 경우 RULE_TIMEKEY 기준에서 다음날 07시까지의 계획이며 D1 TARGET의 경우 다음날 07시에서 그 다음날 07시까지 계획으로 치환하여 처리
-
-**API parameters (rl_train)**
-- `from_rule_timekey`, `to_rule_timekey`, `rule_timekey`, `run_test_eval`, `benchmark_dataset`
-
-**API parameters (rl_inference)**
-- `rule_timekey` (task 또는 parameters) — 조회·출력 공통
-
-## 실행법
-
-### 1) 의존성 설치
 ```bash
-pip install -e .[rl,web]   # RL + FastAPI + uvicorn
-cd web && npm install      # React UI 의존성
+pip install -r requirements.txt
+cd web && npm install
 ```
 
-### 2) UI 실행 — 개발 모드
+## 실행
+
+### 1) API + UI 개발 모드
+
 ```bash
-# 터미널 1: API 서버
-uvicorn server.main:app --host 0.0.0.0 --port 8000 --reload
-# 터미널 2: Vite 개발 서버 (자동 프록시 /api → :8000)
-cd web && npm run dev   # http://localhost:5173
+# 터미널 1: API
+uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
+
+# 터미널 2: UI
+cd web && npm run dev
 ```
 
-### 3) UI 실행 — 운영 빌드
+- UI: `http://localhost:5173`
+- API: `http://localhost:8000/api/health`
+
+### 2) 운영 빌드 실행
+
 ```bash
 cd web && npm run build
-uvicorn server.main:app --host 0.0.0.0 --port 8000
-# → http://localhost:8000
+uvicorn src.api.main:app --host 0.0.0.0 --port 8000
 ```
 
-### 4) 벤치마크 평가 (결과는 UI에서 확인)
+## CLI 사용법
+
 ```bash
-python run.py eval              # 휴리스틱 vs 최적 비교
-python run.py eval --no-model   # RL 모델 제외
+python main.py --help
 ```
 
-### 5) 학습
+### 평가
+
 ```bash
-python run.py train --benchmark-dataset data/test/benchmark_03.json --steps 50000
+python main.py eval
+python main.py eval --no-model
 ```
 
-### 6) 추론 (로컬 파일)
+### 학습
+
 ```bash
-python run.py infer --benchmark-dataset data/test/benchmark_01.json
+python main.py train --steps 50000
+python main.py train --benchmark-dataset data/raw/test/benchmark_03.json --steps 50000
 ```
 
-### 7) 추론 (DB 연동)
+### 추론 (로컬 JSON)
+
 ```bash
-# .env에 Oracle 접속 정보 설정 후
-pip install -e .[rl,web,oracle]
-python run.py infer --timekey 20260529225000
-python run.py infer   # 미지정 시 MAX(RULE_TIMEKEY)
+python main.py infer --benchmark-dataset data/raw/test/benchmark_01.json
+```
+
+### 추론 (DB)
+
+```bash
+python main.py infer --timekey 2026052922500000 --facid ICPRB --batchid B1
+python main.py infer --facid ICPRB --batchid B1   # timekey 미지정 시 MAX(RULE_TIMEKEY)
+```
+
+### 입력 JSON export (DB -> 파일)
+
+```bash
+python main.py export --timekey 2026052922500000 --facid ICPRB --batchid B1
+python main.py export --train --from-timekey 2026050100000000 --to-timekey 2026053123595900 --facid ICPRB --batchid B1
+```
+
+## API 엔드포인트
+
+- `GET /api/health` : 헬스체크
+- `GET /api/datasets` : 분석 가능한 데이터셋 목록
+- `GET /api/datasets/{name}` : 데이터셋 상세 분석 결과
+- `GET /api/summary` : 전체 데이터셋 요약
+
+## 설정
+
+- 런타임 설정: `config.py`
+- 환경변수: `.env` (Oracle 연결 정보, 기본 FAC/BATCH 등)
+
+주요 설정 항목:
+- `MAX_TASKS`, `MAX_MODELS`
+- `DWELL_LAMBDA`, `ALLOC_LAMBDA`
+- `USE_ALLOC_MODEL`
+- `GUIDE_UTIL_THRESHOLD`, `GUIDE_BAND_PCT`
+
+## 테스트
+
+```bash
+python -m pytest -q
 ```
 
 ---
 
-## Created Project Usage
-
-> 회사 환경 배포(Oracle 스키마/권한/연결 점검/운영 검증)는
-> [DEPLOYMENT.md](DEPLOYMENT.md) 참고.
-
-```bash
-python run.py eval
-python run.py train --benchmark-dataset benchmarks/benchmark_01 --steps 50000
-python run.py infer --benchmark-dataset benchmarks/benchmark_01 --report artifacts/inference/allocation.md
-```
-
-### 분석 대시보드 (FastAPI + React)
-
-Streamlit을 대체하는 다중 요청 처리 가능한 분석 UI.
-간트차트(실제 장비 호기 매핑)·전환횟수·move량·계획달성률·전환 예정 장비 정보를
-한 화면에서 확인하고, 전체 벤치마크/추론 결과를 비교한다.
-
-```bash
-# 1) API 서버 (평가 결과 캐시, 수평 확장은 --workers N)
-pip install -e .[web]
-uvicorn server.main:app --host 0.0.0.0 --port 8000 --workers 4
-
-# 2) UI — 개발 모드 (vite dev server, /api는 8000으로 프록시)
-cd web && npm install && npm run dev      # http://localhost:5173
-
-# 2') UI — 운영 빌드 (FastAPI가 web/dist를 루트(/)에서 정적 서빙)
-cd web && npm install && npm run build    # http://localhost:8000
-```
-
-REST API:
-- `GET /api/datasets` — 분석 가능 데이터셋 목록 (data/test 벤치마크 + data/inference 입력)
-- `GET /api/datasets/{name}` — 상세 분석 (KPI/간트/전환계획/시간별/가이드)
-- `GET /api/summary` — 전체 데이터셋 비교 요약
-
-#### UI 화면 구성 (화이트 기반 라이트 테마)
-
-화면은 위에서 아래로 다음 순서로 구성된다. 디자인은 흰색 배경 기반
-(배경 `#f5f7fa`, 패널 `#ffffff`)이며 색상 토큰은 `web/src/styles.css`의
-`:root` 변수에서 일괄 관리한다.
-
-1. **헤더** — `상세 분석 / 전체 비교` 뷰 토글, 데이터셋 선택(벤치마크·추론),
-   `휴리스틱 / RL` 알고리즘 토글 (RL 결과 없으면 비활성).
-2. **메타 라인** — RULE_TIMEKEY · FAC · Horizon · Task 수 · 장비 대수(모델 수)
-   + 배지: 초록 `실제 장비 호기 매핑`(RTD_ARRANGE_INF 명단 제공 시) /
-   노랑 `가상 호기`(명단 미제공 시).
-3. **KPI 카드 5장** — 계획달성률(최적 대비 ▲▼ 갭) · 평균 장비 가동률 ·
-   move량(총 생산) · 전환 횟수 · 전환 예정 장비 수.
-4. **장비 배치 간트차트** — 행 = 호기(EQP_ID, 실제 호기 매핑 시 ETX-101 등),
-   색 막대 = 작업(PLAN_PROD_KEY/OPER) 구간, 빨간 점선 박스 = tool 전환(batch 변경).
-   막대 호버 시 생산량·시간 툴팁.
-5. **시간별 생산량·가동률** (막대+선) / **Task별 계획달성률** (진행 바) — 좌우 2단.
-6. **전환 예정 장비 정보** — RTS_EQPCONVPLAN 행 그대로 (JOB_ID·EQP_ID·전환
-   시각·FROM→TO BATCH/PPK·상태).
-7. **가이드 수량** (Mode 1 공정×모델 목표 대수 히트맵) / **장비 호기 명단**
-   (RTD_ARRANGE_INF 입력 roster) — 좌우 2단.
-8. **전체 비교 뷰** — 데이터셋별 휴리스틱/RL/최적 달성률 미니 바 비교 표,
-   행 클릭 시 해당 상세 분석으로 이동.
-
-### 2-모드 운영 (가이드 + 동적)
-
-`train`/`infer`/`eval`은 rule_timekey마다 두 산출을 함께 만든다.
-
-- **가이드 수량(Mode 1):** 재공을 무한으로 가정하고 계획·UPH·장비수·tool로 공정별 목표
-  장비 대수를 산출(`AllocationEnv`, 없으면 `plan_target_allocation()` 해석식).
-- **동적 운영(Mode 2):** 가이드를 *가급적* 준수하며 실제 재공에 따라 시간대별 재배치.
-  가이드 준수는 가동률이 `GUIDE_UTIL_THRESHOLD` 이상일 때만, 가이드 대비
-  `±GUIDE_BAND_PCT` 밴드 밖 편차에만 적용된다(재공 0인 공정은 제외).
-
-관련 설정(`config.py`/`.env`): `USE_ALLOC_MODEL`, `ALLOC_LAMBDA`, `DWELL_LAMBDA`,
-`DWELL_OBS`, `GUIDE_UTIL_THRESHOLD`, `GUIDE_BAND_PCT`.
-
-### 학습 속도 옵션 (`config/settings.json` → `speed`)
-
-- **`num_envs`** (기본 1) — PPO 롤아웃을 SubprocVecEnv로 병렬화. 큰 환경/
-  많은 스냅샷에서는 4–8로 올려 5–8× 가속. 작은 데모는 IPC 오버헤드 때문에 1 권장.
-- **`device`** (기본 `"auto"`) — CUDA/MPS 자동 감지. CPU만 있어도 안전.
-- **`imitation_loss_target`** (기본 0.05) — cross-entropy 손실이 이 값보다
-  내려가면 imitation 조기 종료. thrashing 시나리오에서 1500 epoch → 평균 ~700
-  epoch로 줄어 ~3× 가속.
-
-- `core`: domain model, simulator, optimizer, evaluation, optional RL training interface.
-- `biz`: Oracle/config adapters that map real tables into core datasets and persist output tables.
-- `benchmarks`: 11 CSV benchmark datasets plus `ground_truth.json` for DB-free validation.
-- `config/settings.json`: Oracle connection and output table/model artifact settings.
-
-Optional packages:
-
-```bash
-pip install -e .[rl,oracle]
-```
-
-### WIP handling (단일 스냅샷)
-
-각 OPER의 생산량은 `AVAIL_WIP_QTY`를 상한으로 캡된다 — 재공이 부족하면 장비가 남아도
-그 이상 생산하지 못한다. 단일 스냅샷 경로에서 WIP=0/미기록은 하위호환을 위해
-"무제한"으로 간주한다 (`benchmark_11`이 OP20 재공 50개 한계를 검증).
-
-### 멀티 피리어드 (WIP 흐름) — `core/flow.py`
-
-단일 스냅샷은 "지금 충분한 재공"을 가정한다. 실제로는 하위 공정 큐가 비어있어
-**앞 공정에서 재공을 먼저 쌓고(build-ahead) → 전환 → 뒤 공정 처리**가 필요하다.
-`MultiPeriodSimulator`는 horizon을 슬롯으로 쪼개고, 각 슬롯의 생산이 다음 공정
-(OPER_SEQ 순)의 재공으로 **다음 슬롯에** 흘러가도록 모델링한다. 슬롯마다 정책이
-현재 재공/잔여계획을 보고 재배치하며, 배치를 넘으면 전환으로 집계된다.
-
-```bash
-python test_multiperiod.py            # 두 시나리오 정책 비교 (DB 없음)
-python scripts/train_multiperiod.py   # 멀티 피리어드 RL 학습 + 평가
-```
-
-검증 시나리오 (`test_multiperiod.py`):
-- **build-ahead** (OP20 큐 비어있음): static 0.5, dynamic 1.0, optimal 1.0.
-  앞공정 OP10에서 재공 빌드 → 다음 슬롯 OP20 전환.
-- **thrashing** (4 제품, 2 배치 교차, switch_time=0.5h):
-  static 0.25, dynamic 0.625 (3 전환), optimal 0.875 (1 전환 — 배치 묶기 A A B B).
-
-멀티 피리어드 RL (`core/rl_env_mp.py` + `core/rl_train_mp.py`):
-- Gym 환경: substep마다 단위 1개 할당; 슬롯 풀이 비면 자동 commit + WIP 흐름 적용.
-- 학습: `multiperiod_optimal` teacher의 슬롯별 액션 시퀀스로 cross-entropy 모방학습.
-  현 시나리오에서 PPO build-ahead 1.0 / thrashing 0.875 — 두 시나리오 모두 optimal 달성.
-
-정책: `static_policy`, `dynamic_greedy_policy`, 소규모 정확해 `multiperiod_optimal`, 그리고 학습된 PPO.
-
-
-## 실제 구현 사용법 (이번 슬라이스)
-
-DB 없이 벤치마크(JSON)로 전 파이프라인이 동작한다: 도메인모델 → 1시간 step 시뮬레이터
-(WIP 흐름·batch 전환 1h Idle·tool 풀) → 휴리스틱/최적 teacher → 모방학습(BC) →
-MaskablePPO → 평가 리포트.
-
-```bash
-pip install -e .[rl]                 # gymnasium, stable-baselines3, sb3-contrib, torch
-python run.py eval --no-model        # 휴리스틱 vs 최적 비교 → MODEL_REPORT.md
-python run.py train --benchmark-dataset benchmarks/benchmark_03 --steps 50000
-python run.py eval                   # 학습된 RL 포함 평가(shape 일치 벤치마크만 RL 적용)
-python run.py infer --benchmark-dataset benchmarks/benchmark_03
-```
-
-DB(Oracle) 사용 시 `.env` 설정 후:
-```bash
-pip install -e .[rl,oracle]
-python run.py infer --timekey 20260529225000   # RTS_LINEDSDB_INF 조회
-python run.py infer                              # 미지정 시 MAX(RULE_TIMEKEY)
-```
-
-### 설계 메모: 모델은 문제 shape별로 학습한다
-관측/액션 공간 크기가 문제의 (태스크 수 × 모델 수)에 의존하므로, 하나의 PPO 모델은
-**동일 shape의 문제**에만 적용된다. 따라서 학습은 `--benchmark-dataset`(또는 DB
-`--timekey`)로 하나의 문제(또는 동일 shape 묶음) 단위로 수행한다. `eval`에 모델을 주면
-shape가 일치하는 벤치마크에만 RL을 적용하고 나머지는 휴리스틱으로 평가한다. (모든 shape를
-아우르는 단일 정책은 관측/액션 공간 패딩+마스킹이 필요하며, 이는 후속 작업으로 남긴다.)
-
-### 벤치마크 7종 (최적 정답 기지)
-1. benchmark_01 — 전환 불필요 기본
-2. benchmark_02 — 단일 batch 전환 필요
-3. benchmark_03 — 병목/build-ahead (앞공정 빌드 → 전환 → 뒷공정)
-4. benchmark_04 — UPH 이질성(같은 batch, 모델 교체)
-5. benchmark_05 — capacity 초과(달성률 상한 0.4)
-6. benchmark_06 — WIP 부족(0.1667 상한)
-7. benchmark_07 — thrashing 회피(1회 전환이 최적)
-
-### 구현 범위 / 미구현 (정직성 노트)
-이번 슬라이스에서 **구현됨**: 도메인모델·1시간 step 시뮬레이터(WIP 흐름/전환 Idle/tool 풀)·
-휴리스틱(=최적) teacher·모방학습(BC)·MaskablePPO·벤치마크 평가/리포트·간트·DB 조회 어댑터
-(`db.fetch_problem`, 순수 `rows_to_problem`).
-
-아직 **미구현(후속 작업)**:
-- 상단 README 예시의 일부 플래그(`--from-timekey/--to-timekey`)는 설계 목표이며, 현재 CLI는 `run.py`의
-  `train/infer/eval` + `--benchmark-dataset/--timekey/--steps/--report/--no-model`만 제공.
-- 단일 정책의 문제 shape 일반화(관측/액션 공간 패딩+마스킹).
+상세 아키텍처 설명은 `docs/ARCHITECTURE.md`를 참고하세요.

@@ -1,4 +1,4 @@
-import type { DatasetDetail, DatasetInfo, Summary } from "./types";
+import type { DatasetDetail, DatasetInfo, Summary, TrainingMetrics } from "./types";
 
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -11,9 +11,15 @@ export const fetchDetail = (name: string, envType = "dispatch") =>
   getJson<DatasetDetail>(`/api/datasets/${encodeURIComponent(name)}?env_type=${envType}`);
 export const fetchSummary = (envType = "dispatch") =>
   getJson<Summary>(`/api/summary?env_type=${envType}`);
+export const fetchTrainingMetrics = (stage: "dispatch" | "alloc" = "dispatch") =>
+  getJson<TrainingMetrics>(`/api/training/metrics?stage=${stage}`);
 
 export const pct = (v: number | null | undefined, digits = 1) =>
   v == null ? "N/A" : `${(v * 100).toFixed(digits)}%`;
+
+/** ground_truth 최적해가 100%면 비교 가치가 없어 UI에서 숨김. */
+export const isMeaningfulOptimal = (v: number | null | undefined) =>
+  v != null && v < 0.9999;
 
 export const num = (v: number | null | undefined) =>
   v == null ? "N/A" : v.toLocaleString();

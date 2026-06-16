@@ -1,7 +1,7 @@
-from simulator import load_problem
+from src.utils.json_io import load_problem
 from config import TEST_DATA_DIR
-import test as report
-from report_output import (
+import src.evaluate as report
+from src.utils.rows import (
     build_eqpallocation_rows,
     build_inference_result_document,
     save_inference_result_document,

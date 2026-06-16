@@ -1,5 +1,6 @@
 import pytest
-from simulator import load_problem, evaluate
+from src.utils.json_io import load_problem
+from agents.runner import evaluate
 from config import BENCHMARKS_DIR
 
 BENCHES = sorted(BENCHMARKS_DIR.glob("*.json"))

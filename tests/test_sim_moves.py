@@ -1,4 +1,6 @@
-from simulator import load_problem, Simulator, Move
+from src.utils.json_io import load_problem
+from src.simulation.kernel.simulator import Simulator
+from src.simulation.domain.problem import Move
 from config import BENCHMARKS_DIR
 
 

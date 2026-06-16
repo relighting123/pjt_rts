@@ -1,4 +1,4 @@
-from simulator import load_problem
+from src.utils.json_io import load_problem
 from config import BENCHMARKS_DIR
 
 
@@ -24,7 +24,7 @@ def test_load_problem_indexes_tasks_and_uph():
 
 def test_load_problem_accepts_wip_qty_alias(tmp_path):
     import json
-    from simulator import load_problem, save_problem
+    from src.utils.json_io import load_problem, save_problem
 
     doc = {
         "rule_timekey": "T",

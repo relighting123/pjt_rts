@@ -11,13 +11,26 @@ const LABEL_W = 120;
 const GROUP_H = 22;
 const AXIS_H = 28;
 
+function comboKey(s: Pick<GanttSegment, "batch_id" | "plan_prod_key" | "oper_id">) {
+  return `${s.batch_id}/${s.plan_prod_key}/${s.oper_id}`;
+}
+
+function barLabel(s: Pick<GanttSegment, "batch_id" | "plan_prod_key" | "oper_id">, w: number) {
+  const full = comboKey(s);
+  if (w >= 140) return full;
+  if (w >= 88) return `${s.batch_id}·${s.plan_prod_key}`;
+  if (w >= 52) return s.batch_id || s.plan_prod_key;
+  return "";
+}
+
 export default function GanttChart({ segments }: Props) {
   if (segments.length === 0) return <div className="empty">배치 데이터가 없습니다.</div>;
 
   const t0 = Math.min(...segments.map((s) => +new Date(s.start)));
   const t1 = Math.max(...segments.map((s) => +new Date(s.end)));
   const span = Math.max(t1 - t0, 1);
-  const chartW = Math.max(720, Math.min(1400, Math.round((span / 3.6e6) * 120)));
+  const spanHours = span / 3.6e6;
+  const chartW = Math.max(480, Math.min(1200, Math.round(spanHours * 96)));
   const x = (ms: number) => LABEL_W + ((ms - t0) / span) * chartW;
 
   // group: model → sorted eqp_ids
@@ -48,9 +61,9 @@ export default function GanttChart({ segments }: Props) {
   const totalWidth = LABEL_W + chartW + 16;
   const eqpYMap = new Map(rows.map((r) => [r.eqp_id, r.y]));
 
-  // color by plan_prod_key
-  const ppks = [...new Set(segments.filter((s) => s.kind === "RUN").map((s) => s.plan_prod_key))];
-  const color = colorScale(ppks);
+  // color by batch + product + process
+  const combos = [...new Set(segments.filter((s) => s.kind === "RUN").map(comboKey))];
+  const color = colorScale(combos);
 
   // time ticks
   const hourMs = 3.6e6;
@@ -61,7 +74,7 @@ export default function GanttChart({ segments }: Props) {
 
   return (
     <div className="gantt-wrap">
-      <svg width={totalWidth} height={totalHeight} role="img">
+      <svg viewBox={`0 0 ${totalWidth} ${totalHeight}`} className="gantt-svg" role="img">
         <defs>
           <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
             <line x1="0" y1="0" x2="0" y2="6" stroke="#d6492a" strokeWidth="2" strokeOpacity="0.5" />
@@ -105,15 +118,17 @@ export default function GanttChart({ segments }: Props) {
           const by = rowY + (ROW_H - BAR_H) / 2;
           const x0 = x(+new Date(s.start));
           const w = Math.max(x(+new Date(s.end)) - x0, 2);
+          const key = comboKey(s);
+          const label = barLabel(s, w);
           return (
             <g key={`run-${idx}`}>
-              <rect x={x0} y={by} width={w} height={BAR_H} rx={4} fill={color(s.plan_prod_key)}>
-                <title>{`${s.eqp_id} (${s.model})\n제품: ${s.plan_prod_key}/${s.oper_id} · BATCH ${s.batch_id}\n${fmtTime(s.start)} ~ ${fmtTime(s.end)}\n생산량: ${num(s.qty)}`}</title>
+              <rect x={x0} y={by} width={w} height={BAR_H} rx={4} fill={color(key)}>
+                <title>{`${s.eqp_id} (${s.model})\nBatch: ${s.batch_id} · 제품: ${s.plan_prod_key} · 공정: ${s.oper_id}\n${fmtTime(s.start)} ~ ${fmtTime(s.end)}\n생산량: ${num(s.qty)}`}</title>
               </rect>
-              {w > 52 && (
-                <text x={x0 + w / 2} y={by + BAR_H / 2 + 4} fill="#fff" fontSize={11}
+              {label && (
+                <text x={x0 + w / 2} y={by + BAR_H / 2 + 4} fill="#fff" fontSize={10}
                       fontWeight={700} textAnchor="middle" pointerEvents="none">
-                  {s.plan_prod_key}
+                  {label}
                 </text>
               )}
             </g>
@@ -145,7 +160,7 @@ export default function GanttChart({ segments }: Props) {
       </svg>
 
       <div className="legend">
-        {ppks.sort().map((k) => (
+        {combos.sort().map((k) => (
           <span className="item" key={k}>
             <span className="swatch" style={{ background: color(k) }} /> {k}
           </span>

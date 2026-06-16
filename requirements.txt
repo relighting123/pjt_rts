@@ -1,0 +1,9 @@
+numpy>=1.26
+gymnasium>=1.0
+stable-baselines3>=2.7
+sb3-contrib>=2.7
+torch
+fastapi>=0.110
+uvicorn[standard]>=0.29
+python-dotenv
+oracledb

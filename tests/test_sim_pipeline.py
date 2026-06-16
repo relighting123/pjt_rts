@@ -1,4 +1,5 @@
-from simulator import Task, ProblemInstance, Simulator
+from src.simulation.domain.problem import Task, ProblemInstance
+from src.simulation.kernel.simulator import Simulator
 import config
 
 

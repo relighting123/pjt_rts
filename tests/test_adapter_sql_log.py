@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock
 
-from db import adapter
-from db.input_row import INPUT_ROW_FIELDS
+from src.db import adapter
+from src.db.input_row import INPUT_ROW_FIELDS
 
 
 def _cursor_description():

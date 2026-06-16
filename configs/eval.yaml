@@ -1,0 +1,4 @@
+# 평가 설정
+test_data: data/raw/test
+use_rl_model: true
+checkpoints_dir: models/checkpoints

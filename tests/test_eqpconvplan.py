@@ -3,13 +3,15 @@ from dataclasses import replace
 from datetime import datetime, timedelta
 
 from config import TEST_DATA_DIR
-from db.eqpconvplan import (
+from src.db.eqpconvplan import (
     build_eqpconvplan_rows,
     conv_start_end_tm,
     split_batch_lot_temper,
 )
-from simulator import Move, Simulator, load_problem
-import test as report
+from src.simulation.domain.problem import Move
+from src.simulation.kernel.simulator import Simulator
+from src.utils.json_io import load_problem
+import src.evaluate as report
 
 
 def test_split_batch_lot_temper():
@@ -74,7 +76,7 @@ def test_build_eqpconvplan_rows_batch_split():
 
 
 def test_insert_eqpconvplan_sql_bind_names():
-    from db.sql_loader import load_sql, sql_bind_names
+    from src.db.sql_loader import load_sql, sql_bind_names
     import config
 
     sql = load_sql("write", "insert_eqpconvplan", table=config.EQPCONVPLAN_TABLE)

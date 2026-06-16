@@ -2,24 +2,24 @@ import { useEffect, useState } from "react";
 import { fetchDetail, fetchSummary } from "./api";
 import type { DatasetDetail, Summary } from "./types";
 import OverviewCards from "./components/OverviewCards";
-import BenchmarkTable from "./components/BenchmarkTable";
-import GanttChart from "./components/GanttChart";
+import BenchmarkPerformanceChart from "./components/BenchmarkPerformanceChart";
+import AlgoComparePanel from "./components/AlgoComparePanel";
+import ConvergenceChart from "./components/ConvergenceChart";
 import "./styles.css";
 
 type EnvType = "dispatch" | "alloc";
-type Algo = "heuristic" | "rl";
 
 export default function App() {
   const [envType, setEnvType] = useState<EnvType>("dispatch");
   const [summary, setSummary] = useState<Summary | null>(null);
   const [selected, setSelected] = useState<string>("");
   const [detail, setDetail] = useState<DatasetDetail | null>(null);
-  const [algo, setAlgo] = useState<Algo>("heuristic");
   const [loadingSummary, setLoadingSummary] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load summary when envType changes
+  const selectBenchmark = (name: string) => setSelected(name);
+
   useEffect(() => {
     setLoadingSummary(true);
     setError(null);
@@ -35,23 +35,23 @@ export default function App() {
       .finally(() => setLoadingSummary(false));
   }, [envType]);
 
-  // Load detail when selected changes
   useEffect(() => {
     if (!selected) return;
     setLoadingDetail(true);
     setError(null);
     fetchDetail(selected, envType)
-      .then((d) => {
-        setDetail(d);
-        // fallback to heuristic if rl not available
-        if (d.algorithms.rl == null) setAlgo("heuristic");
-      })
+      .then(setDetail)
       .catch((e) => setError(String(e)))
       .finally(() => setLoadingDetail(false));
   }, [selected, envType]);
 
-  const algoView = detail?.algorithms[algo] ?? detail?.algorithms.heuristic ?? null;
-  const rlAvailable = detail?.algorithms.rl != null;
+  const rlAvailable = detail?.rl_status.available ?? false;
+  const chartProps = {
+    rows: summary?.rows ?? [],
+    selected,
+    onSelect: selectBenchmark,
+    compact: true,
+  };
 
   return (
     <div className="app">
@@ -70,36 +70,66 @@ export default function App() {
 
       {error && <div className="error">⚠ {error}</div>}
 
-      {/* Overview KPI cards */}
-      {summary && !loadingSummary && (
-        <OverviewCards summary={summary} />
-      )}
+      {summary && !loadingSummary && <OverviewCards summary={summary} envType={envType} />}
       {loadingSummary && <div className="empty">데이터 불러오는 중…</div>}
 
-      {/* Split: benchmark list + detail */}
       {summary && !loadingSummary && (
-        <div className="split-panel">
-          {/* Left: benchmark list */}
-          <div className="bench-list-panel">
-            <h2>벤치마크 목록 ({summary.rows.length})</h2>
-            <BenchmarkTable
-              rows={summary.rows}
-              selected={selected}
-              onSelect={(name) => { setSelected(name); setAlgo("heuristic"); }}
-            />
-          </div>
+        <div className="dashboard-body">
+          <section className="bench-metrics-section">
+            <div className="section-head">
+              <h2>벤치마크별 지표 ({summary.rows.length})</h2>
+              <div className="bench-chips">
+                {summary.rows.map((r) => (
+                  <button
+                    key={r.name}
+                    type="button"
+                    className={`bench-chip${selected === r.name ? " active" : ""}`}
+                    onClick={() => selectBenchmark(r.name)}
+                  >
+                    {r.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className={`bench-metrics-row${envType === "dispatch" ? " cols-3" : " cols-1"}`}>
+              <div className="bench-chart-panel">
+                <BenchmarkPerformanceChart
+                  {...chartProps}
+                  metric="plan_achievement"
+                  title={envType === "alloc" ? "계획달성률 (정적)" : "계획달성률 (동적)"}
+                  subtitle={envType === "alloc"
+                    ? "시간한계 또는 배분밀도 / 계획"
+                    : "시뮬레이션 생산 / 계획"}
+                />
+              </div>
+              {envType === "dispatch" && (
+                <>
+                  <div className="bench-chart-panel">
+                    <BenchmarkPerformanceChart
+                      {...chartProps}
+                      metric="utilization"
+                      title="가동률 (동적)"
+                      subtitle="시뮬레이션 장비 가동률"
+                    />
+                  </div>
+                  <div className="bench-chart-panel">
+                    <BenchmarkPerformanceChart
+                      {...chartProps}
+                      metric="conversion"
+                      title="장비 전환 (동적)"
+                      subtitle="CONV 세그먼트 수"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          </section>
 
-          {/* Right: detail + gantt */}
-          <div className="detail-panel">
-            {!selected && (
-              <div className="placeholder">벤치마크를 선택하면 간트차트가 표시됩니다.</div>
-            )}
-            {selected && loadingDetail && (
-              <div className="placeholder">불러오는 중…</div>
-            )}
-            {selected && !loadingDetail && detail && algoView && (
+          <section className="detail-panel">
+            {!selected && <div className="placeholder">벤치마크를 선택하세요.</div>}
+            {selected && loadingDetail && <div className="placeholder">불러오는 중…</div>}
+            {selected && !loadingDetail && detail && (
               <>
-                {/* Meta */}
                 <div className="meta-line">
                   <b>{detail.name}</b>
                   {" · "}RULE_TIMEKEY <b>{detail.meta.rule_timekey}</b>
@@ -111,42 +141,19 @@ export default function App() {
                     : <span className="badge virtual">가상호기</span>}
                   {detail.meta.note && <span style={{ marginLeft: 8 }}>— {detail.meta.note}</span>}
                 </div>
-
-                {/* Algo toggle */}
-                <div className="algo-row">
-                  <h2>간트차트</h2>
-                  <div className="seg">
-                    <button className={algo === "heuristic" ? "active" : ""}
-                            onClick={() => setAlgo("heuristic")}>
-                      휴리스틱
-                    </button>
-                    <button className={algo === "rl" ? "active" : ""}
-                            disabled={!rlAvailable}
-                            title={rlAvailable ? "" : "학습된 RL 모델 없음"}
-                            onClick={() => setAlgo("rl")}>
-                      RL
-                    </button>
-                  </div>
-                  {/* KPIs inline */}
-                  <span style={{ fontSize: 13, color: "#6b7689", marginLeft: 8 }}>
-                    달성률 <b style={{ color: "#3b6fe0" }}>
-                      {(algoView.kpis.plan_achievement * 100).toFixed(1)}%
-                    </b>
-                    {" · "}가동률 <b>{(algoView.kpis.avg_utilization * 100).toFixed(1)}%</b>
-                    {" · "}전환 <b>{algoView.kpis.conversion_count}건</b>
-                    {detail.optimal != null && (
-                      <> · 최적 <b style={{ color: "#18a06c" }}>
-                        {(detail.optimal * 100).toFixed(1)}%
-                      </b></>
-                    )}
-                  </span>
-                </div>
-
-                {/* Gantt */}
-                <GanttChart segments={algoView.gantt} />
+                <h2 className="section-title">
+                  {envType === "alloc" ? "휴리스틱 vs RL · 장비 배분" : "휴리스틱 vs RL · 간트차트"}
+                </h2>
+                <AlgoComparePanel detail={detail} envType={envType} rlAvailable={rlAvailable} />
               </>
             )}
-          </div>
+          </section>
+
+          <section className="convergence-panel">
+            <h2>학습 수렴 차트</h2>
+            <p className="panel-sub">DispatchEnv PPO 학습 시 평균 에피소드 보상 (BC 단계 포함)</p>
+            <ConvergenceChart stage="dispatch" />
+          </section>
         </div>
       )}
     </div>

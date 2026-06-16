@@ -1,0 +1,20 @@
+# 학습 하이퍼파라미터
+ppo_steps: 50000
+bc_epochs: 300
+bc_lr: 0.001
+bc_loss_target: 0.05
+
+# RL 환경
+max_tasks: 8
+max_models: 5
+dwell_lambda: 0.3
+alloc_lambda: 0.3
+dwell_obs: true
+use_alloc_model: true
+guide_util_threshold: 0.70
+guide_band_pct: 0.20
+
+# 경로
+checkpoints_dir: models/checkpoints
+train_data: data/raw/train
+test_data: data/raw/test

@@ -5,6 +5,7 @@ export interface DatasetInfo {
 
 export interface Kpis {
   plan_achievement: number;
+  static_plan_achievement?: number;
   avg_utilization: number;
   total_move: number;
   conversion_count: number;
@@ -57,12 +58,31 @@ export interface ConversionRow {
   status: string;
 }
 
+export interface AllocationPivotRow {
+  task: string;
+  plan_prod_key: string;
+  oper_id: string;
+  counts: Record<string, number | null>;
+  uphs: Record<string, number | null>;
+  plan: number;
+  produced: number;
+  rate: number;
+  dynamic_produced?: number;
+  dynamic_rate?: number;
+}
+
+export interface AllocationPivot {
+  models: string[];
+  rows: AllocationPivotRow[];
+}
+
 export interface AlgoView {
   kpis: Kpis;
   per_task: PerTask[];
   hourly: HourlyStat[];
   gantt: GanttSegment[];
   conversions: ConversionRow[];
+  allocation_pivot: AllocationPivot;
 }
 
 export interface TaskInfo {
@@ -104,6 +124,10 @@ export interface DatasetDetail {
   tasks: TaskInfo[];
   equipments: EquipmentInfo[];
   optimal: number | null;
+  rl_status: {
+    available: boolean;
+    reason: "ready" | "model_missing" | "model_load_failed" | "shape_mismatch";
+  };
   guide: GuideRow[];
   algorithms: {
     heuristic: AlgoView | null;
@@ -117,6 +141,10 @@ export interface SummaryRow {
   rl: number | null;
   optimal: number | null;
   gap: number | null;
+  heuristic_utilization: number | null;
+  rl_utilization: number | null;
+  heuristic_conversion_count: number;
+  rl_conversion_count: number;
   avg_utilization: number | null;
   total_move: number;
   conversion_count: number;
@@ -136,4 +164,18 @@ export interface Summary {
     avg_utilization: number | null;
     avg_conversion_count: number | null;
   };
+}
+
+export interface TrainingPoint {
+  stage?: string;
+  phase?: "bc" | "ppo";
+  timesteps: number;
+  mean_reward: number;
+  loss?: number;
+  episodes?: number;
+}
+
+export interface TrainingMetrics {
+  stage: string;
+  points: TrainingPoint[];
 }

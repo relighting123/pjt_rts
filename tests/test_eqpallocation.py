@@ -1,11 +1,11 @@
 """RTS_EQPALLOCATION_INF/HIS 행 변환 테스트."""
 from config import TEST_DATA_DIR
-from db.eqpallocation import (
+from src.db.eqpallocation import (
     build_eqpallocation_rows,
     guide_source_to_mode_typ,
 )
-from simulator import load_problem
-import test as report
+from src.utils.json_io import load_problem
+import src.evaluate as report
 
 
 def test_guide_source_to_mode_typ():
@@ -48,7 +48,7 @@ def test_cur_eqp_cnt_from_init_assign():
 
 
 def test_insert_eqpallocation_sql_bind_names():
-    from db.sql_loader import load_sql, sql_bind_names
+    from src.db.sql_loader import load_sql, sql_bind_names
     import config
 
     sql = load_sql("write", "insert_eqpallocation", table=config.EQPALLOCATION_TABLE)
