@@ -4,6 +4,8 @@ __pycache__/
 models/checkpoints/*.zip
 models/checkpoints/*.pt
 models/best/*
+models/runtime_config.json
+models/registry.json
 data/*
 !data/.gitkeep
 !data/raw/

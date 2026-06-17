@@ -10,6 +10,11 @@ _DISPATCH_CACHE: dict = {}
 _ALLOC_CACHE: dict = {}
 
 
+def clear_model_cache() -> None:
+    _DISPATCH_CACHE.clear()
+    _ALLOC_CACHE.clear()
+
+
 def load_dispatch_model(path: Path | None = None):
     path = Path(path) if path else config.MODEL_PATH
     key = str(path)

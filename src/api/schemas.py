@@ -38,3 +38,32 @@ class TrainRequest(BaseModel):
     facid: str | None = None
     batchid: str | None = None
     steps: int = Field(default=config.DEFAULT_PPO_STEPS, ge=100, le=5_000_000)
+
+
+class MlConfigUpdate(BaseModel):
+    ppo_steps: int | None = Field(default=None, ge=100, le=5_000_000)
+    bc_epochs: int | None = Field(default=None, ge=1, le=10_000)
+    bc_lr: float | None = Field(default=None, gt=0, le=1.0)
+    bc_loss_target: float | None = Field(default=None, gt=0, le=10.0)
+    dwell_lambda: float | None = Field(default=None, ge=0, le=10)
+    alloc_lambda: float | None = Field(default=None, ge=0, le=10)
+    dwell_obs: bool | None = None
+    use_alloc_model: bool | None = None
+    guide_util_threshold: float | None = Field(default=None, ge=0, le=1)
+    guide_band_pct: float | None = Field(default=None, ge=0, le=1)
+    horizon_hours: int | None = Field(default=None, ge=1, le=168)
+    lookback_days: int | None = Field(default=None, ge=1, le=365)
+    # max_tasks, max_models, metric_digits → .env (MAX_TASKS, MAX_MODELS, UI_METRIC_DIGITS)
+
+
+class ModelRegisterRequest(BaseModel):
+    source_path: str | None = None
+    name: str | None = None
+    notes: str = ""
+    model_id: str | None = None
+
+
+class ModelCompareRequest(BaseModel):
+    model_ids: list[str] = Field(min_length=1, max_length=10)
+    split: Literal["train", "validation", "test"] = "test"
+    env_type: Literal["dispatch", "alloc"] = "dispatch"

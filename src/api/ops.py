@@ -133,6 +133,9 @@ def read_ops_logs(limit: int = 200) -> list[dict[str, Any]]:
 
 
 def get_status() -> dict[str, Any]:
+    from src.api import ml
+
+    cfg = ml.get_ml_config()
     train_count = len(list(config.TRAIN_DATA_DIR.glob("*.json")))
     infer_count = len(list(config.INFERENCE_INPUT_DIR.glob("*.json")))
     result_count = len(list(config.INFERENCE_RESULT_DIR.glob("*_result.json")))
@@ -142,9 +145,9 @@ def get_status() -> dict[str, Any]:
         "defaults": {
             "facid": config.DEFAULT_FACID,
             "batchid": config.DEFAULT_BATCHID,
-            "lookback_days": config.DEFAULT_TRAIN_LOOKBACK_DAYS,
-            "default_ppo_steps": config.DEFAULT_PPO_STEPS,
-            "horizon_hours": 12,
+            "lookback_days": cfg.get("lookback_days", config.DEFAULT_TRAIN_LOOKBACK_DAYS),
+            "default_ppo_steps": cfg.get("ppo_steps", config.DEFAULT_PPO_STEPS),
+            "horizon_hours": cfg.get("horizon_hours", 12),
         },
         "artifacts": {
             "dispatch_model": str(config.MODEL_PATH),
