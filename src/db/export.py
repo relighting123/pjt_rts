@@ -7,7 +7,6 @@ import json
 from pathlib import Path
 
 import config
-from src.utils.json_io import save_problem
 
 
 def export_from_rows(
@@ -21,6 +20,7 @@ def export_from_rows(
 ) -> Path:
     """DB long-format 행 → inference JSON."""
     from src.db.adapter import rows_to_problem
+    from src.utils.json_io import save_problem
 
     sw = switch_time_hours if switch_time_hours is not None else config.DEFAULT_SWITCH_TIME_HOURS
     fac = config.resolve_facid(facid)
@@ -42,6 +42,7 @@ def export_from_db(
     """Oracle RTS_LINEDSDB_INF → data/inference JSON."""
     from src.db.adapter import fetch_problem
     from src.db.pipeline import input_json_path
+    from src.utils.json_io import save_problem
 
     fac = config.require_facid(facid)
     bid = config.require_batchid(batchid)

@@ -5,8 +5,16 @@ import json
 from pathlib import Path
 
 import config
-from src.db.input_row import resolve_lot_temper
 from src.simulation.domain.problem import Equipment, ProblemInstance, Task
+
+
+def _lot_cd_from_batch(batch_id: str) -> str:
+    """batch_id → LOT_CD (json_io는 db 패키지 import 금지 — 순환 import 방지)."""
+    text = str(batch_id or "").strip()
+    if "/" in text:
+        lot = text.split("/", 1)[0].strip()
+        return lot or "-"
+    return text or "-"
 
 
 def _task_wip_qty(task_data: dict) -> int:
@@ -41,7 +49,7 @@ def load_problem(path: str | Path) -> ProblemInstance:
     for t in data["tool_qty"]:
         lot = t.get("lot_cd")
         if not lot:
-            lot, _ = resolve_lot_temper(str(t.get("batch_id", "")))
+            lot = _lot_cd_from_batch(str(t.get("batch_id", "")))
         tool_qty[(lot, t["eqp_model"])] = int(t["tool_qty"])
     equipments = [
         Equipment(
