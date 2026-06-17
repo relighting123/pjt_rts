@@ -37,3 +37,25 @@ def test_infer_prints_ui_url(capsys, tmp_path):
     out = capsys.readouterr().out
     assert "결과 확인" in out
     assert "H=" in out
+
+
+def test_cmd_infer_passes_rule_timekey_as_keyword(monkeypatch):
+    import main
+    captured = {}
+
+    def fake_run_infer(**kwargs):
+        captured.update(kwargs)
+        return {
+            "rule_timekey": "2026052922500000",
+            "facid": "ICPRB",
+            "input_json": "/tmp/in.json",
+            "result_json": "/tmp/out.json",
+            "plan_achievement": 0.9,
+        }
+
+    monkeypatch.setattr("src.inference.run_infer", fake_run_infer)
+    args = main.build_parser().parse_args(["infer", "--facid", "ICPRB", "--batchid", "B1"])
+    args.func(args)
+    assert captured["rule_timekey"] is None
+    assert captured["facid"] == "ICPRB"
+    assert captured["batchid"] == "B1"

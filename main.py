@@ -132,7 +132,7 @@ def cmd_infer(args):
     from src.utils.ops_log import OPS_LOG_PATH
 
     out = run_infer(
-        args.timekey,
+        rule_timekey=args.timekey,
         facid=getattr(args, "facid", None),
         batchid=getattr(args, "batchid", None),
         horizon_hours=args.horizon,
