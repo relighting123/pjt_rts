@@ -16,7 +16,12 @@ type RangeMode = "lookback" | "explicit";
 
 const empty = (v: string | null | undefined) => v ?? "";
 
-export default function OpsPanel() {
+interface Props {
+  /** train: 학습 폼만, ops: export/infer만, all: 전체 */
+  focus?: "all" | "train" | "ops";
+}
+
+export default function OpsPanel({ focus = "all" }: Props) {
   const [status, setStatus] = useState<OpsStatus | null>(null);
   const [jobs, setJobs] = useState<OpsJob[]>([]);
   const [logs, setLogs] = useState<OpsLogEntry[]>([]);
@@ -121,6 +126,10 @@ export default function OpsPanel() {
   };
 
   const busy = status?.busy ?? false;
+  const showExport = focus === "all" || focus === "ops";
+  const showInfer = focus === "all" || focus === "ops";
+  const showTrain = focus === "all" || focus === "train";
+  const showConvergenceSide = focus === "all";
 
   return (
     <div className="ops-panel">
@@ -160,6 +169,7 @@ export default function OpsPanel() {
 
       <div className="ops-grid">
         <section className="ops-forms">
+          {showExport && (
           <div className="ops-form-card">
             <h2>Export — DB → JSON</h2>
             <p className="panel-sub">단건은 추론 입력, 범위는 학습용 data/raw/train/</p>
@@ -261,7 +271,9 @@ export default function OpsPanel() {
               {submitting === "export" ? "요청 중…" : "Export 실행"}
             </button>
           </div>
+          )}
 
+          {showInfer && (
           <div className="ops-form-card">
             <h2>Infer — 추론</h2>
             <p className="panel-sub">DB export → RL/휴리스틱 평가 → result JSON → (선택) DB write</p>
@@ -307,7 +319,9 @@ export default function OpsPanel() {
               {submitting === "infer" ? "요청 중…" : "Infer 실행"}
             </button>
           </div>
+          )}
 
+          {showTrain && (
           <div className="ops-form-card">
             <h2>Train — 학습</h2>
             <p className="panel-sub">data/raw/train/ JSON으로 PPO 학습 (선택: DB 범위 export 선행)</p>
@@ -391,6 +405,7 @@ export default function OpsPanel() {
               {submitting === "train" ? "요청 중…" : "Train 실행"}
             </button>
           </div>
+          )}
         </section>
 
         <section className="ops-side">
@@ -436,6 +451,7 @@ export default function OpsPanel() {
             </div>
           </div>
 
+          {showConvergenceSide && (
           <div className="ops-form-card">
             <h2>학습 수렴 (실시간)</h2>
             <p className="panel-sub">
@@ -443,6 +459,7 @@ export default function OpsPanel() {
             </p>
             <ConvergenceChart stage="dispatch" />
           </div>
+          )}
         </section>
       </div>
     </div>

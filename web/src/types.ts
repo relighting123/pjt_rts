@@ -255,3 +255,91 @@ export interface TrainRequest {
   batchid?: string | null;
   steps?: number;
 }
+
+export interface MlConfig {
+  ppo_steps: number;
+  bc_epochs: number;
+  bc_lr: number;
+  bc_loss_target: number;
+  max_tasks: number;
+  max_models: number;
+  dwell_lambda: number;
+  alloc_lambda: number;
+  dwell_obs: boolean;
+  use_alloc_model: boolean;
+  guide_util_threshold: number;
+  guide_band_pct: number;
+  horizon_hours: number;
+  lookback_days: number;
+  paths: Record<string, string>;
+}
+
+export interface ModelInfo {
+  id: string;
+  name: string;
+  path: string;
+  filename: string;
+  size_bytes: number;
+  modified_at: string;
+  registered: boolean;
+  is_active: boolean;
+  exists: boolean;
+  registered_at?: string;
+  notes?: string;
+  source_path?: string;
+  final_training_reward?: number | null;
+}
+
+export interface EvalKpi {
+  plan_achievement: number | null;
+  avg_utilization: number;
+  conversion_count: number;
+}
+
+export interface EvalRow {
+  dataset: string;
+  optimal: number | null;
+  heuristic: EvalKpi | null;
+  rl: EvalKpi | null;
+  rl_episode_reward: number | null;
+  rl_available: boolean;
+}
+
+export interface EvalResult {
+  split: string;
+  model_path: string | null;
+  model_loaded: boolean;
+  count: number;
+  rows: EvalRow[];
+  averages: {
+    heuristic_plan_achievement: number | null;
+    rl_plan_achievement: number | null;
+    heuristic_utilization: number | null;
+    rl_utilization: number | null;
+    rl_episode_reward: number | null;
+    optimal: number | null;
+  };
+}
+
+export interface ModelCompareRow {
+  model_id: string;
+  name?: string;
+  path?: string;
+  registered?: boolean;
+  is_active?: boolean;
+  averages?: EvalResult["averages"];
+  count?: number;
+  error?: string;
+}
+
+export interface PipelineStatus {
+  config: MlConfig;
+  models_count: number;
+  active_model_id: string | null;
+  active_model_exists: boolean;
+  train_json_count: number;
+  test_json_count: number;
+  training_points: number;
+  validation: EvalResult["averages"];
+  test: EvalResult["averages"];
+}

@@ -14,8 +14,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 import config
-from src.api import ops, service
-from src.api.schemas import ExportRequest, InferRequest, TrainRequest
+from src.api import ml, ops, service
+from src.api.schemas import (
+    ExportRequest,
+    InferRequest,
+    MlConfigUpdate,
+    ModelCompareRequest,
+    ModelRegisterRequest,
+    TrainRequest,
+)
 
 app = FastAPI(title="RTS 스케줄링 분석 API", version="1.0")
 
@@ -115,6 +122,73 @@ def ops_infer(req: InferRequest):
 def ops_train(req: TrainRequest):
     """학습 파이프라인 실행 (선택: DB 범위 export 후 학습)."""
     return _submit_or_conflict(lambda: ops.start_train(req))
+
+
+@app.get("/api/ml/pipeline")
+def ml_pipeline():
+    """ML 파이프라인 요약 — 설정, 데이터셋, 검증/테스트 KPI."""
+    return ml.pipeline_status()
+
+
+@app.get("/api/ml/config")
+def ml_config():
+    """학습·환경 하이퍼파라미터 (런타임 오버라이드 포함)."""
+    return ml.get_ml_config()
+
+
+@app.patch("/api/ml/config")
+def ml_config_update(req: MlConfigUpdate):
+    """대시보드에서 변경한 파라미터 저장 (runtime_config.json)."""
+    updates = {k: v for k, v in req.model_dump().items() if v is not None}
+    try:
+        return ml.update_ml_config(updates)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/api/ml/models")
+def ml_models():
+    """체크포인트·등록 모델 목록."""
+    return {"models": ml.list_models()}
+
+
+@app.post("/api/ml/models/register")
+def ml_model_register(req: ModelRegisterRequest):
+    """최종 모델 등록 — best/ 저장 + 활성 모델로 설정."""
+    try:
+        return ml.register_model(
+            source_path=req.source_path,
+            name=req.name,
+            notes=req.notes,
+            model_id=req.model_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/ml/models/{model_id}/activate")
+def ml_model_activate(model_id: str):
+    """등록/체크포인트 모델을 추론·평가용 활성 모델로 설정."""
+    try:
+        return ml.activate_model(model_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/api/ml/evaluate")
+def ml_evaluate(split: str = "test", model_path: str | None = None, env_type: str = "dispatch"):
+    """검증/테스트 셋 KPI·에피소드 reward 평가."""
+    if split not in ml.SPLIT_DIRS:
+        raise HTTPException(status_code=400, detail=f"split must be one of: {', '.join(ml.SPLIT_DIRS)}")
+    if env_type not in ("dispatch", "alloc"):
+        raise HTTPException(status_code=400, detail="env_type must be dispatch or alloc")
+    return ml.evaluate_split(split, model_path=model_path, env_type=env_type)
+
+
+@app.post("/api/ml/compare")
+def ml_compare(req: ModelCompareRequest):
+    """여러 모델 KPI·reward 비교."""
+    return ml.compare_models(req.model_ids, split=req.split, env_type=req.env_type)
 
 
 _DIST = Path(config.ROOT) / "web" / "dist"

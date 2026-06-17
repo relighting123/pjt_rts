@@ -1,11 +1,16 @@
 import type {
   DatasetDetail,
   DatasetInfo,
+  EvalResult,
   ExportRequest,
   InferRequest,
+  MlConfig,
+  ModelCompareRow,
+  ModelInfo,
   OpsJob,
   OpsLogEntry,
   OpsStatus,
+  PipelineStatus,
   Summary,
   TrainRequest,
   TrainingMetrics,
@@ -58,6 +63,25 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+async function patchJson<T>(url: string, body: unknown): Promise<T> {
+  const res = await fetch(url, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    let detail = await res.text();
+    try {
+      const parsed = JSON.parse(detail) as { detail?: string };
+      detail = parsed.detail ?? detail;
+    } catch {
+      /* keep raw */
+    }
+    throw new Error(formatApiError(url, res.status, detail));
+  }
+  return res.json() as Promise<T>;
+}
+
 export interface HealthStatus {
   status: string;
   ops?: boolean;
@@ -84,6 +108,32 @@ export const postOpsInfer = (body: InferRequest) =>
   postJson<{ job_id: string; status: string }>("/api/ops/infer", body);
 export const postOpsTrain = (body: TrainRequest) =>
   postJson<{ job_id: string; status: string }>("/api/ops/train", body);
+
+export const fetchMlConfig = () => getJson<MlConfig>("/api/ml/config");
+export const patchMlConfig = (body: Partial<MlConfig>) => patchJson<MlConfig>("/api/ml/config", body);
+
+export const fetchMlPipeline = () => getJson<PipelineStatus>("/api/ml/pipeline");
+export const fetchMlModels = () => getJson<{ models: ModelInfo[] }>("/api/ml/models");
+export const fetchMlEvaluate = (split: "validation" | "test", modelPath?: string, envType = "dispatch") => {
+  const q = new URLSearchParams({ split, env_type: envType });
+  if (modelPath) q.set("model_path", modelPath);
+  return getJson<EvalResult>(`/api/ml/evaluate?${q}`);
+};
+export const postMlCompare = (body: {
+  model_ids: string[];
+  split?: "validation" | "test" | "train";
+  env_type?: "dispatch" | "alloc";
+}) => postJson<{ split: string; env_type: string; models: ModelCompareRow[] }>("/api/ml/compare", body);
+export const postMlRegister = (body: {
+  source_path?: string | null;
+  name?: string | null;
+  notes?: string;
+}) => postJson<{ model: ModelInfo; activated: boolean }>("/api/ml/models/register", body);
+export const postMlActivate = (modelId: string) =>
+  postJson<{ model_id: string; path: string; activated: boolean }>(
+    `/api/ml/models/${encodeURIComponent(modelId)}/activate`,
+    {},
+  );
 
 export const pct = (v: number | null | undefined, digits = 1) =>
   v == null ? "N/A" : `${(v * 100).toFixed(digits)}%`;
