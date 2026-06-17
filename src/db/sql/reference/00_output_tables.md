@@ -36,6 +36,7 @@ DDL: `01_create_tables.sql` · 샘플: `03_sample_output_data.sql` · 확인: `0
 | `TARGET_EQP_CNT` | 목표 장비 수 (가이드 배분, 정수) |
 | `CUR_EQP_CNT` | 현재 장비 수 (`init_assign`) |
 | `MODE_TYP` | `ALLOC_RL` 가이드 → `RL`, 그 외 → `Heuristic` |
+| `PLAN_QTY` / `CAPA_QTY` / `ACHIVE_RATE` | **HIS만** — D0 계획량 / 시간 CAPA / 계획 충족률 |
 | `CRT_TM` / `CRT_USER_ID` | insert 시 `SYSTIMESTAMP` / `SYS_ID` |
 
 **PK (INF):** `RULE_TIMEKEY, FAC_ID, BATCH_ID, PLAN_PROD_KEY, OPER_ID, EQP_MODEL_CD`  
