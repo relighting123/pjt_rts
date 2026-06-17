@@ -55,6 +55,45 @@ def test_coerce_input_row_legacy_tuple():
     assert row.gbn_cd == "EQUIP_UPH"
 
 
+def test_row_from_mapping_handles_oracle_nulls():
+    row = row_from_mapping({
+        "RULE_TIMEKEY": "2026052922500000",
+        "FAC_ID": "ICPRB",
+        "BATCH_ID": "B1",
+        "LOT_CD": None,
+        "TEMPER_VAL": None,
+        "PLAN_PROD_KEY": "P1",
+        "OPER_ID": "OP10",
+        "OPER_SEQ": None,
+        "EQP_MODEL_CD": None,
+        "GBN_CD": "EQUIP_UPH",
+        "ATTR_VAL": None,
+    })
+    assert row.lot_cd == "B1"
+    assert row.attr_val == ""
+    assert row.oper_seq == 0
+    assert row.eqp_model == ""
+
+
+def test_parse_numeric_rejects_none_string():
+    from src.db.input_row import parse_numeric
+    assert parse_numeric(None) is None
+    assert parse_numeric("None") is None
+    assert parse_numeric("") is None
+    assert parse_numeric("100") == 100.0
+
+
+def test_rows_to_problem_skips_null_attr_val():
+    from src.db.adapter import rows_to_problem
+    rows = [
+        ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "EQUIP_UPH", None),
+        ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "EXEC_D0_PLAN", "300"),
+    ]
+    p = rows_to_problem(rows, horizon_hours=3)
+    assert p.tasks[0].plan_qty == 300
+    assert p.uph_of("M1", 0) is None
+
+
 def test_row_from_mapping_missing_field_raises():
     with pytest.raises(ValueError, match="필드 부족"):
         row_from_mapping({"RULE_TIMEKEY": "x", "FAC_ID": "ICPRB"})

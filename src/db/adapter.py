@@ -11,6 +11,7 @@ from src.db.input_row import (
     coerce_input_row,
     coerce_input_rows,
     compose_batch_id,
+    parse_numeric,
     rows_from_cursor,
 )
 from src.db.sql_loader import filter_rows_for_sql, load_sql
@@ -95,16 +96,26 @@ def rows_to_problem(rows, horizon_hours: int,
         _ensure_task_meta(ppk, oper_id, r)
         if eqp_model:
             eqp_models.add(eqp_model)
-        if gbn == "EQUIP_UPH" and float(val) > 0:
-            uph_raw[(ppk, oper_id, eqp_model)] = float(val)
+        if gbn == "EQUIP_UPH":
+            n = parse_numeric(val)
+            if n is not None and n > 0:
+                uph_raw[(ppk, oper_id, eqp_model)] = n
         elif gbn == "ASSIGN_EQUIP_CNT":
-            assign_raw[(ppk, oper_id, eqp_model)] = int(float(val))
+            n = parse_numeric(val)
+            if n is not None:
+                assign_raw[(ppk, oper_id, eqp_model)] = int(n)
         elif gbn == "TOOL_QTY":
-            tool_raw[(r.lot_cd, eqp_model)] = int(float(val))
+            n = parse_numeric(val)
+            if n is not None:
+                tool_raw[(r.lot_cd, eqp_model)] = int(n)
         elif gbn == "EXEC_D0_PLAN":
-            target_raw[key] = int(float(val))
+            n = parse_numeric(val)
+            if n is not None:
+                target_raw[key] = int(n)
         elif gbn == "AVAIL_WIP_QTY":
-            wip_raw[key] = int(float(val))
+            n = parse_numeric(val)
+            if n is not None:
+                wip_raw[key] = int(n)
         elif gbn == "EQP_ID":
             batch_id = compose_batch_id(r.lot_cd, r.temper_val, r.batch_id)
             equipments.append(Equipment(

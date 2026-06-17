@@ -70,6 +70,34 @@ class InputRow:
     attr_val: str
 
 
+def _clean_str(val: Any, default: str = "") -> str:
+    """Oracle NULL·'None'·빈 문자열 → default."""
+    if val is None:
+        return default
+    text = str(val).strip()
+    if not text or text.lower() in ("none", "null"):
+        return default
+    return text
+
+
+def parse_numeric(val: Any) -> float | None:
+    """ATTR_VAL 등 숫자 문자열 → float. NULL/빈값/비숫자는 None."""
+    if val is None:
+        return None
+    text = str(val).strip()
+    if not text or text.lower() in ("none", "null", "-"):
+        return None
+    try:
+        return float(text)
+    except ValueError:
+        return None
+
+
+def parse_int(val: Any, default: int = 0) -> int:
+    n = parse_numeric(val)
+    return int(n) if n is not None else default
+
+
 def normalize_gbn_cd(gbn_cd: str) -> str:
     """레거시 GBN_CD → 현행 코드."""
     aliases = {
@@ -122,24 +150,24 @@ def row_from_mapping(data: Mapping[str, Any] | InputRow) -> InputRow:
     missing = [f for f in required if f not in values]
     if missing:
         raise ValueError(f"입력 행 필드 부족: {missing} (keys={list(data.keys())})")
-    batch_id = str(values.get("batch_id", ""))
+    batch_id = _clean_str(values.get("batch_id"))
     lot_cd, temper_val = resolve_lot_temper(
         batch_id,
         values.get("lot_cd"),
         values.get("temper_val"),
     )
     return InputRow(
-        rule_timekey=str(values["rule_timekey"]),
-        fac_id=str(values["fac_id"]),
+        rule_timekey=_clean_str(values["rule_timekey"]),
+        fac_id=_clean_str(values["fac_id"]),
         batch_id=batch_id,
         lot_cd=lot_cd,
         temper_val=temper_val,
-        plan_prod_key=str(values["plan_prod_key"]),
-        oper_id=str(values["oper_id"]),
-        oper_seq=int(values["oper_seq"]),
-        eqp_model=str(values["eqp_model"] or ""),
-        gbn_cd=normalize_gbn_cd(str(values["gbn_cd"])),
-        attr_val=str(values["attr_val"]),
+        plan_prod_key=_clean_str(values["plan_prod_key"]),
+        oper_id=_clean_str(values["oper_id"]),
+        oper_seq=parse_int(values["oper_seq"]),
+        eqp_model=_clean_str(values.get("eqp_model")),
+        gbn_cd=normalize_gbn_cd(_clean_str(values["gbn_cd"])),
+        attr_val=_clean_str(values.get("attr_val")),
     )
 
 
