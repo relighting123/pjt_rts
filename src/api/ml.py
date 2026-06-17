@@ -17,6 +17,9 @@ from src.views.viewmodel import algo_view, plan_achievement_for_env
 REGISTRY_PATH = config.MODELS_DIR / "registry.json"
 RUNTIME_CONFIG_PATH = config.MODELS_DIR / "runtime_config.json"
 
+# .env 전용 — runtime_config.json / UI PATCH 로 덮어쓰지 않음 (git 충돌 방지)
+ENV_LOCKED_KEYS = frozenset({"max_tasks", "max_models", "metric_digits"})
+
 SPLIT_DIRS: dict[str, Path] = {
     "validation": config.TRAIN_DATA_DIR,
     "train": config.TRAIN_DATA_DIR,
@@ -79,13 +82,21 @@ def default_ml_config() -> dict[str, Any]:
         "guide_band_pct": config.GUIDE_BAND_PCT,
         "horizon_hours": 12,
         "lookback_days": config.DEFAULT_TRAIN_LOOKBACK_DAYS,
+        "metric_digits": config.UI_METRIC_DIGITS,
     }
+
+
+def _patchable_keys() -> set[str]:
+    return set(default_ml_config().keys()) - ENV_LOCKED_KEYS
 
 
 def get_ml_config() -> dict[str, Any]:
     base = default_ml_config()
-    overrides = _runtime_overrides()
+    overrides = {
+        k: v for k, v in _runtime_overrides().items() if k in _patchable_keys()
+    }
     base.update(overrides)
+    base["env_locked"] = sorted(ENV_LOCKED_KEYS)
     base["paths"] = {
         "checkpoints": str(config.CHECKPOINTS_DIR),
         "best": str(config.BEST_MODEL_DIR),
@@ -97,11 +108,11 @@ def get_ml_config() -> dict[str, Any]:
 
 
 def update_ml_config(updates: dict[str, Any]) -> dict[str, Any]:
-    allowed = set(default_ml_config().keys())
+    allowed = _patchable_keys()
     clean = {k: v for k, v in updates.items() if k in allowed}
     if not clean:
         raise ValueError("변경 가능한 파라미터가 없습니다.")
-    current = _runtime_overrides()
+    current = {k: v for k, v in _runtime_overrides().items() if k in allowed}
     current.update(clean)
     _save_json(RUNTIME_CONFIG_PATH, current)
     return get_ml_config()

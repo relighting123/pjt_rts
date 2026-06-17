@@ -81,8 +81,10 @@ BC_LR = 1e-3
 BC_LOSS_TARGET = 0.05
 DEFAULT_SWITCH_TIME_HOURS = 1
 
-MAX_TASKS = 8
-MAX_MODELS = 5
+MAX_TASKS = int(os.getenv("MAX_TASKS", "8"))
+MAX_MODELS = int(os.getenv("MAX_MODELS", "5"))
+# UI 퍼센트/KPI 표시 소수 자릿수 (.env — git 충돌 방지)
+UI_METRIC_DIGITS = int(os.getenv("UI_METRIC_DIGITS", "1"))
 CONV_GROUPS: dict[str, list[str]] = {"G1": ["B1", "B2", "B3"]}
 SYS_ID = "RL_AGENT"
 

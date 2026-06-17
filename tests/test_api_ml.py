@@ -26,6 +26,18 @@ def test_ml_config(client):
     body = r.json()
     assert body["ppo_steps"] == 50_000
     assert "paths" in body
+    assert "env_locked" in body
+    assert "max_tasks" in body["env_locked"]
+    assert "metric_digits" in body
+
+
+def test_ml_config_env_locked_not_overwritten(client):
+    r = client.patch("/api/ml/config", json={"max_tasks": 99, "metric_digits": 4, "ppo_steps": 8000})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["ppo_steps"] == 8000
+    assert body["max_tasks"] != 99
+    assert body["metric_digits"] != 4
 
 
 def test_ml_config_patch(client):

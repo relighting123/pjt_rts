@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Sidebar from "./components/Sidebar";
 import type { PageId } from "./navigation";
+import { fetchMlConfig } from "./api";
 import PipelineOverviewPage from "./pages/PipelineOverviewPage";
 import ParametersPage from "./pages/ParametersPage";
 import TrainingPage from "./pages/TrainingPage";
@@ -36,6 +37,12 @@ function PageContent({ page }: { page: PageId }) {
 
 export default function App() {
   const [page, setPage] = useState<PageId>("pipeline");
+
+  useEffect(() => {
+    fetchMlConfig().catch(() => {
+      /* UI_METRIC_DIGITS 기본값 사용 */
+    });
+  }, []);
 
   return (
     <div className="app-shell">

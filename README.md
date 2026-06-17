@@ -135,6 +135,9 @@ python main.py export --train --from-timekey 2026050100000000 --to-timekey 20260
 
 주요 설정 항목:
 - `API_PORT` (기본 7000) — uvicorn 포트 및 Vite `/api` 프록시 대상
+- `MAX_TASKS`, `MAX_MODELS` — RL obs/action 패딩 크기 (`.env`, 변경 시 재학습)
+- `UI_METRIC_DIGITS` — 대시보드 KPI 퍼센트 표시 소수 자릿수
+- 대시보드 런타임 파라미터(PPO steps 등) — `models/runtime_config.json` (gitignore)
 - `MAX_TASKS`, `MAX_MODELS`
 - `DWELL_LAMBDA`, `ALLOC_LAMBDA`
 - `USE_ALLOC_MODEL`

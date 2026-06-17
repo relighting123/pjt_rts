@@ -109,7 +109,19 @@ export const postOpsInfer = (body: InferRequest) =>
 export const postOpsTrain = (body: TrainRequest) =>
   postJson<{ job_id: string; status: string }>("/api/ops/train", body);
 
-export const fetchMlConfig = () => getJson<MlConfig>("/api/ml/config");
+export const fetchMlConfig = () =>
+  getJson<MlConfig>("/api/ml/config").then((c) => {
+    _metricDigits = c.metric_digits ?? 1;
+    return c;
+  });
+
+let _metricDigits = 1;
+export const getMetricDigits = () => _metricDigits;
+
+export const pct = (v: number | null | undefined, digits?: number) => {
+  const d = digits ?? _metricDigits;
+  return v == null ? "N/A" : `${(v * 100).toFixed(d)}%`;
+};
 export const patchMlConfig = (body: Partial<MlConfig>) => patchJson<MlConfig>("/api/ml/config", body);
 
 export const fetchMlPipeline = () => getJson<PipelineStatus>("/api/ml/pipeline");
@@ -134,9 +146,6 @@ export const postMlActivate = (modelId: string) =>
     `/api/ml/models/${encodeURIComponent(modelId)}/activate`,
     {},
   );
-
-export const pct = (v: number | null | undefined, digits = 1) =>
-  v == null ? "N/A" : `${(v * 100).toFixed(digits)}%`;
 
 /** ground_truth 최적해가 100%면 비교 가치가 없어 UI에서 숨김. */
 export const isMeaningfulOptimal = (v: number | null | undefined) =>

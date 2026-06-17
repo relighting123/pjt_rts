@@ -271,6 +271,8 @@ export interface MlConfig {
   guide_band_pct: number;
   horizon_hours: number;
   lookback_days: number;
+  metric_digits: number;
+  env_locked?: string[];
   paths: Record<string, string>;
 }
 

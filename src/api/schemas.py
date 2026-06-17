@@ -45,8 +45,6 @@ class MlConfigUpdate(BaseModel):
     bc_epochs: int | None = Field(default=None, ge=1, le=10_000)
     bc_lr: float | None = Field(default=None, gt=0, le=1.0)
     bc_loss_target: float | None = Field(default=None, gt=0, le=10.0)
-    max_tasks: int | None = Field(default=None, ge=1, le=64)
-    max_models: int | None = Field(default=None, ge=1, le=32)
     dwell_lambda: float | None = Field(default=None, ge=0, le=10)
     alloc_lambda: float | None = Field(default=None, ge=0, le=10)
     dwell_obs: bool | None = None
@@ -55,6 +53,7 @@ class MlConfigUpdate(BaseModel):
     guide_band_pct: float | None = Field(default=None, ge=0, le=1)
     horizon_hours: int | None = Field(default=None, ge=1, le=168)
     lookback_days: int | None = Field(default=None, ge=1, le=365)
+    # max_tasks, max_models, metric_digits → .env (MAX_TASKS, MAX_MODELS, UI_METRIC_DIGITS)
 
 
 class ModelRegisterRequest(BaseModel):
