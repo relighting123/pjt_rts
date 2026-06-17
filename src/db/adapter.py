@@ -77,7 +77,7 @@ def rows_to_problem(rows, horizon_hours: int,
                 "temper_val": r.temper_val,
             },
         )
-        if r.gbn_cd in ("D0_TARGET_QTY", "WIP_QTY"):
+        if r.gbn_cd in ("EXEC_D0_PLAN", "AVAIL_WIP_QTY"):
             meta["lot_cd"] = r.lot_cd
             meta["temper_val"] = r.temper_val
             meta["batch_id"] = compose_batch_id(r.lot_cd, r.temper_val, r.batch_id)
@@ -101,9 +101,9 @@ def rows_to_problem(rows, horizon_hours: int,
             assign_raw[(ppk, oper_id, eqp_model)] = int(float(val))
         elif gbn == "TOOL_QTY":
             tool_raw[(r.lot_cd, eqp_model)] = int(float(val))
-        elif gbn == "D0_TARGET_QTY":
+        elif gbn == "EXEC_D0_PLAN":
             target_raw[key] = int(float(val))
-        elif gbn == "WIP_QTY":
+        elif gbn == "AVAIL_WIP_QTY":
             wip_raw[key] = int(float(val))
         elif gbn == "EQP_ID":
             batch_id = compose_batch_id(r.lot_cd, r.temper_val, r.batch_id)

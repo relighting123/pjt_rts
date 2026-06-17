@@ -27,8 +27,8 @@ def test_row_from_mapping_db_column_names():
 def test_normalize_gbn_cd_aliases():
     from src.db.input_row import normalize_gbn_cd
     assert normalize_gbn_cd("UPH") == "EQUIP_UPH"
-    assert normalize_gbn_cd("EXEC_D0_PLAN") == "D0_TARGET_QTY"
-    assert normalize_gbn_cd("AVAIL_WIP_QTY") == "WIP_QTY"
+    assert normalize_gbn_cd("EXEC_D0_PLAN") == "EXEC_D0_PLAN"
+    assert normalize_gbn_cd("AVAIL_WIP_QTY") == "AVAIL_WIP_QTY"
 
 
 def test_row_from_mapping_order_independent():

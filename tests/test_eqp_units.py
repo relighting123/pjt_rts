@@ -79,8 +79,8 @@ def test_rows_to_problem_parses_eqp_id_rows():
     from src.db.adapter import rows_to_problem
     rows = [
         ["RK1", "F1", "B1", "P1", "OP10", 1, "M1", "EQUIP_UPH", "100"],
-        ["RK1", "F1", "B1", "P1", "OP10", 1, "M1", "D0_TARGET_QTY", "300"],
-        ["RK1", "F1", "B1", "P1", "OP10", 1, "M1", "WIP_QTY", "500"],
+        ["RK1", "F1", "B1", "P1", "OP10", 1, "M1", "EXEC_D0_PLAN", "300"],
+        ["RK1", "F1", "B1", "P1", "OP10", 1, "M1", "AVAIL_WIP_QTY", "500"],
         ["RK1", "F1", "B1", "P1", "OP10", 1, "M1", "TOOL_QTY", "2"],
         ["RK1", "F1", "B1", "P1", "OP10", 1, "M1", "EQP_ID", "ETX-201"],
         ["RK1", "F1", "B1", "P1", "OP10", 1, "M1", "EQP_ID", "ETX-202"],

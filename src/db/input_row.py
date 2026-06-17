@@ -74,8 +74,6 @@ def normalize_gbn_cd(gbn_cd: str) -> str:
     """레거시 GBN_CD → 현행 코드."""
     aliases = {
         "UPH": "EQUIP_UPH",
-        "EXEC_D0_PLAN": "D0_TARGET_QTY",
-        "AVAIL_WIP_QTY": "WIP_QTY",
     }
     return aliases.get(str(gbn_cd).strip(), str(gbn_cd).strip())
 

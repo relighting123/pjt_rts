@@ -5,8 +5,8 @@ def test_rows_to_problem_pivots_gbn_cd():
     rows = [
         ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "EQUIP_UPH", "100"),
         ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "ASSIGN_EQUIP_CNT", "1"),
-        ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "D0_TARGET_QTY", "300"),
-        ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "WIP_QTY", "1000"),
+        ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "EXEC_D0_PLAN", "300"),
+        ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "AVAIL_WIP_QTY", "1000"),
         ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "TOOL_QTY", "1"),
     ]
     p = rows_to_problem(rows, horizon_hours=3)
@@ -33,10 +33,10 @@ def test_rows_to_problem_accepts_legacy_gbn_aliases():
 def test_rows_to_problem_filters_facid():
     rows = [
         ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "EQUIP_UPH", "100"),
-        ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "D0_TARGET_QTY", "300"),
-        ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "WIP_QTY", "1000"),
+        ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "EXEC_D0_PLAN", "300"),
+        ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "AVAIL_WIP_QTY", "1000"),
         ("20260529", "OTHER", "B2", "P2", "OP20", 1, "M2", "EQUIP_UPH", "200"),
-        ("20260529", "OTHER", "B2", "P2", "OP20", 1, "M2", "D0_TARGET_QTY", "500"),
+        ("20260529", "OTHER", "B2", "P2", "OP20", 1, "M2", "EXEC_D0_PLAN", "500"),
     ]
     p = rows_to_problem(rows, horizon_hours=3, facid="ICPRB")
     assert p.facid == "ICPRB"
@@ -51,7 +51,7 @@ def test_rows_to_problem_filters_facid():
 def test_rows_to_problem_filters_batchid():
     rows = [
         ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "EQUIP_UPH", "100"),
-        ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "D0_TARGET_QTY", "300"),
+        ("20260529", "ICPRB", "B1", "P1", "OP10", 1, "M1", "EXEC_D0_PLAN", "300"),
         ("20260529", "ICPRB", "B2", "P2", "OP20", 1, "M2", "EQUIP_UPH", "200"),
     ]
     p = rows_to_problem(rows, horizon_hours=3, batchid="B1")
@@ -66,8 +66,8 @@ def test_batch_like_pattern_wraps_percent():
 def test_tool_qty_joins_by_lot_cd_not_batch_id():
     """WIP(9C) vs 장비(9C/92) BATCH_ID 불일치여도 LOT_CD=9C로 TOOL 조인."""
     rows = [
-        ("20260529", "ICPRB", "9C", "P1", "OP10", 1, "", "WIP_QTY", "1000"),
-        ("20260529", "ICPRB", "9C", "P1", "OP10", 1, "", "D0_TARGET_QTY", "300"),
+        ("20260529", "ICPRB", "9C", "P1", "OP10", 1, "", "AVAIL_WIP_QTY", "1000"),
+        ("20260529", "ICPRB", "9C", "P1", "OP10", 1, "", "EXEC_D0_PLAN", "300"),
         ("20260529", "ICPRB", "9C/92", "P1", "OP10", 1, "M1", "EQUIP_UPH", "100"),
         ("20260529", "ICPRB", "9C/92", "P1", "OP10", 1, "M1", "ASSIGN_EQUIP_CNT", "1"),
         ("20260529", "ICPRB", "9C/92", "P1", "OP10", 1, "M1", "TOOL_QTY", "2"),
@@ -103,7 +103,7 @@ def test_rows_to_problem_accepts_dict_rows():
             "OPER_ID": "OP10",
             "OPER_SEQ": 1,
             "EQP_MODEL_CD": "M1",
-            "GBN_CD": "D0_TARGET_QTY",
+            "GBN_CD": "EXEC_D0_PLAN",
             "ATTR_VAL": "300",
         },
     ]
@@ -121,11 +121,11 @@ def test_rows_to_problem_accepts_new_tuple_with_lot_columns():
         ),
         (
             "20260529", "ICPRB", "9C", "9C", "-",
-            "P1", "OP10", 1, "", "WIP_QTY", "500",
+            "P1", "OP10", 1, "", "AVAIL_WIP_QTY", "500",
         ),
         (
             "20260529", "ICPRB", "9C", "9C", "-",
-            "P1", "OP10", 1, "", "D0_TARGET_QTY", "100",
+            "P1", "OP10", 1, "", "EXEC_D0_PLAN", "100",
         ),
     ]
     p = rows_to_problem(rows, horizon_hours=3)
