@@ -1,7 +1,7 @@
 """RTS 스케줄링 분석 API + 정적 UI 서빙.
 
 실행:
-  uvicorn src.api.main:app --host 0.0.0.0 --port 8000
+  uvicorn src.api.main:app --host 0.0.0.0 --port 7000
 
 UI(web/dist 빌드본)가 있으면 루트(/)에서 함께 서빙한다.
 """

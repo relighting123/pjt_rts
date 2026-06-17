@@ -17,7 +17,7 @@ function formatApiError(url: string, status: number, detail: string): string {
     return (
       `API 경로를 찾을 수 없습니다 (${url}). ` +
       "FastAPI 서버를 최신 코드로 실행했는지 확인하세요: " +
-      "`uvicorn src.api.main:app --host 0.0.0.0 --port 8000`"
+      "`uvicorn src.api.main:app --host 0.0.0.0 --port 7000`"
     );
   }
   return trimmed || `${url} → HTTP ${status}`;

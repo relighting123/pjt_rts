@@ -53,20 +53,20 @@ cd web && npm install
 
 ```bash
 # 터미널 1: API
-uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
+uvicorn src.api.main:app --host 0.0.0.0 --port 7000 --reload
 
 # 터미널 2: UI
 cd web && npm run dev
 ```
 
 - UI: `http://localhost:5173`
-- API: `http://localhost:8000/api/health`
+- API: `http://localhost:7000/api/health`
 
 ### 2) 운영 빌드 실행
 
 ```bash
 cd web && npm run build
-uvicorn src.api.main:app --host 0.0.0.0 --port 8000
+uvicorn src.api.main:app --host 0.0.0.0 --port 7000
 ```
 
 ## CLI 사용법
@@ -124,8 +124,8 @@ python main.py export --train --from-timekey 2026050100000000 --to-timekey 20260
 ### UI에서 Train 실행 시 "Not Found"가 나올 때
 
 1. **API 서버가 최신 코드인지 확인** — `/api/health` 응답에 `"ops": true` 가 있어야 합니다.
-2. **개발 모드** — 터미널 1: `uvicorn src.api.main:app --host 0.0.0.0 --port 8000`, 터미널 2: `cd web && npm run dev`
-3. **운영 모드** — `cd web && npm run build` 후 uvicorn만 8000 포트로 실행 (정적 UI + API 동시 서빙)
+2. **개발 모드** — 터미널 1: `uvicorn src.api.main:app --host 0.0.0.0 --port 7000`, 터미널 2: `cd web && npm run dev`
+3. **운영 모드** — `cd web && npm run build` 후 uvicorn만 7000 포트로 실행 (정적 UI + API 동시 서빙)
 4. `npm run preview` 만 단독 실행하면 `/api` 프록시가 없어 404가 납니다 — preview 사용 시에도 uvicorn을 함께 띄우세요.
 
 ## 설정
@@ -134,6 +134,7 @@ python main.py export --train --from-timekey 2026050100000000 --to-timekey 20260
 - 환경변수: `.env` (Oracle 연결 정보, 기본 FAC/BATCH 등)
 
 주요 설정 항목:
+- `API_PORT` (기본 7000) — uvicorn 포트 및 Vite `/api` 프록시 대상
 - `MAX_TASKS`, `MAX_MODELS`
 - `DWELL_LAMBDA`, `ALLOC_LAMBDA`
 - `USE_ALLOC_MODEL`

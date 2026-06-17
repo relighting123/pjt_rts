@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
+API_PORT = int(os.getenv("API_PORT", "7000"))
 
 try:
     from dotenv import load_dotenv
