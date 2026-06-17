@@ -50,6 +50,18 @@ def _split_hourly_produce(problem: ProblemInstance, stat: dict, ti: int) -> dict
     return out
 
 
+def finalize_assign_rows(rows: list[dict]) -> list[dict]:
+    """연속 동일 작업 구간 병합 후 EQP_ID별 SEQ_NO 재부여."""
+    merged = merge_assign_rows(rows)
+    seq_by_eqp: dict[str, int] = {}
+    out: list[dict] = []
+    for row in sorted(merged, key=lambda r: (r["EQP_ID"], r["START_TIME"])):
+        eqp = row["EQP_ID"]
+        seq_by_eqp[eqp] = seq_by_eqp.get(eqp, 0) + 1
+        out.append({**row, "SEQ_NO": seq_by_eqp[eqp]})
+    return out
+
+
 def build_assign_rows(
     problem: ProblemInstance,
     hourly_stats: list[dict],
@@ -120,7 +132,7 @@ def build_assign_rows(
                     "PRODUCE_QTY": qty,
                     "CRT_USER_ID": sys_id,
                 })
-    return rows
+    return finalize_assign_rows(rows)
 
 
 def build_eqpconvplan_rows(problem: ProblemInstance, trace: list) -> list[dict]:

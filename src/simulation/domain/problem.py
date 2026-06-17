@@ -40,10 +40,15 @@ class Task:
     batch_id: str
     plan_qty: int
     init_wip: int
+    equip_batch_id: str = ""
 
     @property
     def wip_qty(self) -> int:
         return self.init_wip
+
+    def allocation_batch_id(self) -> str:
+        """RTS_EQPALLOCATION 등 장비(UPH) 기준 BATCH_ID."""
+        return self.equip_batch_id or self.batch_id
 
 
 @dataclass

@@ -76,6 +76,7 @@ def rows_to_problem(rows, horizon_hours: int,
                 "oper_seq": r.oper_seq,
                 "lot_cd": r.lot_cd,
                 "temper_val": r.temper_val,
+                "equip_batch_id": "",
             },
         )
         if r.gbn_cd in ("EXEC_D0_PLAN", "AVAIL_WIP_QTY"):
@@ -83,6 +84,10 @@ def rows_to_problem(rows, horizon_hours: int,
             meta["temper_val"] = r.temper_val
             meta["batch_id"] = compose_batch_id(r.lot_cd, r.temper_val, r.batch_id)
             meta["oper_seq"] = r.oper_seq
+        elif r.gbn_cd in ("EQUIP_UPH", "ASSIGN_EQUIP_CNT", "TOOL_QTY", "EQP_ID"):
+            meta["equip_batch_id"] = compose_batch_id(
+                r.lot_cd, r.temper_val, r.batch_id,
+            )
         elif meta.get("lot_cd") in ("", "-") and r.lot_cd not in ("", "-"):
             meta["lot_cd"] = r.lot_cd
             meta["temper_val"] = r.temper_val
@@ -129,10 +134,12 @@ def rows_to_problem(rows, horizon_hours: int,
     for (ppk, oper) in keys:
         meta = task_meta[(ppk, oper)]
         batch_id = compose_batch_id(meta["lot_cd"], meta["temper_val"], meta["batch_id"])
+        equip_batch_id = meta.get("equip_batch_id") or batch_id
         tasks.append(
             Task(
                 ppk, oper, meta["oper_seq"], batch_id,
                 target_raw.get((ppk, oper), 0), wip_raw.get((ppk, oper), 0),
+                equip_batch_id=equip_batch_id,
             )
         )
     uph = {(m, index[(ppk, o)]): v for (ppk, o, m), v in uph_raw.items()}

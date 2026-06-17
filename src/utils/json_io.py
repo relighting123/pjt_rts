@@ -26,8 +26,11 @@ def _task_wip_qty(task_data: dict) -> int:
 def load_problem(path: str | Path) -> ProblemInstance:
     data = json.loads(Path(path).read_text(encoding="utf-8"))
     tasks = [
-        Task(t["plan_prod_key"], t["oper_id"], int(t["oper_seq"]),
-             t["batch_id"], int(t["plan_qty"]), _task_wip_qty(t))
+        Task(
+            t["plan_prod_key"], t["oper_id"], int(t["oper_seq"]),
+            t["batch_id"], int(t["plan_qty"]), _task_wip_qty(t),
+            equip_batch_id=str(t.get("equip_batch_id") or t["batch_id"]),
+        )
         for t in data["tasks"]
     ]
 
@@ -84,6 +87,7 @@ def problem_to_dict(problem: ProblemInstance, include_ground_truth: bool = True)
             "oper_id": t.oper_id,
             "oper_seq": t.oper_seq,
             "batch_id": t.batch_id,
+            "equip_batch_id": t.allocation_batch_id(),
             "plan_qty": t.plan_qty,
             "wip_qty": t.wip_qty,
             "init_wip": t.init_wip,

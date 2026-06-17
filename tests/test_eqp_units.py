@@ -47,7 +47,7 @@ def test_assign_rows_eqp_id_continuity():
     for r in res["assign_rows"]:
         by_eqp.setdefault(r["EQP_ID"], []).append(r["SEQ_NO"])
     for seqs in by_eqp.values():
-        assert seqs == list(range(1, len(seqs) + 1))
+        assert seqs == [1]
 
 
 def test_conv_rows_carry_real_eqp_id():

@@ -31,7 +31,7 @@ def build_eqpallocation_rows(
         rows.append({
             "FAC_ID": fac,
             "RULE_TIMEKEY": problem.rule_timekey,
-            "BATCH_ID": task.batch_id,
+            "BATCH_ID": task.allocation_batch_id(),
             "PLAN_PROD_KEY": task.plan_prod_key,
             "OPER_ID": task.oper_id,
             "EQP_MODEL_CD": model,

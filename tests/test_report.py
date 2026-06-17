@@ -35,11 +35,11 @@ def test_assign_rows_eqp_and_seq():
 
     rows = res["assign_rows"]
 
-    assert len(rows) == p.horizon_hours
-
+    assert len(rows) == 1
     assert rows[0]["EQP_ID"] == "M1-001"
-
-    assert [r["SEQ_NO"] for r in rows] == [1, 2, 3]
+    assert rows[0]["SEQ_NO"] == 1
+    assert rows[0]["START_TIME"] != rows[0]["END_TIME"]
+    assert rows[0]["PRODUCE_QTY"] > 0
 
     for key in ASSIGN_KEYS:
 
@@ -69,9 +69,9 @@ def test_assign_seq_per_eqp_id():
 
     assert set(by_eqp) == {"M1-001", "M1-002"}
 
-    assert by_eqp["M1-001"] == [1, 2]
+    assert by_eqp["M1-001"] == [1]
 
-    assert by_eqp["M1-002"] == [1, 2]
+    assert by_eqp["M1-002"] == [1]
 
 
 
