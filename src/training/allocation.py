@@ -10,7 +10,8 @@ import torch
 
 import config
 from src.simulation.domain.problem import ProblemInstance
-from src.training.callbacks import ConvergenceLogger, append_training_point, reset_training_log
+from src.training.callbacks import ConvergenceLogger
+from src.training.log_io import append_training_point, reset_training_log
 from envs.allocation_env import AllocationEnv
 
 

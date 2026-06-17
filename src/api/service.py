@@ -62,7 +62,7 @@ def list_datasets() -> list[dict]:
 
 
 def training_metrics(stage: str = "dispatch") -> list[dict]:
-    from src.training.callbacks import read_training_metrics
+    from src.training.log_io import read_training_metrics
     return read_training_metrics(stage)
 
 

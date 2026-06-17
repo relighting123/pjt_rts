@@ -16,7 +16,8 @@ from src.simulation.kernel.simulator import Simulator
 from agents.heuristic import heuristic_actions
 from envs.dispatch_env import DispatchEnv
 from src.training.allocation import train_alloc_model
-from src.training.callbacks import ConvergenceLogger, append_training_point, reset_training_log
+from src.training.callbacks import ConvergenceLogger
+from src.training.log_io import append_training_point, reset_training_log
 from src.stages.allocation.use_case import allocate
 
 
