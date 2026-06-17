@@ -312,33 +312,36 @@ def fetch_problem(
     return rows_to_problem(rows, horizon_hours, rule_timekey=rk, facid=fac, batchid=bid)
 
 
+def _delete_inf_by_timekey(cur, table: str, rule_timekey: str) -> None:
+    """INF 테이블 RULE_TIMEKEY 기존 행 삭제 (저장 전 항상 실행)."""
+    _execute_logged(
+        cur, f"delete_by_timekey:{table}", "write", "delete_by_timekey",
+        table=table, rk=rule_timekey,
+    )
+
+
 def write_assign_results(rule_timekey: str, assign_rows: list[dict]) -> None:
-    """RTS_ASSIGN_INF/HIS 삭제 후 insert."""
+    """RTS_ASSIGN_INF/HIS — INF는 항상 삭제 후 insert, HIS는 행 있을 때만 기록."""
     _write_table_pair(
         config.ASSIGN_TABLE, config.ASSIGN_HIS_TABLE, rule_timekey, assign_rows, "insert_assign",
     )
 
 
 def write_eqpconvplan_results(rule_timekey: str, rows: list[dict]) -> None:
-    """RTS_EQPCONVPLAN_INF/HIS 삭제 후 insert (HIS는 EVENT_TIMEKEY 포함)."""
-    if not rows:
-        return
+    """RTS_EQPCONVPLAN_INF/HIS — INF는 항상 삭제 후 insert."""
     conn = _connect()
     try:
         cur = conn.cursor()
-        for table in (config.EQPCONVPLAN_TABLE, config.EQPCONVPLAN_HIS_TABLE):
-            _execute_logged(
-                cur, f"delete_by_timekey:{table}", "write", "delete_by_timekey",
-                table=table, rk=rule_timekey,
+        _delete_inf_by_timekey(cur, config.EQPCONVPLAN_TABLE, rule_timekey)
+        if rows:
+            _executemany_logged(
+                cur, f"insert_eqpconvplan:{config.EQPCONVPLAN_TABLE}",
+                "write", "insert_eqpconvplan", rows, table=config.EQPCONVPLAN_TABLE,
             )
-        _executemany_logged(
-            cur, f"insert_eqpconvplan:{config.EQPCONVPLAN_TABLE}",
-            "write", "insert_eqpconvplan", rows, table=config.EQPCONVPLAN_TABLE,
-        )
-        _executemany_logged(
-            cur, f"insert_eqpconvplan_his:{config.EQPCONVPLAN_HIS_TABLE}",
-            "write", "insert_eqpconvplan_his", rows, table=config.EQPCONVPLAN_HIS_TABLE,
-        )
+            _executemany_logged(
+                cur, f"insert_eqpconvplan_his:{config.EQPCONVPLAN_HIS_TABLE}",
+                "write", "insert_eqpconvplan_his", rows, table=config.EQPCONVPLAN_HIS_TABLE,
+            )
         conn.commit()
     finally:
         conn.close()
@@ -350,25 +353,20 @@ def write_conv_results(rule_timekey: str, conv_rows: list[dict]) -> None:
 
 
 def write_eqpallocation_results(rule_timekey: str, rows: list[dict]) -> None:
-    """RTS_EQPALLOCATION_INF/HIS 삭제 후 insert (HIS는 EVENT_TIMEKEY 포함)."""
-    if not rows:
-        return
+    """RTS_EQPALLOCATION_INF/HIS — INF는 항상 삭제 후 insert."""
     conn = _connect()
     try:
         cur = conn.cursor()
-        for table in (config.EQPALLOCATION_TABLE, config.EQPALLOCATION_HIS_TABLE):
-            _execute_logged(
-                cur, f"delete_by_timekey:{table}", "write", "delete_by_timekey",
-                table=table, rk=rule_timekey,
+        _delete_inf_by_timekey(cur, config.EQPALLOCATION_TABLE, rule_timekey)
+        if rows:
+            _executemany_logged(
+                cur, f"insert_eqpallocation:{config.EQPALLOCATION_TABLE}",
+                "write", "insert_eqpallocation", rows, table=config.EQPALLOCATION_TABLE,
             )
-        _executemany_logged(
-            cur, f"insert_eqpallocation:{config.EQPALLOCATION_TABLE}",
-            "write", "insert_eqpallocation", rows, table=config.EQPALLOCATION_TABLE,
-        )
-        _executemany_logged(
-            cur, f"insert_eqpallocation_his:{config.EQPALLOCATION_HIS_TABLE}",
-            "write", "insert_eqpallocation_his", rows, table=config.EQPALLOCATION_HIS_TABLE,
-        )
+            _executemany_logged(
+                cur, f"insert_eqpallocation_his:{config.EQPALLOCATION_HIS_TABLE}",
+                "write", "insert_eqpallocation_his", rows, table=config.EQPALLOCATION_HIS_TABLE,
+            )
         conn.commit()
     finally:
         conn.close()
@@ -401,18 +399,16 @@ def _write_table_pair(
     rows: list[dict],
     insert_sql_name: str,
 ) -> None:
-    if not rows:
-        return
     conn = _connect()
     try:
         cur = conn.cursor()
-        for table in (inf_table, his_table):
-            _execute_logged(
-                cur, f"delete_by_timekey:{table}", "write", "delete_by_timekey",
-                table=table, rk=rule_timekey,
+        _delete_inf_by_timekey(cur, inf_table, rule_timekey)
+        if rows:
+            _executemany_logged(
+                cur, f"{insert_sql_name}:{inf_table}", "write", insert_sql_name, rows, table=inf_table,
             )
             _executemany_logged(
-                cur, f"{insert_sql_name}:{table}", "write", insert_sql_name, rows, table=table,
+                cur, f"{insert_sql_name}:{his_table}", "write", insert_sql_name, rows, table=his_table,
             )
         conn.commit()
     finally:

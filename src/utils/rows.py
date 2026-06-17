@@ -127,6 +127,7 @@ def build_assign_rows(
                     "SEQ_NO": seq_by_eqp[eqp_id],
                     "START_TIME": start_time,
                     "END_TIME": end_time,
+                    "BATCH_ID": task.allocation_batch_id(),
                     "PLAN_PROD_KEY": task.plan_prod_key,
                     "OPER_ID": task.oper_id,
                     "PRODUCE_QTY": qty,
@@ -163,6 +164,7 @@ def merge_assign_rows(rows: list[dict]) -> list[dict]:
         elif (
             current["EQP_ID"] == row["EQP_ID"]
             and current["EQP_MODEL_CD"] == row["EQP_MODEL_CD"]
+            and current.get("BATCH_ID") == row.get("BATCH_ID")
             and current["PLAN_PROD_KEY"] == row["PLAN_PROD_KEY"]
             and current.get("OPER_ID") == row.get("OPER_ID")
             and current["RULE_TIMEKEY"] == row["RULE_TIMEKEY"]
@@ -271,11 +273,13 @@ def load_inference_result_document(path: str | Path) -> dict:
 
 ASSIGN_KEYS = [
     "RULE_TIMEKEY", "EQP_ID", "EQP_MODEL_CD", "SEQ_NO",
-    "START_TIME", "END_TIME", "PLAN_PROD_KEY", "OPER_ID", "PRODUCE_QTY", "CRT_USER_ID",
+    "START_TIME", "END_TIME", "BATCH_ID", "PLAN_PROD_KEY", "OPER_ID",
+    "PRODUCE_QTY", "CRT_USER_ID",
 ]
 ASSIGN_HEADERS = [
     "RULE_TIMEKEY", "EQP_ID", "EQP_MODEL_CD", "SEQ",
-    "START_TIME", "END_TIME", "PLAN_PROD_KEY", "OPER_ID", "PRODUCE_QTY", "CRT_USER_ID",
+    "START_TIME", "END_TIME", "BATCH_ID", "PLAN_PROD_KEY", "OPER_ID",
+    "PRODUCE_QTY", "CRT_USER_ID",
 ]
 
 EQPCONVPLAN_KEYS = [
@@ -308,7 +312,8 @@ GUIDE_HEADERS = EQPALLOCATION_HEADERS
 
 ALLOC_DB_KEYS = [
     "RULE_TIMEKEY", "EQP_ID", "EQP_MODEL_CD", "SEQ_NO",
-    "START_TIME", "END_TIME", "PLAN_PROD_KEY", "OPER_ID", "PRODUCE_QTY", "CRT_USER_ID",
+    "START_TIME", "END_TIME", "BATCH_ID", "PLAN_PROD_KEY", "OPER_ID",
+    "PRODUCE_QTY", "CRT_USER_ID",
 ]
 
 

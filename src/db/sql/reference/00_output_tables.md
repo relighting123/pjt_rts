@@ -1,7 +1,8 @@
 # RTS 출력 테이블 정리
 
 `python run.py infer` 실행 시 추론 결과가 아래 **3종 INF/HIS** 쌍에 기록됩니다.  
-공통: 동일 `RULE_TIMEKEY` 기존 행 **DELETE 후 INSERT** (`delete_by_timekey.sql`).
+공통: **INF**는 동일 `RULE_TIMEKEY` 기존 행을 저장 전 **항상 DELETE** (`delete_by_timekey.sql`).  
+HIS는 신규 행 **INSERT**(append)만 수행합니다.
 
 DDL: `01_create_tables.sql` · 샘플: `03_sample_output_data.sql` · 확인: `04_verify_queries.sql`
 
@@ -55,6 +56,7 @@ DDL: `01_create_tables.sql` · 샘플: `03_sample_output_data.sql` · 확인: `0
 | `EQP_MODEL_CD` | 장비 모델 |
 | `SEQ_NO` | **호기별** 순번 (1부터) |
 | `START_TIME` / `END_TIME` | 배치 구간 (16자) |
+| `BATCH_ID` | 장비(UPH) 기준 배치 ID |
 | `PLAN_PROD_KEY` / `OPER_ID` | 작업 공정 |
 | `PRODUCE_QTY` | 구간 생산량 |
 

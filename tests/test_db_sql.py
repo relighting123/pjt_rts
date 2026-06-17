@@ -73,6 +73,7 @@ def test_filter_rows_for_sql_drops_extra_assign_keys():
         "SEQ_NO": 1,
         "START_TIME": "2026052922500000",
         "END_TIME": "2026052923010000",
+        "BATCH_ID": "B1",
         "PLAN_PROD_KEY": "P1",
         "OPER_ID": "OP10",
         "PRODUCE_QTY": 100,
@@ -87,6 +88,7 @@ def test_filter_rows_for_sql_drops_extra_assign_keys():
 def test_insert_assign_sql_formats_table():
     sql = load_sql("write", "insert_assign", table="RTS_ASSIGN_INF")
     assert "INSERT INTO RTS_ASSIGN_INF" in sql
+    assert ":BATCH_ID" in sql
     assert ":RULE_TIMEKEY" in sql
 
 

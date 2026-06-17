@@ -12,17 +12,20 @@ def test_finalize_assign_rows_merges_consecutive_same_task():
         {
             "RULE_TIMEKEY": "RK", "EQP_ID": "M1-001", "EQP_MODEL_CD": "M1",
             "SEQ_NO": 1, "START_TIME": "2026050100000000", "END_TIME": "2026050101000000",
-            "PLAN_PROD_KEY": "P1", "OPER_ID": "OP10", "PRODUCE_QTY": 10, "CRT_USER_ID": "X",
+            "BATCH_ID": "B1", "PLAN_PROD_KEY": "P1", "OPER_ID": "OP10",
+            "PRODUCE_QTY": 10, "CRT_USER_ID": "X",
         },
         {
             "RULE_TIMEKEY": "RK", "EQP_ID": "M1-001", "EQP_MODEL_CD": "M1",
             "SEQ_NO": 2, "START_TIME": "2026050101000000", "END_TIME": "2026050102000000",
-            "PLAN_PROD_KEY": "P1", "OPER_ID": "OP10", "PRODUCE_QTY": 20, "CRT_USER_ID": "X",
+            "BATCH_ID": "B1", "PLAN_PROD_KEY": "P1", "OPER_ID": "OP10",
+            "PRODUCE_QTY": 20, "CRT_USER_ID": "X",
         },
         {
             "RULE_TIMEKEY": "RK", "EQP_ID": "M1-001", "EQP_MODEL_CD": "M1",
             "SEQ_NO": 3, "START_TIME": "2026050102000000", "END_TIME": "2026050103000000",
-            "PLAN_PROD_KEY": "P2", "OPER_ID": "OP20", "PRODUCE_QTY": 5, "CRT_USER_ID": "X",
+            "BATCH_ID": "B1", "PLAN_PROD_KEY": "P2", "OPER_ID": "OP20",
+            "PRODUCE_QTY": 5, "CRT_USER_ID": "X",
         },
     ]
     out = finalize_assign_rows(rows)
@@ -40,6 +43,7 @@ def test_build_assign_rows_returns_merged_segments():
     rows = res["assign_rows"]
     assert len(rows) == 1
     assert rows[0]["SEQ_NO"] == 1
+    assert rows[0]["BATCH_ID"] == p.tasks[0].allocation_batch_id()
 
 
 def test_eqpallocation_uses_equip_batch_id():
