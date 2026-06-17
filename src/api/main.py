@@ -14,14 +14,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 import config
-from src.api import service
+from src.api import ops, service
+from src.api.schemas import ExportRequest, InferRequest, TrainRequest
 
 app = FastAPI(title="RTS 스케줄링 분석 API", version="1.0")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["GET"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
@@ -60,6 +61,59 @@ def training_metrics(stage: str = "dispatch"):
 def summary(env_type: str = "dispatch"):
     """전체 데이터셋 비교 요약."""
     return service.summary(env_type=env_type)
+
+
+@app.get("/api/ops/status")
+def ops_status():
+    """운영 대시보드 상태 — 기본값, 모델/JSON 존재, 실행 중 작업."""
+    return ops.get_status()
+
+
+@app.get("/api/ops/jobs")
+def ops_jobs(limit: int = 20):
+    """최근 백그라운드 작업 목록."""
+    return {"jobs": ops.list_jobs(limit=min(max(limit, 1), 100))}
+
+
+@app.get("/api/ops/jobs/{job_id}")
+def ops_job_detail(job_id: str):
+    job = ops.get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail=f"job not found: {job_id}")
+    return job
+
+
+@app.get("/api/ops/logs")
+def ops_logs(limit: int = 200):
+    """ops.jsonl 최근 이벤트."""
+    return {"logs": ops.read_ops_logs(limit=min(max(limit, 1), 1000))}
+
+
+def _submit_or_conflict(fn):
+    try:
+        return fn()
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/ops/export")
+def ops_export(req: ExportRequest):
+    """DB → JSON export (단건 또는 학습 범위)."""
+    return _submit_or_conflict(lambda: ops.start_export(req))
+
+
+@app.post("/api/ops/infer")
+def ops_infer(req: InferRequest):
+    """추론 파이프라인 실행."""
+    return _submit_or_conflict(lambda: ops.start_infer(req))
+
+
+@app.post("/api/ops/train")
+def ops_train(req: TrainRequest):
+    """학습 파이프라인 실행 (선택: DB 범위 export 후 학습)."""
+    return _submit_or_conflict(lambda: ops.start_train(req))
 
 
 _DIST = Path(config.ROOT) / "web" / "dist"

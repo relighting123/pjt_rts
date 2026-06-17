@@ -5,11 +5,14 @@ import OverviewCards from "./components/OverviewCards";
 import BenchmarkPerformanceChart from "./components/BenchmarkPerformanceChart";
 import AlgoComparePanel from "./components/AlgoComparePanel";
 import ConvergenceChart from "./components/ConvergenceChart";
+import OpsPanel from "./components/OpsPanel";
 import "./styles.css";
 
 type EnvType = "dispatch" | "alloc";
+type AppView = "analytics" | "ops";
 
 export default function App() {
+  const [appView, setAppView] = useState<AppView>("analytics");
   const [envType, setEnvType] = useState<EnvType>("dispatch");
   const [summary, setSummary] = useState<Summary | null>(null);
   const [selected, setSelected] = useState<string>("");
@@ -21,6 +24,7 @@ export default function App() {
   const selectBenchmark = (name: string) => setSelected(name);
 
   useEffect(() => {
+    if (appView !== "analytics") return;
     setLoadingSummary(true);
     setError(null);
     setSummary(null);
@@ -33,17 +37,17 @@ export default function App() {
       })
       .catch((e) => setError(String(e)))
       .finally(() => setLoadingSummary(false));
-  }, [envType]);
+  }, [envType, appView]);
 
   useEffect(() => {
-    if (!selected) return;
+    if (appView !== "analytics" || !selected) return;
     setLoadingDetail(true);
     setError(null);
     fetchDetail(selected, envType)
       .then(setDetail)
       .catch((e) => setError(String(e)))
       .finally(() => setLoadingDetail(false));
-  }, [selected, envType]);
+  }, [selected, envType, appView]);
 
   const rlAvailable = detail?.rl_status.available ?? false;
   const chartProps = {
@@ -58,22 +62,37 @@ export default function App() {
       <header className="header">
         <h1>RTS 장비 스케줄링 대시보드</h1>
         <div className="seg">
-          <button className={envType === "dispatch" ? "active" : ""} onClick={() => setEnvType("dispatch")}>
-            DispatchEnv
+          <button
+            className={appView === "analytics" ? "active" : ""}
+            onClick={() => setAppView("analytics")}
+          >
+            분석
           </button>
-          <button className={envType === "alloc" ? "active" : ""} onClick={() => setEnvType("alloc")}>
-            AllocEnv
+          <button className={appView === "ops" ? "active" : ""} onClick={() => setAppView("ops")}>
+            운영
           </button>
         </div>
+        {appView === "analytics" && (
+          <div className="seg">
+            <button className={envType === "dispatch" ? "active" : ""} onClick={() => setEnvType("dispatch")}>
+              DispatchEnv
+            </button>
+            <button className={envType === "alloc" ? "active" : ""} onClick={() => setEnvType("alloc")}>
+              AllocEnv
+            </button>
+          </div>
+        )}
         <div className="spacer" />
       </header>
 
-      {error && <div className="error">⚠ {error}</div>}
+      {appView === "ops" && <OpsPanel />}
 
-      {summary && !loadingSummary && <OverviewCards summary={summary} envType={envType} />}
-      {loadingSummary && <div className="empty">데이터 불러오는 중…</div>}
+      {appView === "analytics" && error && <div className="error">⚠ {error}</div>}
 
-      {summary && !loadingSummary && (
+      {appView === "analytics" && summary && !loadingSummary && <OverviewCards summary={summary} envType={envType} />}
+      {appView === "analytics" && loadingSummary && <div className="empty">데이터 불러오는 중…</div>}
+
+      {appView === "analytics" && summary && !loadingSummary && (
         <div className="dashboard-body">
           <section className="bench-metrics-section">
             <div className="section-head">

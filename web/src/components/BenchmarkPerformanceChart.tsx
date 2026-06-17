@@ -142,7 +142,7 @@ export default function BenchmarkPerformanceChart({
                     style={{ cursor: "pointer" }}
                     onClick={() => onSelect(r.name)}
                   >
-                    <title>{`${r.name}\n${s.label}: ${formatValue(metric, s.value)}`}</title>
+                    <title>{`${r.name}\n${s.label}: ${s.value != null ? formatValue(metric, s.value) : "N/A"}`}</title>
                   </rect>
                 );
               })}

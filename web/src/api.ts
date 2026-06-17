@@ -1,8 +1,41 @@
-import type { DatasetDetail, DatasetInfo, Summary, TrainingMetrics } from "./types";
+import type {
+  DatasetDetail,
+  DatasetInfo,
+  ExportRequest,
+  InferRequest,
+  OpsJob,
+  OpsLogEntry,
+  OpsStatus,
+  Summary,
+  TrainRequest,
+  TrainingMetrics,
+} from "./types";
 
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`${url} → HTTP ${res.status}`);
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(body || `${url} → HTTP ${res.status}`);
+  }
+  return res.json() as Promise<T>;
+}
+
+async function postJson<T>(url: string, body: unknown): Promise<T> {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    let detail = await res.text();
+    try {
+      const parsed = JSON.parse(detail) as { detail?: string };
+      detail = parsed.detail ?? detail;
+    } catch {
+      /* keep raw */
+    }
+    throw new Error(detail || `${url} → HTTP ${res.status}`);
+  }
   return res.json() as Promise<T>;
 }
 
@@ -13,6 +46,18 @@ export const fetchSummary = (envType = "dispatch") =>
   getJson<Summary>(`/api/summary?env_type=${envType}`);
 export const fetchTrainingMetrics = (stage: "dispatch" | "alloc" = "dispatch") =>
   getJson<TrainingMetrics>(`/api/training/metrics?stage=${stage}`);
+
+export const fetchOpsStatus = () => getJson<OpsStatus>("/api/ops/status");
+export const fetchOpsJobs = (limit = 20) =>
+  getJson<{ jobs: OpsJob[] }>(`/api/ops/jobs?limit=${limit}`);
+export const fetchOpsLogs = (limit = 200) =>
+  getJson<{ logs: OpsLogEntry[] }>(`/api/ops/logs?limit=${limit}`);
+export const postOpsExport = (body: ExportRequest) =>
+  postJson<{ job_id: string; status: string }>("/api/ops/export", body);
+export const postOpsInfer = (body: InferRequest) =>
+  postJson<{ job_id: string; status: string }>("/api/ops/infer", body);
+export const postOpsTrain = (body: TrainRequest) =>
+  postJson<{ job_id: string; status: string }>("/api/ops/train", body);
 
 export const pct = (v: number | null | undefined, digits = 1) =>
   v == null ? "N/A" : `${(v * 100).toFixed(digits)}%`;

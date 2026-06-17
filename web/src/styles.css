@@ -375,3 +375,92 @@ table.data tr:hover td { background: rgba(91,143,249,0.06); }
 
 .empty { color: var(--muted); padding: 24px; text-align: center; }
 .error { color: var(--bad); padding: 12px 24px; text-align: center; font-size: 13px; }
+
+/* ── Ops dashboard ── */
+.ops-panel { display: flex; flex-direction: column; gap: 16px; }
+.ops-status-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+}
+@media (max-width: 900px) { .ops-status-grid { grid-template-columns: 1fr; } }
+
+.ops-grid {
+  display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: 16px; align-items: start;
+}
+@media (max-width: 1100px) { .ops-grid { grid-template-columns: 1fr; } }
+
+.ops-forms { display: flex; flex-direction: column; gap: 14px; }
+.ops-side { display: flex; flex-direction: column; gap: 14px; }
+
+.ops-form-card {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+  padding: 18px 20px; box-shadow: 0 1px 4px rgba(31,39,51,0.07);
+}
+.ops-form-card h2 { margin: 0 0 4px; font-size: 15px; font-weight: 700; }
+
+.ops-field-row {
+  display: grid; grid-template-columns: 120px 1fr; gap: 10px; align-items: center; margin: 10px 0;
+}
+.ops-field-row label { font-size: 12px; color: var(--muted); font-weight: 600; }
+.ops-field-row input {
+  width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+  font-size: 13px; background: var(--panel-2);
+}
+
+.ops-seg {
+  display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+  margin: 8px 0;
+}
+.ops-seg.small button { padding: 6px 12px; font-size: 12px; }
+.ops-seg button {
+  background: var(--panel); color: var(--muted); border: none; padding: 8px 14px;
+  cursor: pointer; font-size: 13px; font-weight: 500;
+}
+.ops-seg button.active { background: var(--accent); color: #fff; }
+
+.ops-check {
+  display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted);
+  margin: 8px 0; cursor: pointer;
+}
+
+.ops-btn {
+  margin-top: 12px; border: 1px solid var(--border); border-radius: 8px; padding: 10px 16px;
+  font-size: 13px; font-weight: 600; cursor: pointer; background: var(--panel-2); color: var(--text);
+}
+.ops-btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.ops-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.good-text { color: var(--good) !important; font-size: 22px !important; }
+.warn-text { color: var(--warn) !important; font-size: 22px !important; }
+
+.ops-job-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.ops-job {
+  border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; background: var(--panel-2);
+}
+.ops-job-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.ops-job .kind { font-weight: 700; text-transform: uppercase; font-size: 12px; }
+.ops-job-meta { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.ops-job-result {
+  margin: 8px 0 0; padding: 8px; background: var(--panel); border-radius: 8px;
+  font-size: 11px; overflow-x: auto; max-height: 160px;
+}
+.ops-job-error { color: var(--bad); font-size: 12px; margin-top: 6px; }
+
+.badge-status {
+  font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border);
+  text-transform: uppercase; font-weight: 700;
+}
+.badge-status.running { color: var(--warn); border-color: var(--warn); }
+.badge-status.done { color: var(--good); border-color: var(--good); }
+.badge-status.failed { color: var(--bad); border-color: var(--bad); }
+.badge-status.queued { color: var(--muted); }
+
+.ops-log-wrap {
+  max-height: 280px; overflow-y: auto; font-size: 11px; font-family: ui-monospace, monospace;
+}
+.ops-log-line {
+  display: grid; grid-template-columns: 130px 120px 1fr; gap: 8px;
+  padding: 6px 0; border-bottom: 1px solid var(--border);
+}
+.ops-log-line .ts { color: var(--muted); }
+.ops-log-line .ev { color: var(--accent); font-weight: 700; }
+.ops-log-line .msg { color: var(--text); word-break: break-all; }

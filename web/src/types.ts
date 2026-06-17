@@ -179,3 +179,79 @@ export interface TrainingMetrics {
   stage: string;
   points: TrainingPoint[];
 }
+
+export interface OpsDefaults {
+  facid: string | null;
+  batchid: string | null;
+  lookback_days: number;
+  default_ppo_steps: number;
+  horizon_hours: number;
+}
+
+export interface OpsArtifacts {
+  dispatch_model: string;
+  dispatch_model_exists: boolean;
+  alloc_model: string;
+  alloc_model_exists: boolean;
+  train_json_count: number;
+  inference_input_count: number;
+  inference_result_count: number;
+  ops_log: string;
+}
+
+export interface OpsJob {
+  id: string;
+  kind: "export" | "infer" | "train";
+  status: "queued" | "running" | "done" | "failed";
+  params: Record<string, unknown>;
+  created_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+  result: Record<string, unknown> | null;
+  error: string | null;
+}
+
+export interface OpsStatus {
+  defaults: OpsDefaults;
+  artifacts: OpsArtifacts;
+  busy: boolean;
+  running_job: OpsJob | null;
+}
+
+export interface OpsLogEntry {
+  ts?: string;
+  event?: string;
+  [key: string]: string | undefined;
+}
+
+export interface ExportRequest {
+  mode: "single" | "train_range";
+  timekey?: string | null;
+  from_timekey?: string | null;
+  to_timekey?: string | null;
+  lookback_days?: number;
+  horizon_hours?: number;
+  facid?: string | null;
+  batchid?: string | null;
+  sample?: boolean;
+}
+
+export interface InferRequest {
+  timekey?: string | null;
+  facid?: string | null;
+  batchid?: string | null;
+  horizon_hours?: number;
+  skip_input_export?: boolean;
+  write_db?: boolean;
+}
+
+export interface TrainRequest {
+  mode: "local" | "db_range";
+  from_timekey?: string | null;
+  to_timekey?: string | null;
+  lookback_days?: number;
+  horizon_hours?: number;
+  facid?: string | null;
+  batchid?: string | null;
+  steps?: number;
+}
