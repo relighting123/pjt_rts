@@ -36,7 +36,7 @@ pjt_rts/
 python main.py train
 python main.py eval
 python main.py infer --dataset benchmark_01
-uvicorn src.api.main:app --host 0.0.0.0 --port 8000
+uvicorn src.api.main:app --host 0.0.0.0 --port 7000
 ```
 
 ## 레이어 규칙

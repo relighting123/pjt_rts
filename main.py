@@ -83,7 +83,7 @@ def cmd_train(args):
     problems = _load_problems(args, default_dir=config.TRAIN_DATA_DIR)
     run_train(problems=problems, ppo_steps=args.steps)
     print(f"학습 완료 → {config.MODEL_PATH}")
-    print("결과 확인: http://localhost:8000 (UI)")
+    print(f"결과 확인: http://localhost:{config.API_PORT} (UI)")
 
 
 def cmd_eval(args):
@@ -107,7 +107,7 @@ def cmd_eval(args):
     if results:
         avg_h = sum(r["heuristic"] for r in results.values()) / len(results)
         print(f"\n평균 휴리스틱 달성률: {avg_h:.3f}")
-    print("결과 확인: http://localhost:8000 (UI)")
+    print(f"결과 확인: http://localhost:{config.API_PORT} (UI)")
 
 
 def cmd_infer(args):
@@ -125,7 +125,7 @@ def cmd_infer(args):
             if res.get("optimal") is not None:
                 parts.append(f"OPT={res['optimal']:.3f}")
             print(f"  {name}: {' / '.join(parts)}")
-        print("결과 확인: http://localhost:8000 (UI)")
+        print(f"결과 확인: http://localhost:{config.API_PORT} (UI)")
         return
 
     from src.inference import run_infer

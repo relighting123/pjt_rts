@@ -1,7 +1,7 @@
 """RTS 스케줄링 분석 API + 정적 UI 서빙.
 
 실행:
-  uvicorn src.api.main:app --host 0.0.0.0 --port 8000
+  uvicorn src.api.main:app --host 0.0.0.0 --port 7000
 
 UI(web/dist 빌드본)가 있으면 루트(/)에서 함께 서빙한다.
 """
@@ -29,7 +29,8 @@ app.add_middleware(
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok"}
+    """헬스체크 — 운영(export/infer/train) API 지원 여부 포함."""
+    return {"status": "ok", "ops": True, "version": app.version}
 
 
 @app.get("/api/datasets")
