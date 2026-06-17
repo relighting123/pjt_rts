@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 import config
+from src.db.input_row import resolve_lot_temper
 from src.simulation.domain.problem import Equipment, ProblemInstance, Task
 
 
@@ -36,7 +37,12 @@ def load_problem(path: str | Path) -> ProblemInstance:
         (a["eqp_model"], task_index(a["plan_prod_key"], a["oper_id"])): int(a["count"])
         for a in data["init_assign"]
     }
-    tool_qty = {(t["batch_id"], t["eqp_model"]): int(t["tool_qty"]) for t in data["tool_qty"]}
+    tool_qty = {}
+    for t in data["tool_qty"]:
+        lot = t.get("lot_cd")
+        if not lot:
+            lot, _ = resolve_lot_temper(str(t.get("batch_id", "")))
+        tool_qty[(lot, t["eqp_model"])] = int(t["tool_qty"])
     equipments = [
         Equipment(
             eqp_id=str(e["eqp_id"]),
@@ -95,8 +101,13 @@ def problem_to_dict(problem: ProblemInstance, include_ground_truth: bool = True)
             "count": cnt,
         })
     tool_qty = [
-        {"batch_id": b, "eqp_model": m, "tool_qty": q}
-        for (b, m), q in sorted(problem.tool_qty.items())
+        {
+            "lot_cd": lot,
+            "batch_id": lot,
+            "eqp_model": m,
+            "tool_qty": q,
+        }
+        for (lot, m), q in sorted(problem.tool_qty.items())
     ]
     data = {
         "rule_timekey": problem.rule_timekey,

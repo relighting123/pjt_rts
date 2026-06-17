@@ -83,6 +83,7 @@ DDL: `01_create_tables.sql` · 샘플: `03_sample_output_data.sql` · 확인: `0
 | `LOT_CD` / `TEMPER_VAL` | FROM batch `/` 앞·뒤 (예 `9C/92` → `9C`, `92`) |
 | `TO_LOT_CD` / `TO_TEMPER_VAL` | TO batch 동일 규칙 |
 | `PLAN_PROD_ATTR_VAL` / `TO_PLAN_PROD_ATTR_VAL` | FROM/TO `PLAN_PROD_KEY` |
+| `OPER_ID` / `TO_OPER_ID` | FROM/TO `OPER_ID` |
 | `REASON_CD` / `REASON_CTN` | `RTS-001` / `테스트 데이터` |
 | `TRANSMIT_YN` / `TRANSMIT_TM` | `N` / NULL |
 | `CRT_TM`·`CHG_TM` / `CRT_USER_ID`·`CHG_USER_ID` | `SYSDATE` / `RTS` |

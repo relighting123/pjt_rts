@@ -60,7 +60,7 @@ class AllocationEnv(gym.Env):
             for ti in range(self.n_tasks):
                 batch = p.batch_of(ti) if ti < self.n_tasks else None
                 if batch:
-                    tq = p.tool_qty.get((batch, m), 0)
+                    tq = p.tool_cap(batch, m)
                     tool_part[mi * self.mt + ti] = tq / max_tool
         return np.asarray(plan_part + uph_part + eqp_part + tool_part, dtype=np.float32)
 
@@ -79,7 +79,7 @@ class AllocationEnv(gym.Env):
             raw = [fracs[ti] * p.eqp_qty[model] for ti in range(self.n_tasks)]
             for ti in range(self.n_tasks):
                 batch = p.batch_of(ti)
-                tool_cap = p.tool_qty.get((batch, model), 0)
+                tool_cap = p.tool_cap(batch, model)
                 raw[ti] = min(raw[ti], float(tool_cap))
             raw_sum = sum(raw)
             eqp = p.eqp_qty[model]

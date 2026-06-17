@@ -88,6 +88,8 @@ def build_eqpconvplan_rows(
                 "PRB_CARD_NO_LVAL": _DASH,
                 "TO_TEMPER_VAL": to_temper,
                 "TO_PLAN_PROD_ATTR_VAL": to_task.plan_prod_key,
+                "OPER_ID": from_task.oper_id,
+                "TO_OPER_ID": to_task.oper_id,
                 "REASON_CD": _REASON_CD,
                 "REASON_CTN": _REASON_CTN,
                 "TRANSMIT_YN": "N",

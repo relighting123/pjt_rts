@@ -16,7 +16,7 @@
 #   "uph": [{"plan_prod_key","oper_id","eqp_model","uph"}],
 #   "eqp_qty": {"M1": 1},
 #   "init_assign": [{"eqp_model","plan_prod_key","oper_id","count"}],
-#   "tool_qty": [{"batch_id","eqp_model","tool_qty"}],
+#   "tool_qty": [{"lot_cd","batch_id","eqp_model","tool_qty"}],
 #   "equipments": [{"eqp_id","eqp_model","batch_id","plan_prod_key","oper_id"}],
 #   "facid": "ICPRB"
 # }

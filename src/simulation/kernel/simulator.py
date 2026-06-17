@@ -93,7 +93,7 @@ class Simulator:
                         if not p.can_convert(fb, tb):
                             continue
                         used = s.tool_used.get((tb, model), 0)
-                        cap = p.tool_qty.get((tb, model), 0)
+                        cap = p.tool_cap(tb, model)
                         if used >= cap:
                             continue
                     out.append(Move(model, fi, ti))

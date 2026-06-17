@@ -68,6 +68,8 @@ def test_build_eqpconvplan_rows_batch_split():
     assert row["TEMPER_VAL"] == "92"
     assert row["TO_LOT_CD"] == "QQ"
     assert row["TO_TEMPER_VAL"] == "-30"
+    assert row["OPER_ID"] == p.tasks[0].oper_id
+    assert row["TO_OPER_ID"] == p.tasks[1].oper_id
     assert row["TESTER_EQP_MODEL_CD"] == "MODEL-A"
     rk = p.rule_timekey
     dt = datetime.strptime(rk[:14], "%Y%m%d%H%M%S")
@@ -83,6 +85,8 @@ def test_insert_eqpconvplan_sql_bind_names():
     names = sql_bind_names(sql)
     assert "FAC_ID" in names
     assert "CONV_START_TM" in names
+    assert "OPER_ID" in names
+    assert "TO_OPER_ID" in names
     assert "CRT_TM" not in names
     assert "CHG_TM" not in names
 

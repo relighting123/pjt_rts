@@ -3,6 +3,8 @@
 SELECT RULE_TIMEKEY AS rule_timekey,
        FAC_ID AS fac_id,
        BATCH_ID AS batch_id,
+       LOT_CD AS lot_cd,
+       TEMPER_VAL AS temper_val,
        PLAN_PROD_KEY AS plan_prod_key,
        OPER_ID AS oper_id,
        OPER_SEQ AS oper_seq,

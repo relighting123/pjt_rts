@@ -8,6 +8,8 @@ def test_row_from_mapping_db_column_names():
         "RULE_TIMEKEY": "2026052922500000",
         "FAC_ID": "ICPRB",
         "BATCH_ID": "B1",
+        "LOT_CD": "B1",
+        "TEMPER_VAL": "-",
         "PLAN_PROD_KEY": "P1",
         "OPER_ID": "OP10",
         "OPER_SEQ": 1,
@@ -17,8 +19,16 @@ def test_row_from_mapping_db_column_names():
     })
     assert row.rule_timekey == "2026052922500000"
     assert row.fac_id == "ICPRB"
+    assert row.lot_cd == "B1"
     assert row.eqp_model == "M1"
     assert row.gbn_cd == "EQUIP_UPH"
+
+
+def test_normalize_gbn_cd_aliases():
+    from src.db.input_row import normalize_gbn_cd
+    assert normalize_gbn_cd("UPH") == "EQUIP_UPH"
+    assert normalize_gbn_cd("EXEC_D0_PLAN") == "D0_TARGET_QTY"
+    assert normalize_gbn_cd("AVAIL_WIP_QTY") == "WIP_QTY"
 
 
 def test_row_from_mapping_order_independent():

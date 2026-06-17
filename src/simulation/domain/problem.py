@@ -67,6 +67,14 @@ class ProblemInstance:
     def batch_of(self, task_index: int) -> str:
         return self.tasks[task_index].batch_id
 
+    def lot_cd_of(self, batch_id: str) -> str:
+        from src.db.eqpconvplan import split_batch_lot_temper
+        lot, _ = split_batch_lot_temper(batch_id)
+        return lot
+
+    def tool_cap(self, batch_id: str, model: str) -> int:
+        return self.tool_qty.get((self.lot_cd_of(batch_id), model), 0)
+
     def conv_group_of(self, batch_id: str) -> str | None:
         for gid, batches in self.conv_groups.items():
             if batch_id in batches:

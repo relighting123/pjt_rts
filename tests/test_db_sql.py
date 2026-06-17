@@ -46,6 +46,8 @@ def test_fetch_rows_sql_requires_facid_and_batch_like():
     assert ":batch_like" in sql
     assert "BATCH_ID LIKE :batch_like" in sql
     assert "AS rule_timekey" in sql
+    assert "AS lot_cd" in sql
+    assert "TEMPER_VAL AS temper_val" in sql
     assert "EQP_MODEL_CD AS eqp_model" in sql
 
 

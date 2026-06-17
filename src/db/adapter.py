@@ -6,7 +6,13 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import datetime, timedelta
 import config
-from src.db.input_row import InputRow, coerce_input_row, coerce_input_rows, rows_from_cursor
+from src.db.input_row import (
+    InputRow,
+    coerce_input_row,
+    coerce_input_rows,
+    compose_batch_id,
+    rows_from_cursor,
+)
 from src.db.sql_loader import filter_rows_for_sql, load_sql
 from src.db.sql_log import log_sql
 from src.simulation.domain.problem import Equipment, Task, ProblemInstance
@@ -60,14 +66,33 @@ def rows_to_problem(rows, horizon_hours: int,
     equipments: list[Equipment] = []
     rk = rule_timekey
 
+    def _ensure_task_meta(ppk: str, oper_id: str, r: InputRow) -> None:
+        key = (ppk, oper_id)
+        meta = task_meta.setdefault(
+            key,
+            {
+                "batch_id": r.batch_id,
+                "oper_seq": r.oper_seq,
+                "lot_cd": r.lot_cd,
+                "temper_val": r.temper_val,
+            },
+        )
+        if r.gbn_cd in ("D0_TARGET_QTY", "WIP_QTY"):
+            meta["lot_cd"] = r.lot_cd
+            meta["temper_val"] = r.temper_val
+            meta["batch_id"] = compose_batch_id(r.lot_cd, r.temper_val, r.batch_id)
+            meta["oper_seq"] = r.oper_seq
+        elif meta.get("lot_cd") in ("", "-") and r.lot_cd not in ("", "-"):
+            meta["lot_cd"] = r.lot_cd
+            meta["temper_val"] = r.temper_val
+
     for raw in rows:
         r = coerce_input_row(raw)
         rk = rk or r.rule_timekey
-        batch_id = r.batch_id
         ppk, oper_id = r.plan_prod_key, r.oper_id
         eqp_model, gbn, val = r.eqp_model, r.gbn_cd, r.attr_val
         key = (ppk, oper_id)
-        task_meta.setdefault(key, {"batch_id": batch_id, "oper_seq": r.oper_seq})
+        _ensure_task_meta(ppk, oper_id, r)
         if eqp_model:
             eqp_models.add(eqp_model)
         if gbn == "EQUIP_UPH" and float(val) > 0:
@@ -75,13 +100,13 @@ def rows_to_problem(rows, horizon_hours: int,
         elif gbn == "ASSIGN_EQUIP_CNT":
             assign_raw[(ppk, oper_id, eqp_model)] = int(float(val))
         elif gbn == "TOOL_QTY":
-            tool_raw[(batch_id, eqp_model)] = int(float(val))
-        elif gbn == "EXEC_D0_PLAN":
+            tool_raw[(r.lot_cd, eqp_model)] = int(float(val))
+        elif gbn == "D0_TARGET_QTY":
             target_raw[key] = int(float(val))
-        elif gbn == "AVAIL_WIP_QTY":
+        elif gbn == "WIP_QTY":
             wip_raw[key] = int(float(val))
         elif gbn == "EQP_ID":
-            # 실제 호기 명단: ATTR_VAL=호기ID, 행의 모델/BATCH_ID/PLAN_PROD_KEY/OPER_ID가 현재 배치
+            batch_id = compose_batch_id(r.lot_cd, r.temper_val, r.batch_id)
             equipments.append(Equipment(
                 eqp_id=str(val), eqp_model=eqp_model,
                 batch_id=batch_id, plan_prod_key=ppk, oper_id=oper_id,
@@ -89,11 +114,16 @@ def rows_to_problem(rows, horizon_hours: int,
 
     keys = list(task_meta)
     index = {k: i for i, k in enumerate(keys)}
-    tasks = [
-        Task(ppk, oper, task_meta[(ppk, oper)]["oper_seq"], task_meta[(ppk, oper)]["batch_id"],
-             target_raw.get((ppk, oper), 0), wip_raw.get((ppk, oper), 0))
-        for (ppk, oper) in keys
-    ]
+    tasks = []
+    for (ppk, oper) in keys:
+        meta = task_meta[(ppk, oper)]
+        batch_id = compose_batch_id(meta["lot_cd"], meta["temper_val"], meta["batch_id"])
+        tasks.append(
+            Task(
+                ppk, oper, meta["oper_seq"], batch_id,
+                target_raw.get((ppk, oper), 0), wip_raw.get((ppk, oper), 0),
+            )
+        )
     uph = {(m, index[(ppk, o)]): v for (ppk, o, m), v in uph_raw.items()}
     init_assign = {(m, index[(ppk, o)]): c for (ppk, o, m), c in assign_raw.items() if c > 0}
     if not init_assign and equipments:
