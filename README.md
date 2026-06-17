@@ -111,10 +111,22 @@ python main.py export --train --from-timekey 2026050100000000 --to-timekey 20260
 
 ## API 엔드포인트
 
-- `GET /api/health` : 헬스체크
+- `GET /api/health` : 헬스체크 (`ops: true` 이면 Train/Export/Infer 지원)
 - `GET /api/datasets` : 분석 가능한 데이터셋 목록
 - `GET /api/datasets/{name}` : 데이터셋 상세 분석 결과
 - `GET /api/summary` : 전체 데이터셋 요약
+- `GET /api/training/metrics` : 학습 수렴 로그 (dispatch | alloc)
+- `GET /api/ops/status` : 운영 대시보드 상태
+- `POST /api/ops/export` : DB → JSON export
+- `POST /api/ops/infer` : 추론 파이프라인
+- `POST /api/ops/train` : PPO 학습 파이프라인
+
+### UI에서 Train 실행 시 "Not Found"가 나올 때
+
+1. **API 서버가 최신 코드인지 확인** — `/api/health` 응답에 `"ops": true` 가 있어야 합니다.
+2. **개발 모드** — 터미널 1: `uvicorn src.api.main:app --host 0.0.0.0 --port 8000`, 터미널 2: `cd web && npm run dev`
+3. **운영 모드** — `cd web && npm run build` 후 uvicorn만 8000 포트로 실행 (정적 UI + API 동시 서빙)
+4. `npm run preview` 만 단독 실행하면 `/api` 프록시가 없어 404가 납니다 — preview 사용 시에도 uvicorn을 함께 띄우세요.
 
 ## 설정
 

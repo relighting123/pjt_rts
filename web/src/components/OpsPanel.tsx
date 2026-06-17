@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import {
+  fetchHealth,
   fetchOpsJobs,
   fetchOpsLogs,
   fetchOpsStatus,
@@ -21,6 +22,7 @@ export default function OpsPanel() {
   const [logs, setLogs] = useState<OpsLogEntry[]>([]);
   const [trainMetrics, setTrainMetrics] = useState<TrainingMetrics | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pollError, setPollError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState<string | null>(null);
 
   const [facid, setFacid] = useState("");
@@ -57,12 +59,26 @@ export default function OpsPanel() {
       setJobs(jb.jobs);
       setLogs(lg.logs);
       setTrainMetrics(tm);
+      setPollError(null);
     } catch (e) {
-      setError(String(e));
+      setPollError(String(e));
     }
   }, []);
 
   useEffect(() => {
+    fetchHealth()
+      .then((health) => {
+        if (health.ops === false) {
+          setError(
+            "이 API 서버는 운영(Train/Export/Infer) 기능을 지원하지 않습니다. " +
+              "최신 코드에서 uvicorn을 재시작하세요.",
+          );
+        }
+      })
+      .catch(() => {
+        /* health 없는 구버전 — ops/status로 재확인 */
+      });
+
     fetchOpsStatus()
       .then((st) => {
         if (st.defaults.facid) setFacid((v) => v || st.defaults.facid || "");
@@ -109,6 +125,7 @@ export default function OpsPanel() {
   return (
     <div className="ops-panel">
       {error && <div className="error">⚠ {error}</div>}
+      {!error && pollError && <div className="error warn">⚠ 상태 갱신 실패: {pollError}</div>}
 
       {status && (
         <section className="ops-status-grid">

@@ -11,11 +11,30 @@ import type {
   TrainingMetrics,
 } from "./types";
 
+function formatApiError(url: string, status: number, detail: string): string {
+  const trimmed = detail.trim();
+  if (status === 404 && (trimmed === "Not Found" || trimmed === '{"detail":"Not Found"}')) {
+    return (
+      `API 경로를 찾을 수 없습니다 (${url}). ` +
+      "FastAPI 서버를 최신 코드로 실행했는지 확인하세요: " +
+      "`uvicorn src.api.main:app --host 0.0.0.0 --port 8000`"
+    );
+  }
+  return trimmed || `${url} → HTTP ${status}`;
+}
+
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(body || `${url} → HTTP ${res.status}`);
+    let detail = body;
+    try {
+      const parsed = JSON.parse(body) as { detail?: string };
+      detail = parsed.detail ?? body;
+    } catch {
+      /* keep raw */
+    }
+    throw new Error(formatApiError(url, res.status, detail));
   }
   return res.json() as Promise<T>;
 }
@@ -34,11 +53,18 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
     } catch {
       /* keep raw */
     }
-    throw new Error(detail || `${url} → HTTP ${res.status}`);
+    throw new Error(formatApiError(url, res.status, detail));
   }
   return res.json() as Promise<T>;
 }
 
+export interface HealthStatus {
+  status: string;
+  ops?: boolean;
+  version?: string;
+}
+
+export const fetchHealth = () => getJson<HealthStatus>("/api/health");
 export const fetchDatasets = () => getJson<DatasetInfo[]>("/api/datasets");
 export const fetchDetail = (name: string, envType = "dispatch") =>
   getJson<DatasetDetail>(`/api/datasets/${encodeURIComponent(name)}?env_type=${envType}`);

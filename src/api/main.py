@@ -29,7 +29,8 @@ app.add_middleware(
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok"}
+    """헬스체크 — 운영(export/infer/train) API 지원 여부 포함."""
+    return {"status": "ok", "ops": True, "version": app.version}
 
 
 @app.get("/api/datasets")

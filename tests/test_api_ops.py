@@ -31,6 +31,14 @@ def test_ops_status(client):
     assert body["busy"] is False
 
 
+def test_health_reports_ops(client):
+    r = client.get("/api/health")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["status"] == "ok"
+    assert body["ops"] is True
+
+
 def test_ops_logs_empty(client, tmp_path, monkeypatch):
     log_file = tmp_path / "ops.jsonl"
     monkeypatch.setattr("src.api.ops.OPS_LOG_PATH", log_file)
@@ -72,6 +80,34 @@ def test_ops_export_sample_job(client, monkeypatch):
     job = ops.get_job(job_id)
     assert job["status"] == "done"
     assert job["result"]["count"] == 1
+
+
+def test_ops_train_local_job(client, monkeypatch):
+    from src.api.schemas import TrainRequest
+
+    def fake_execute(req: TrainRequest):
+        return {
+            "mode": req.mode,
+            "export_count": 0,
+            "problem_count": 2,
+            "steps": req.steps,
+            "model_path": "/tmp/model.zip",
+        }
+
+    monkeypatch.setattr(ops, "_execute_train", fake_execute)
+
+    r = client.post("/api/ops/train", json={"mode": "local", "steps": 100})
+    assert r.status_code == 200
+    job_id = r.json()["job_id"]
+
+    for _ in range(50):
+        if ops.get_job(job_id)["status"] in ("done", "failed"):
+            break
+        time.sleep(0.05)
+
+    job = ops.get_job(job_id)
+    assert job["status"] == "done"
+    assert job["result"]["problem_count"] == 2
 
 
 def test_ops_conflict_when_busy(client):
