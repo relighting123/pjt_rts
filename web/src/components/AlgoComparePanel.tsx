@@ -2,6 +2,7 @@ import type { AlgoView, DatasetDetail } from "../types";
 import { isMeaningfulOptimal } from "../api";
 import AllocationPivotTable from "./AllocationPivotTable";
 import GanttChart from "./GanttChart";
+import PlanVsMoveChart from "./PlanVsMoveChart";
 
 interface Props {
   detail: DatasetDetail;
@@ -67,7 +68,14 @@ function AlgoColumn({
       {envType === "alloc" ? (
         <AllocationPivotTable pivot={view.allocation_pivot} />
       ) : (
-        <GanttChart segments={view.gantt} />
+        <div className="dispatch-charts">
+          <GanttChart
+            segments={view.gantt}
+            wipSummary={view.gantt_wip}
+            allocSummary={view.gantt_allocation}
+          />
+          <PlanVsMoveChart hourly={view.hourly} />
+        </div>
       )}
     </div>
   );

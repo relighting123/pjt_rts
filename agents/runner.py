@@ -17,6 +17,7 @@ def run_policy(sim: Simulator, policy_fn: PolicyFn, policy_name: str = "heuristi
         hour = s.hour
         applied = policy_fn(sim, s)
         snapshot = {(m, ti): c for (m, ti), c in s.assign.items()}
+        wip_snapshot = dict(s.wip)
         before = dict(s.produced)
         util_rate = round(active_eqp_count(p, s) / total_eqp, 4)
         sim.advance_hour(s)
@@ -27,6 +28,7 @@ def run_policy(sim: Simulator, policy_fn: PolicyFn, policy_name: str = "heuristi
             "cumulative_produced": dict(s.produced),
             "util_rate": util_rate,
             "assign_snapshot": snapshot,
+            "wip_snapshot": wip_snapshot,
         }
         hourly_stats.append(stat)
         trace.append((hour, applied, snapshot))

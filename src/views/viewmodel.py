@@ -6,7 +6,7 @@ from datetime import datetime
 from src.utils.eqp_units import track_units
 from src.utils.rows import avg_utilization, event_tm_for_hour, guide_allocation_rows
 from src.simulation.domain.problem import ProblemInstance
-from src.views.gantt import gantt_rows
+from src.views.gantt import gantt_allocation_summary, gantt_rows, gantt_wip_summary
 from src.views.pivot import aggregate_static_rate, allocation_pivot
 
 
@@ -38,15 +38,24 @@ def _conversion_rows(conv_rows: list[dict]) -> list[dict]:
 
 
 def _hourly_view(problem: ProblemInstance, hourly_stats: list[dict]) -> list[dict]:
+    total_plan = sum(t.plan_qty for t in problem.tasks)
+    hours = max(problem.horizon_hours, len(hourly_stats), 1)
+    plan_per_hour = total_plan / hours
+    cum_plan = 0.0
     out = []
     for stat in hourly_stats:
         tm = event_tm_for_hour(problem.rule_timekey, stat["hour"])
+        produce = sum(stat["hourly_produce"].values())
+        cumulative = sum(stat["cumulative_produced"].values())
+        cum_plan += plan_per_hour
         out.append({
             "hour": stat["hour"],
             "time": _iso(tm),
-            "produce": sum(stat["hourly_produce"].values()),
-            "cumulative": sum(stat["cumulative_produced"].values()),
+            "produce": produce,
+            "cumulative": cumulative,
             "util_rate": stat["util_rate"],
+            "plan_hourly": round(plan_per_hour),
+            "plan_cumulative": round(cum_plan),
         })
     return out
 
@@ -82,7 +91,9 @@ def algo_view(problem: ProblemInstance, result: dict, prefix: str = "") -> dict 
             for k, v in per_task.items()
         ],
         "hourly": _hourly_view(problem, hourly_stats),
-        "gantt": gantt_rows(problem, assign_rows, trace),
+        "gantt": gantt_rows(problem, assign_rows, trace, hourly_stats),
+        "gantt_wip": gantt_wip_summary(problem),
+        "gantt_allocation": gantt_allocation_summary(problem),
         "conversions": _conversion_rows(conv_rows),
         "allocation_pivot": allocation_pivot(
             problem, result.get("guide_allocation", {}), per_task,

@@ -711,6 +711,55 @@ body {
 /* ── Gantt ── */
 .gantt-wrap { overflow-x: auto; max-width: 100%; }
 .gantt-svg { width: 100%; max-width: 100%; height: auto; display: block; }
+.gantt-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.gantt-meta-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.gantt-meta-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.gantt-meta-chip {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(59,111,224,0.08);
+  color: var(--text);
+}
+.gantt-meta-chip.unalloc {
+  background: rgba(154,165,181,0.15);
+  color: var(--muted);
+}
+.gantt-meta-chip b { color: var(--warn); }
+
+.dispatch-charts {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.plan-move-wrap {
+  padding: 10px 12px 6px;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+}
+.plan-move-head { margin-bottom: 6px; }
+.plan-move-title { font-size: 12px; font-weight: 700; color: var(--text); }
+.plan-move-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.plan-move-chart { width: 100%; max-width: 100%; height: auto; display: block; }
 
 /* ── Alloc pivot ── */
 .alloc-pivot-wrap { overflow-x: auto; max-width: 100%; }
