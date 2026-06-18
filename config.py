@@ -1,5 +1,6 @@
 """전역 설정과 .env 로더."""
 from __future__ import annotations
+import json
 import os
 from pathlib import Path
 
@@ -85,11 +86,41 @@ MAX_TASKS = int(os.getenv("MAX_TASKS", "8"))
 MAX_MODELS = int(os.getenv("MAX_MODELS", "5"))
 # UI 퍼센트/KPI 표시 소수 자릿수 (.env — git 충돌 방지)
 UI_METRIC_DIGITS = int(os.getenv("UI_METRIC_DIGITS", "1"))
-CONV_GROUPS: dict[str, list[str]] = {"G1": ["B1", "B2", "B3"]}
+
+
+def _parse_conv_groups(raw: str | None) -> dict[str, list[str]] | None:
+    if not raw:
+        return None
+    try:
+        data = json.loads(raw)
+        if not isinstance(data, dict):
+            return None
+        return {str(k): [str(x) for x in v] for k, v in data.items()}
+    except (json.JSONDecodeError, TypeError, AttributeError):
+        return None
+
+
+CONV_GROUPS: dict[str, list[str]] = _parse_conv_groups(os.getenv("CONV_GROUPS")) or {
+    "G1": ["B1", "B2", "B3"],
+}
 SYS_ID = "RL_AGENT"
 
 
+def _read_runtime_config() -> dict:
+    path = MODELS_DIR / "runtime_config.json"
+    if not path.is_file():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+
+
 def load_conv_groups() -> dict[str, list[str]]:
+    """환경변수 기본값 + runtime_config.json conv_groups 오버라이드."""
+    rc = _read_runtime_config().get("conv_groups")
+    if isinstance(rc, dict) and rc:
+        return {str(k): [str(x) for x in v] for k, v in rc.items()}
     return {k: list(v) for k, v in CONV_GROUPS.items()}
 
 

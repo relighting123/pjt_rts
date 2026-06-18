@@ -83,6 +83,7 @@ def default_ml_config() -> dict[str, Any]:
         "horizon_hours": 12,
         "lookback_days": config.DEFAULT_TRAIN_LOOKBACK_DAYS,
         "metric_digits": config.UI_METRIC_DIGITS,
+        "conv_groups": config.load_conv_groups(),
     }
 
 
@@ -110,6 +111,11 @@ def get_ml_config() -> dict[str, Any]:
 def update_ml_config(updates: dict[str, Any]) -> dict[str, Any]:
     allowed = _patchable_keys()
     clean = {k: v for k, v in updates.items() if k in allowed}
+    if "conv_groups" in clean and clean["conv_groups"] is not None:
+        cg = clean["conv_groups"]
+        if not isinstance(cg, dict):
+            raise ValueError("conv_groups는 JSON 객체여야 합니다.")
+        clean["conv_groups"] = {str(k): [str(x) for x in v] for k, v in cg.items()}
     if not clean:
         raise ValueError("변경 가능한 파라미터가 없습니다.")
     current = {k: v for k, v in _runtime_overrides().items() if k in allowed}

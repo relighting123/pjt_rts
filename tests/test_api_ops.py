@@ -85,18 +85,33 @@ def test_ops_export_sample_job(client, monkeypatch):
 def test_ops_train_local_job(client, monkeypatch):
     from src.api.schemas import TrainRequest
 
+    captured: list[TrainRequest] = []
+
     def fake_execute(req: TrainRequest):
+        captured.append(req)
         return {
             "mode": req.mode,
             "export_count": 0,
             "problem_count": 2,
             "steps": req.steps,
+            "facid": req.facid,
+            "batchid": req.batchid,
+            "conv_groups": req.conv_groups,
             "model_path": "/tmp/model.zip",
         }
 
     monkeypatch.setattr(ops, "_execute_train", fake_execute)
 
-    r = client.post("/api/ops/train", json={"mode": "local", "steps": 100})
+    r = client.post(
+        "/api/ops/train",
+        json={
+            "mode": "local",
+            "steps": 100,
+            "facid": "ICPRB",
+            "batchid": "B2",
+            "conv_groups": {"G1": ["B1", "B2"]},
+        },
+    )
     assert r.status_code == 200
     job_id = r.json()["job_id"]
 
@@ -108,6 +123,9 @@ def test_ops_train_local_job(client, monkeypatch):
     job = ops.get_job(job_id)
     assert job["status"] == "done"
     assert job["result"]["problem_count"] == 2
+    assert captured[0].facid == "ICPRB"
+    assert captured[0].batchid == "B2"
+    assert captured[0].conv_groups == {"G1": ["B1", "B2"]}
 
 
 def test_ops_conflict_when_busy(client):

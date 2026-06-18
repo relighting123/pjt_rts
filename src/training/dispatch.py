@@ -33,9 +33,9 @@ def _get_target_allocation(problem: ProblemInstance) -> dict:
     if config.USE_ALLOC_MODEL and config.ALLOC_LAMBDA > 0.0:
         alloc_model_path = config.SAVED_MODELS_DIR / "ppo_alloc.zip"
         if alloc_model_path.exists():
-            from agents.model_store import load_alloc_model
+            from agents.model_store import load_alloc_model, alloc_model_matches
             alloc_model = load_alloc_model(alloc_model_path)
-            if alloc_model is not None:
+            if alloc_model is not None and alloc_model_matches(alloc_model, problem):
                 from envs.allocation_env import AllocationEnv
                 alloc_env = AllocationEnv(problem, max_tasks=config.MAX_TASKS,
                                           max_models=config.MAX_MODELS)
@@ -84,7 +84,10 @@ def collect_teacher_dataset(problems: list[ProblemInstance]):
             action_seq = [move_to_idx[m] for m in planned if m in move_to_idx] + [0]
             for a in action_seq:
                 mask = env.action_masks()
-                if not mask[a]:
+                a = int(a)
+                if a < 0 or a >= len(mask):
+                    a = 0
+                elif not mask[a]:
                     a = 0
                 obs_buf.append(obs.copy())
                 act_buf.append(a)
@@ -132,6 +135,11 @@ def behavior_clone(model: MaskablePPO, obs, acts, masks, epochs: int, lr: float,
 def train_model(problems: list[ProblemInstance], ppo_steps: int = config.DEFAULT_PPO_STEPS,
                 bc_epochs: int = config.BC_EPOCHS, lr: float = config.BC_LR,
                 save_path: Path | None = None) -> MaskablePPO:
+    if not problems:
+        raise ValueError(
+            "학습 가능한 문제가 없습니다. MAX_TASKS/MAX_MODELS가 데이터보다 작거나 "
+            "모든 JSON의 task/model 수가 다릅니다."
+        )
     save_path = Path(save_path) if save_path else config.MODEL_PATH
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -148,6 +156,11 @@ def train_model(problems: list[ProblemInstance], ppo_steps: int = config.DEFAULT
             len(same),
         )
     problems = same
+    if not problems:
+        raise ValueError(
+            "학습 가능한 문제가 없습니다. MAX_TASKS/MAX_MODELS가 데이터보다 작거나 "
+            "모든 JSON의 task/model 수가 다릅니다."
+        )
 
     def _vec_env():
         return DummyVecEnv([lambda: make_env(random.choice(problems))])
@@ -159,6 +172,14 @@ def train_model(problems: list[ProblemInstance], ppo_steps: int = config.DEFAULT
 
     model = MaskablePPO("MlpPolicy", _vec_env(), verbose=0, n_steps=256, batch_size=64)
     obs, acts, masks = collect_teacher_dataset(problems)
+    if len(obs) == 0:
+        raise ValueError("교사 데이터셋이 비어 있습니다. 학습 JSON과 MAX_TASKS/MAX_MODELS를 확인하세요.")
+    n_actions = int(model.action_space.n)
+    if int(np.max(acts)) >= n_actions or int(np.min(acts)) < 0:
+        raise ValueError(
+            f"BC action 범위 오류 (max={int(np.max(acts))}, n_actions={n_actions}). "
+            "MAX_TASKS/MAX_MODELS 설정을 확인하세요."
+        )
     behavior_clone(model, obs, acts, masks, bc_epochs, lr)
     model.set_env(_vec_env())
     model.learn(

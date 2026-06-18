@@ -307,9 +307,16 @@ def _execute_infer(req: InferRequest) -> dict[str, Any]:
 
 
 def _execute_train(req: TrainRequest) -> dict[str, Any]:
+    from src.api import ml
     from src.db.export import export_train_range
     from src.db.pipeline import load_train_problems_from_export
     from src.train import run_train
+
+    if req.conv_groups:
+        ml.update_ml_config({"conv_groups": req.conv_groups})
+
+    cfg = ml.get_ml_config()
+    steps = req.steps or cfg.get("ppo_steps", config.DEFAULT_PPO_STEPS)
 
     export_count = 0
     if req.mode == "db_range":
@@ -329,12 +336,15 @@ def _execute_train(req: TrainRequest) -> dict[str, Any]:
             "학습 JSON 없음. DB 범위 export를 선택하거나 data/raw/train/ 에 JSON을 준비하세요."
         )
 
-    model_path = run_train(problems=problems, ppo_steps=req.steps)
+    model_path = run_train(problems=problems, ppo_steps=steps)
     return {
         "mode": req.mode,
         "export_count": export_count,
         "problem_count": len(problems),
-        "steps": req.steps,
+        "steps": steps,
+        "facid": req.facid,
+        "batchid": req.batchid,
+        "conv_groups": config.load_conv_groups(),
         "model_path": str(model_path),
     }
 

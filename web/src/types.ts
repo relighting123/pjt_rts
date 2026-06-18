@@ -255,6 +255,7 @@ export interface TrainRequest {
   facid?: string | null;
   batchid?: string | null;
   steps?: number;
+  conv_groups?: Record<string, string[]> | null;
 }
 
 export interface MlConfig {
@@ -273,6 +274,7 @@ export interface MlConfig {
   horizon_hours: number;
   lookback_days: number;
   metric_digits: number;
+  conv_groups: Record<string, string[]>;
   env_locked?: string[];
   paths: Record<string, string>;
 }
