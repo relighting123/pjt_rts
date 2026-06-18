@@ -128,6 +128,46 @@ def test_ops_train_local_job(client, monkeypatch):
     assert captured[0].conv_groups == {"G1": ["B1", "B2"]}
 
 
+def test_ops_infer_passes_conv_groups(client, monkeypatch):
+    from src.api.schemas import InferRequest
+
+    captured: list[InferRequest] = []
+
+    def fake_execute(req: InferRequest):
+        captured.append(req)
+        return {
+            "rule_timekey": "2026010100",
+            "facid": req.facid,
+            "batchid": req.batchid,
+            "conv_groups": req.conv_groups,
+            "result_path": "/tmp/result.json",
+        }
+
+    monkeypatch.setattr(ops, "_execute_infer", fake_execute)
+
+    r = client.post(
+        "/api/ops/infer",
+        json={
+            "facid": "ICPRB",
+            "batchid": "B3",
+            "conv_groups": {"G1": ["B1", "B2", "B3"]},
+        },
+    )
+    assert r.status_code == 200
+    job_id = r.json()["job_id"]
+
+    for _ in range(50):
+        if ops.get_job(job_id)["status"] in ("done", "failed"):
+            break
+        time.sleep(0.05)
+
+    job = ops.get_job(job_id)
+    assert job["status"] == "done"
+    assert captured[0].facid == "ICPRB"
+    assert captured[0].batchid == "B3"
+    assert captured[0].conv_groups == {"G1": ["B1", "B2", "B3"]}
+
+
 def test_ops_conflict_when_busy(client):
     ops._jobs["busy1"] = {
         "id": "busy1",

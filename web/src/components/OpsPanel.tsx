@@ -320,6 +320,16 @@ export default function OpsPanel({ focus = "all" }: Props) {
             <p className="panel-sub">DB export → RL/휴리스틱 평가 → result JSON → (선택) DB write</p>
             {dbFields("infer")}
             <div className="ops-field-row">
+              <label>전환 그룹 (conv_groups JSON)</label>
+              <textarea
+                className="ops-textarea"
+                rows={4}
+                value={convGroupsJson}
+                onChange={(e) => setConvGroupsJson(e.target.value)}
+                spellCheck={false}
+              />
+            </div>
+            <div className="ops-field-row">
               <label>RULE_TIMEKEY</label>
               <input
                 value={inferTimekey}
@@ -352,6 +362,7 @@ export default function OpsPanel({ focus = "all" }: Props) {
                   postOpsInfer({
                     timekey: inferTimekey.trim() || null,
                     ...baseParams(),
+                    conv_groups: parseConvGroups(),
                     skip_input_export: inferSkipExport,
                     write_db: inferWriteDb,
                   }),

@@ -27,6 +27,7 @@ class InferRequest(BaseModel):
     horizon_hours: int = Field(default=12, ge=1, le=168)
     skip_input_export: bool = False
     write_db: bool = True
+    conv_groups: dict[str, list[str]] | None = None
 
 
 class TrainRequest(BaseModel):

@@ -244,6 +244,7 @@ export interface InferRequest {
   horizon_hours?: number;
   skip_input_export?: boolean;
   write_db?: boolean;
+  conv_groups?: Record<string, string[]> | null;
 }
 
 export interface TrainRequest {

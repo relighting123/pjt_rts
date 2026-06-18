@@ -288,7 +288,11 @@ def _execute_export(req: ExportRequest) -> dict[str, Any]:
 
 
 def _execute_infer(req: InferRequest) -> dict[str, Any]:
+    from src.api import ml
     from src.inference import run_infer
+
+    if req.conv_groups:
+        ml.update_ml_config({"conv_groups": req.conv_groups})
 
     out = run_infer(
         rule_timekey=req.timekey,
@@ -303,6 +307,9 @@ def _execute_infer(req: InferRequest) -> dict[str, Any]:
     if isinstance(doc, dict):
         serialized["policy"] = doc.get("policy")
         serialized["guide_source"] = doc.get("guide", {}).get("source")
+    serialized["facid"] = req.facid
+    serialized["batchid"] = req.batchid
+    serialized["conv_groups"] = config.load_conv_groups()
     return serialized
 
 
