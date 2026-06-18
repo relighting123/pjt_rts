@@ -8,6 +8,28 @@ def test_largest_remainder_preserves_total():
     assert largest_remainder([1.2, 0.8], 2) == [1, 1]
 
 
+def test_largest_remainder_handles_deficit_larger_than_slots():
+    from src.simulation.domain.problem import largest_remainder
+
+    assert largest_remainder([0.3], 10) == [10]
+    assert sum(largest_remainder([0.5, 0.5], 5)) == 5
+    assert largest_remainder([], 3) == []
+
+
+def test_allocation_env_logits_to_allocation_no_index_error():
+    import numpy as np
+    from envs.allocation_env import AllocationEnv
+    from src.utils.json_io import load_problem
+    from config import TEST_DATA_DIR
+
+    p = load_problem(TEST_DATA_DIR / "benchmark_02.json")
+    env = AllocationEnv(p)
+    action = np.zeros(env.action_space.shape, dtype=np.float32)
+    alloc = env._logits_to_allocation(action)
+    assert isinstance(alloc, dict)
+    assert sum(alloc.values()) <= sum(p.eqp_qty.values())
+
+
 def test_analytic_guide_matches_eqp_qty_per_model():
     p = load_problem(TEST_DATA_DIR / "benchmark_02.json")
     guide = p.complete_guide_allocation(p.plan_target_allocation_int())
