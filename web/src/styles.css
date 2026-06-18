@@ -1030,3 +1030,20 @@ table.data tr:hover td { background: rgba(91,143,249,0.06); }
 .ops-log-line .ts { color: var(--muted); }
 .ops-log-line .ev { color: var(--accent); font-weight: 700; }
 .ops-log-line .msg { color: var(--text); word-break: break-all; }
+
+.infer-result-panel { margin-top: 4px; }
+.infer-result-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.infer-result-head h2 { margin: 0 0 4px; font-size: 15px; font-weight: 700; }
+.infer-result-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
