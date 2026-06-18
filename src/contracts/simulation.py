@@ -22,6 +22,7 @@ class HourlyStat:
     cumulative_produced: dict[int, int]
     util_rate: float
     assign_snapshot: dict[tuple[str, int], int]
+    wip_snapshot: dict[int, int] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -30,6 +31,7 @@ class HourlyStat:
             "cumulative_produced": dict(self.cumulative_produced),
             "util_rate": self.util_rate,
             "assign_snapshot": dict(self.assign_snapshot),
+            "wip_snapshot": dict(self.wip_snapshot),
         }
 
     @classmethod
@@ -40,6 +42,7 @@ class HourlyStat:
             cumulative_produced=dict(d["cumulative_produced"]),
             util_rate=float(d["util_rate"]),
             assign_snapshot=dict(d["assign_snapshot"]),
+            wip_snapshot=dict(d.get("wip_snapshot", {})),
         )
 
 

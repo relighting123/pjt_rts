@@ -25,10 +25,29 @@ export interface HourlyStat {
   produce: number;
   cumulative: number;
   util_rate: number;
+  plan_hourly: number;
+  plan_cumulative: number;
+}
+
+export interface GanttWipRow {
+  task: string;
+  batch_id: string;
+  plan_prod_key: string;
+  oper_id: string;
+  init_wip: number;
+  plan_qty: number;
+}
+
+export interface GanttAllocRow {
+  eqp_id: string;
+  model: string;
+  task: string;
+  batch_id: string;
+  allocated: boolean;
 }
 
 export interface GanttSegment {
-  kind: "RUN" | "CONV";
+  kind: "RUN" | "CONV" | "IDLE" | "UNALLOC";
   eqp_id: string;
   model: string;
   plan_prod_key: string;
@@ -38,6 +57,9 @@ export interface GanttSegment {
   start: string;
   end: string;
   qty: number;
+  allocated?: boolean;
+  wip?: number;
+  idle_reason?: string;
   from_batch?: string;
   to_batch?: string;
   from_task?: string;
@@ -81,6 +103,8 @@ export interface AlgoView {
   per_task: PerTask[];
   hourly: HourlyStat[];
   gantt: GanttSegment[];
+  gantt_wip: GanttWipRow[];
+  gantt_allocation: GanttAllocRow[];
   conversions: ConversionRow[];
   allocation_pivot: AllocationPivot;
 }
