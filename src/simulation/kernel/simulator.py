@@ -18,8 +18,16 @@ def active_eqp_count(p: ProblemInstance, s: SimState) -> int:
 class Simulator:
     """1시간 단위로 전이하는 결정론적 시뮬레이터."""
 
-    def __init__(self, problem: ProblemInstance):
+    def __init__(
+        self,
+        problem: ProblemInstance,
+        *,
+        until_wip_exhausted: bool = False,
+        max_hours: int | None = None,
+    ):
         self.p = problem
+        self.until_wip_exhausted = until_wip_exhausted
+        self.max_hours = max_hours if max_hours is not None else problem.horizon_hours
 
     def reset(self) -> SimState:
         p = self.p
@@ -57,6 +65,10 @@ class Simulator:
         s.hour += 1
 
     def is_done(self, s: SimState) -> bool:
+        if self.until_wip_exhausted:
+            if sum(s.wip.values()) <= 0:
+                return True
+            return s.hour >= self.max_hours
         return s.hour >= self.p.horizon_hours
 
     def metrics(self, s: SimState) -> dict:

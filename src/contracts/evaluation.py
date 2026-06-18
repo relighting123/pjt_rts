@@ -50,8 +50,12 @@ class EvaluationResult:
         out = self.heuristic.to_legacy_dict()
         out["guide_allocation"] = self.guide.as_dict()
         out["optimal"] = self.optimal
+        out["heuristic_final_wip"] = dict(self.heuristic.run.final_state.wip)
+        out["heuristic_sim_hours"] = self.heuristic.run.final_state.hour
         if self.rl is not None:
             out.update(self.rl.to_legacy_dict(prefix="rl_"))
             out["rl"] = self.rl.run.plan_achievement
             out["rl_per_task"] = self.rl.run.per_task
+            out["rl_final_wip"] = dict(self.rl.run.final_state.wip)
+            out["rl_sim_hours"] = self.rl.run.final_state.hour
         return out

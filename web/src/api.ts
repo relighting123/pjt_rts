@@ -90,8 +90,14 @@ export interface HealthStatus {
 
 export const fetchHealth = () => getJson<HealthStatus>("/api/health");
 export const fetchDatasets = () => getJson<DatasetInfo[]>("/api/datasets");
-export const fetchDetail = (name: string, envType = "dispatch") =>
-  getJson<DatasetDetail>(`/api/datasets/${encodeURIComponent(name)}?env_type=${envType}`);
+export const fetchDetail = (
+  name: string,
+  envType = "dispatch",
+  untilWipExhausted = true,
+) =>
+  getJson<DatasetDetail>(
+    `/api/datasets/${encodeURIComponent(name)}?env_type=${envType}&until_wip_exhausted=${untilWipExhausted ? "true" : "false"}`,
+  );
 export const fetchSummary = (envType = "dispatch") =>
   getJson<Summary>(`/api/summary?env_type=${envType}`);
 export const fetchTrainingMetrics = (stage: "dispatch" | "alloc" = "dispatch") =>

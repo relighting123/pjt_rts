@@ -45,6 +45,7 @@ export default function OpsPanel({ focus = "all" }: Props) {
   const [inferTimekey, setInferTimekey] = useState("");
   const [inferSkipExport, setInferSkipExport] = useState(false);
   const [inferWriteDb, setInferWriteDb] = useState(true);
+  const [inferUntilWipExhausted, setInferUntilWipExhausted] = useState(true);
 
   const [trainMode, setTrainMode] = useState<"local" | "db_range">("local");
   const [trainRangeMode, setTrainRangeMode] = useState<RangeMode>("lookback");
@@ -348,6 +349,14 @@ export default function OpsPanel({ focus = "all" }: Props) {
             <label className="ops-check">
               <input
                 type="checkbox"
+                checked={inferUntilWipExhausted}
+                onChange={(e) => setInferUntilWipExhausted(e.target.checked)}
+              />
+              재공 소진까지 추론 (until WIP exhausted)
+            </label>
+            <label className="ops-check">
+              <input
+                type="checkbox"
                 checked={inferWriteDb}
                 onChange={(e) => setInferWriteDb(e.target.checked)}
               />
@@ -363,6 +372,7 @@ export default function OpsPanel({ focus = "all" }: Props) {
                     timekey: inferTimekey.trim() || null,
                     ...baseParams(),
                     conv_groups: parseConvGroups(),
+                    until_wip_exhausted: inferUntilWipExhausted,
                     skip_input_export: inferSkipExport,
                     write_db: inferWriteDb,
                   }),

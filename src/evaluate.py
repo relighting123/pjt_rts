@@ -21,21 +21,26 @@ def _policy_run(problem: ProblemInstance, run, extra: dict) -> PolicyRunResult:
     )
 
 
-def evaluate_benchmark(problem: ProblemInstance, model=None) -> dict:
+def evaluate_benchmark(problem: ProblemInstance, model=None, *, until_wip_exhausted: bool = False) -> dict:
     """벤치마크 1건 평가 — 레거시 dict 반환 (API 호환)."""
-    return evaluate(problem, model=model).to_legacy_dict()
+    return evaluate(problem, model=model, until_wip_exhausted=until_wip_exhausted).to_legacy_dict()
 
 
-def evaluate(problem: ProblemInstance, model=None) -> EvaluationResult:
+def evaluate(problem: ProblemInstance, model=None, *, until_wip_exhausted: bool = False) -> EvaluationResult:
     guide = allocate(problem)
-    h_run = run_dispatch(problem, guide, policy="heuristic")
+    h_run = run_dispatch(
+        problem, guide, policy="heuristic", until_wip_exhausted=until_wip_exhausted,
+    )
     h_extra = enrich_eval_result(problem, h_run.legacy_trace, h_run.legacy_hourly_stats)
     heuristic = _policy_run(problem, h_run, h_extra)
 
     rl_result = None
     if model is not None and dispatch_model_matches(model, problem):
         rl_fn = rl_dispatch_factory(model, problem)
-        rl_run = run_dispatch(problem, guide, policy=rl_fn, policy_name="rl")
+        rl_run = run_dispatch(
+            problem, guide, policy=rl_fn, policy_name="rl",
+            until_wip_exhausted=until_wip_exhausted,
+        )
         rl_extra = enrich_eval_result(problem, rl_run.legacy_trace, rl_run.legacy_hourly_stats)
         rl_result = _policy_run(problem, rl_run, rl_extra)
 

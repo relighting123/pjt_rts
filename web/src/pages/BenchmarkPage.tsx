@@ -36,7 +36,7 @@ export default function BenchmarkPage() {
     if (!selected) return;
     setLoadingDetail(true);
     setError(null);
-    fetchDetail(selected, envType)
+    fetchDetail(selected, envType, envType === "dispatch")
       .then(setDetail)
       .catch((e) => setError(String(e)))
       .finally(() => setLoadingDetail(false));
@@ -142,6 +142,11 @@ export default function BenchmarkPage() {
                   <b>{detail.name}</b>
                   {" · "}RULE_TIMEKEY <b>{detail.meta.rule_timekey}</b>
                   {" · "}Horizon <b>{detail.meta.horizon_hours}h</b>
+                  {detail.meta.until_wip_exhausted && (
+                    <>
+                      {" · "}재공 소진 시뮬 <b>{detail.meta.sim_hours?.heuristic ?? "?"}h</b>
+                    </>
+                  )}
                 </div>
                 <h2 className="section-title">
                   {envType === "alloc" ? "휴리스틱 vs RL · 장비 배분" : "휴리스틱 vs RL · 간트차트"}

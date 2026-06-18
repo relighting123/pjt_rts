@@ -28,6 +28,7 @@ class InferRequest(BaseModel):
     skip_input_export: bool = False
     write_db: bool = True
     conv_groups: dict[str, list[str]] | None = None
+    until_wip_exhausted: bool = True
 
 
 class TrainRequest(BaseModel):
