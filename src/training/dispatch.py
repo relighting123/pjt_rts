@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import copy
+import logging
 import random
 from pathlib import Path
 
@@ -9,6 +10,7 @@ import numpy as np
 import torch
 from sb3_contrib import MaskablePPO
 from sb3_contrib.common.wrappers import ActionMasker
+from stable_baselines3.common.vec_env import DummyVecEnv
 
 import config
 from src.simulation.domain.problem import ProblemInstance
@@ -19,6 +21,8 @@ from src.training.allocation import train_alloc_model
 from src.training.callbacks import ConvergenceLogger
 from src.training.log_io import append_training_point, reset_training_log
 from src.stages.allocation.use_case import allocate
+
+log = logging.getLogger(__name__)
 
 
 def _mask_fn(env) -> np.ndarray:
@@ -113,7 +117,7 @@ def behavior_clone(model: MaskablePPO, obs, acts, masks, epochs: int, lr: float,
         loss.backward()
         opt.step()
         if loss.item() < loss_target:
-            print(f"[BC] 조기종료: epoch {epoch+1}/{epochs}, loss={loss.item():.4f}")
+            log.info("[BC] 조기종료: epoch %s/%s, loss=%.4f", epoch + 1, epochs, loss.item())
             break
         if (epoch + 1) % max(1, epochs // 20) == 0 or epoch == 0:
             append_training_point("dispatch", {
@@ -138,22 +142,25 @@ def train_model(problems: list[ProblemInstance], ppo_steps: int = config.DEFAULT
     base = _shape(problems[0])
     same = [p for p in problems if _shape(p) == base]
     if len(same) < len(problems):
-        print(f"[train] shape가 다른 문제 {len(problems) - len(same)}개 제외 "
-              f"(단일 정책은 동일 shape만 학습). {len(same)}개로 학습.")
+        log.info(
+            "[train] shape가 다른 문제 %s개 제외 (단일 정책은 동일 shape만 학습). %s개로 학습.",
+            len(problems) - len(same),
+            len(same),
+        )
     problems = same
+
+    def _vec_env():
+        return DummyVecEnv([lambda: make_env(random.choice(problems))])
 
     if config.USE_ALLOC_MODEL and config.ALLOC_LAMBDA > 0.0:
         train_alloc_model(problems, ppo_steps=max(2000, ppo_steps // 10))
 
     reset_training_log("dispatch")
 
-    def env_fn():
-        return make_env(random.choice(problems))
-
-    model = MaskablePPO("MlpPolicy", env_fn(), verbose=0, n_steps=256, batch_size=64)
+    model = MaskablePPO("MlpPolicy", _vec_env(), verbose=0, n_steps=256, batch_size=64)
     obs, acts, masks = collect_teacher_dataset(problems)
     behavior_clone(model, obs, acts, masks, bc_epochs, lr)
-    model.set_env(env_fn())
+    model.set_env(_vec_env())
     model.learn(
         total_timesteps=ppo_steps,
         progress_bar=False,

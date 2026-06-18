@@ -209,6 +209,7 @@ export interface OpsJob {
   finished_at: string | null;
   result: Record<string, unknown> | null;
   error: string | null;
+  log?: string | null;
 }
 
 export interface OpsStatus {

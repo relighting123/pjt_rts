@@ -1,7 +1,11 @@
 """운영 작업(export / infer / train) 백그라운드 실행."""
 from __future__ import annotations
 
+import contextlib
+import io
 import json
+import logging
+import os
 import threading
 import uuid
 from datetime import datetime, timezone
@@ -11,6 +15,13 @@ from typing import Any, Callable
 import config
 from src.api.schemas import ExportRequest, InferRequest, TrainRequest
 from src.utils.ops_log import OPS_LOG_PATH
+
+log = logging.getLogger(__name__)
+
+_PIPE_ERROR_HINT = (
+    "콘솔 출력 파이프가 끊겼습니다(Windows: '파이프의 다른 끝에 프로세스가 없습니다'). "
+    "터미널에서 uvicorn을 실행하거나 `python main.py train`으로 학습해 보세요."
+)
 
 _jobs: dict[str, dict[str, Any]] = {}
 _jobs_order: list[str] = []
@@ -70,7 +81,62 @@ def _public_job(job: dict[str, Any] | None) -> dict[str, Any]:
         "finished_at": job["finished_at"],
         "result": job["result"],
         "error": job["error"],
+        "log": job.get("log"),
     }
+
+
+def _is_pipe_error(exc: BaseException) -> bool:
+    if isinstance(exc, BrokenPipeError):
+        return True
+    if isinstance(exc, OSError):
+        if getattr(exc, "winerror", None) == 109:
+            return True
+        msg = str(exc).lower()
+        if "pipe" in msg or "파이프" in msg:
+            return True
+    return False
+
+
+def _ensure_stdio() -> None:
+    """콘솔 없이 실행된 uvicorn(Windows 서비스 등)에서 stdout/stderr 보장."""
+    import sys
+
+    if sys.stdout is None:
+        sys.stdout = open(os.devnull, "w", encoding="utf-8")  # noqa: SIM115
+    if sys.stderr is None:
+        sys.stderr = open(os.devnull, "w", encoding="utf-8")  # noqa: SIM115
+
+
+def _configure_heavy_job_runtime(kind: str) -> None:
+    if kind not in ("train", "infer"):
+        return
+    _ensure_stdio()
+    os.environ.setdefault("OMP_NUM_THREADS", "1")
+    os.environ.setdefault("MKL_NUM_THREADS", "1")
+    os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+    try:
+        import torch
+
+        torch.set_num_threads(1)
+    except Exception:
+        pass
+
+
+def _run_job_callable(kind: str, fn: Callable[[], Any]) -> tuple[Any, str]:
+    _configure_heavy_job_runtime(kind)
+    out = io.StringIO()
+    err = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            result = fn()
+    except Exception as exc:
+        if _is_pipe_error(exc):
+            raise RuntimeError(_PIPE_ERROR_HINT) from exc
+        raise
+    combined = (out.getvalue() + err.getvalue()).strip()
+    if combined:
+        log.info("ops job %s log tail:\n%s", kind, combined[-2000:])
+    return result, combined
 
 
 def submit_job(kind: str, params: dict[str, Any], fn: Callable[[], Any]) -> dict[str, Any]:
@@ -88,6 +154,7 @@ def submit_job(kind: str, params: dict[str, Any], fn: Callable[[], Any]) -> dict
             "finished_at": None,
             "result": None,
             "error": None,
+            "log": None,
         }
         _jobs[job_id] = record
         _jobs_order.append(job_id)
@@ -100,10 +167,11 @@ def submit_job(kind: str, params: dict[str, Any], fn: Callable[[], Any]) -> dict
             _jobs[job_id]["status"] = "running"
             _jobs[job_id]["started_at"] = _utc_now()
         try:
-            result = _serialize_value(fn())
+            result, job_log = _run_job_callable(kind, fn)
             with _lock:
                 _jobs[job_id]["status"] = "done"
-                _jobs[job_id]["result"] = result
+                _jobs[job_id]["result"] = _serialize_value(result)
+                _jobs[job_id]["log"] = job_log or None
                 _jobs[job_id]["finished_at"] = _utc_now()
         except Exception as exc:
             with _lock:
@@ -111,7 +179,13 @@ def submit_job(kind: str, params: dict[str, Any], fn: Callable[[], Any]) -> dict
                 _jobs[job_id]["error"] = str(exc)
                 _jobs[job_id]["finished_at"] = _utc_now()
 
-    threading.Thread(target=runner, daemon=True, name=f"ops-{kind}-{job_id}").start()
+    # train/infer: daemon=False — Windows에서 PyTorch/SB3 파이프 오류 방지
+    use_daemon = kind not in ("train", "infer")
+    threading.Thread(
+        target=runner,
+        daemon=use_daemon,
+        name=f"ops-{kind}-{job_id}",
+    ).start()
     return {"job_id": job_id, "status": "queued"}
 
 

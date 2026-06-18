@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import stable_baselines3 as sb3
 import torch
+from stable_baselines3.common.vec_env import DummyVecEnv
 
 import config
 from src.simulation.domain.problem import ProblemInstance
@@ -81,14 +82,14 @@ def train_alloc_model(problems: list[ProblemInstance], ppo_steps: int = 5000,
     base = _shape(problems[0])
     same = [p for p in problems if _shape(p) == base]
 
-    def env_fn():
-        return AllocationEnv(random.choice(same), max_tasks=config.MAX_TASKS,
-                             max_models=config.MAX_MODELS)
+    def _vec_env():
+        return DummyVecEnv([lambda: AllocationEnv(random.choice(same), max_tasks=config.MAX_TASKS,
+                                                     max_models=config.MAX_MODELS)])
 
     reset_training_log("alloc")
-    model = sb3.PPO("MlpPolicy", env_fn(), verbose=0, n_steps=64, batch_size=32)
+    model = sb3.PPO("MlpPolicy", _vec_env(), verbose=0, n_steps=64, batch_size=32)
     behavior_clone_alloc(model, same, bc_epochs, lr)
-    model.set_env(env_fn())
+    model.set_env(_vec_env())
     model.learn(
         total_timesteps=ppo_steps,
         progress_bar=False,

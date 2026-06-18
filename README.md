@@ -128,6 +128,14 @@ python main.py export --train --from-timekey 2026050100000000 --to-timekey 20260
 3. **운영 모드** — `cd web && npm run build` 후 uvicorn만 7000 포트로 실행 (정적 UI + API 동시 서빙)
 4. `npm run preview` 만 단독 실행하면 `/api` 프록시가 없어 404가 납니다 — preview 사용 시에도 uvicorn을 함께 띄우세요.
 
+### UI 학습 시 "파이프의 다른 끝에 프로세스가 없습니다" (Windows)
+
+백그라운드 학습 스레드가 콘솔 파이프에 쓰기 실패할 때 발생합니다.
+
+1. **터미널에서** uvicorn 실행 (콘솔 창 유지): `uvicorn src.api.main:app --host 0.0.0.0 --port 7000`
+2. 또는 CLI로 학습: `python main.py train --steps 50000`
+3. `--reload` 없이 실행 (리로드 시 학습 스레드가 끊김)
+
 ## 설정
 
 - 런타임 설정: `config.py`

@@ -424,6 +424,7 @@ export default function OpsPanel({ focus = "all" }: Props) {
                     <pre className="ops-job-result">{JSON.stringify(j.result, null, 2)}</pre>
                   )}
                   {j.error && <div className="ops-job-error">{j.error}</div>}
+                  {j.log && <pre className="ops-job-result">{j.log}</pre>}
                 </li>
               ))}
             </ul>

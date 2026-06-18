@@ -130,3 +130,19 @@ def test_ops_conflict_when_busy(client):
 def test_ops_job_not_found(client):
     r = client.get("/api/ops/jobs/missing-id")
     assert r.status_code == 404
+
+
+def test_is_pipe_error_detects_broken_pipe():
+    assert ops._is_pipe_error(BrokenPipeError())
+    assert ops._is_pipe_error(OSError(109, "The pipe has been ended"))
+    assert not ops._is_pipe_error(ValueError("other"))
+
+
+def test_run_job_callable_captures_stdout():
+    def fn():
+        print("hello-train-log")
+        return {"ok": True}
+
+    result, captured = ops._run_job_callable("train", fn)
+    assert result == {"ok": True}
+    assert "hello-train-log" in captured
