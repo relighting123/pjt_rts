@@ -1,8 +1,10 @@
-import type { GanttSegment } from "../types";
+import type { GanttSegment, WipProduct } from "../types";
 import { colorScale, fmtTime, num } from "../api";
 
 interface Props {
   segments: GanttSegment[];
+  title?: string;
+  wipProducts?: WipProduct[];
 }
 
 const ROW_H = 36;
@@ -23,7 +25,31 @@ function barLabel(s: Pick<GanttSegment, "batch_id" | "plan_prod_key" | "oper_id"
   return "";
 }
 
-export default function GanttChart({ segments }: Props) {
+function WipStrip({ products, title }: { products: WipProduct[]; title?: string }) {
+  if (!products.length) return null;
+  return (
+    <div className="gantt-wip-strip">
+      <span className="gantt-wip-title">{title ? `${title} · ` : ""}가용 재공 (제품별)</span>
+      <div className="gantt-wip-chips">
+        {products.map((p) => (
+          <div
+            key={p.plan_prod_key}
+            className={`gantt-wip-chip${p.remaining_wip <= 0 ? " done" : ""}`}
+          >
+            <span className="gantt-wip-product">{p.plan_prod_key}</span>
+            <span className="gantt-wip-values">
+              가용 <b>{num(p.init_wip)}</b>
+              {" · "}소진 <b>{num(p.consumed_wip)}</b>
+              {" · "}잔여 <b>{num(p.remaining_wip)}</b>
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default function GanttChart({ segments, title, wipProducts }: Props) {
   if (segments.length === 0) return <div className="empty">배치 데이터가 없습니다.</div>;
 
   const t0 = Math.min(...segments.map((s) => +new Date(s.start)));
@@ -73,7 +99,11 @@ export default function GanttChart({ segments }: Props) {
   for (let t = t0; t <= t1 + 1; t += hourMs * tickStep) ticks.push(t);
 
   return (
-    <div className="gantt-wrap">
+    <div className="gantt-embedded">
+      {wipProducts && wipProducts.length > 0 && (
+        <WipStrip products={wipProducts} title={title} />
+      )}
+      <div className="gantt-wrap">
       <svg viewBox={`0 0 ${totalWidth} ${totalHeight}`} className="gantt-svg" role="img">
         <defs>
           <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
@@ -169,6 +199,7 @@ export default function GanttChart({ segments }: Props) {
           <span className="swatch" style={{ background: "url(#hatch)", border: "1.5px dashed #d6492a", borderRadius: 3 }} />
           <span style={{ borderLeft: "3px solid #d6492a", paddingLeft: 4 }}>전환(CONV)</span>
         </span>
+      </div>
       </div>
     </div>
   );

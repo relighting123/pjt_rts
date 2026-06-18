@@ -28,29 +28,36 @@ def list_dataset_paths() -> dict[str, Path]:
     return out
 
 
-def analyze(name: str, env_type: str = "dispatch") -> dict:
+def analyze(name: str, env_type: str = "dispatch", until_wip_exhausted: bool = False) -> dict:
     paths = list_dataset_paths()
     if name not in paths:
         raise KeyError(name)
     path = paths[name]
-    key = (str(path), path.stat().st_mtime, env_type)
+    key = (str(path), path.stat().st_mtime, env_type, until_wip_exhausted)
     if key in _cache:
         return _cache[key]
     with _locks_guard:
-        lock = _locks.setdefault(str(path) + env_type, threading.Lock())
+        lock = _locks.setdefault(f"{path}:{env_type}:{until_wip_exhausted}", threading.Lock())
     with lock:
         if key in _cache:
             return _cache[key]
-        payload = _analyze_uncached(name, path, env_type)
+        payload = _analyze_uncached(name, path, env_type, until_wip_exhausted)
         _cache[key] = payload
     return payload
 
 
-def _analyze_uncached(name: str, path: Path, env_type: str = "dispatch") -> dict:
+def _analyze_uncached(
+    name: str, path: Path, env_type: str = "dispatch", until_wip_exhausted: bool = False,
+) -> dict:
     problem = load_problem(path)
-    result = eval_pipeline.evaluate_benchmark(problem, model=load_dispatch_model())
+    result = eval_pipeline.evaluate_benchmark(
+        problem, model=load_dispatch_model(), until_wip_exhausted=until_wip_exhausted,
+    )
     status = rl_status(problem, result.get("rl") is not None)
-    return build_detail_payload(name, problem, result, status, env_type=env_type)
+    return build_detail_payload(
+        name, problem, result, status, env_type=env_type,
+        until_wip_exhausted=until_wip_exhausted,
+    )
 
 
 def list_datasets() -> list[dict]:

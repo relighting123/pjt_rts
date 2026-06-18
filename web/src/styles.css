@@ -709,6 +709,61 @@ body {
 }
 
 /* ── Gantt ── */
+.gantt-embedded { min-width: 0; }
+
+.gantt-wip-strip {
+  padding: 10px 12px;
+  background: #f8fafc;
+  border-bottom: 1px solid var(--border);
+}
+
+.gantt-wip-title {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.gantt-wip-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.gantt-wip-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #fff;
+  min-width: 140px;
+}
+
+.gantt-wip-chip.done {
+  border-color: #b8e6d0;
+  background: #f0faf5;
+}
+
+.gantt-wip-product {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.gantt-wip-values {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.gantt-wip-values b {
+  color: var(--text);
+}
+
 .gantt-wrap { overflow-x: auto; max-width: 100%; }
 .gantt-svg { width: 100%; max-width: 100%; height: auto; display: block; }
 

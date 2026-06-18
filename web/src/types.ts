@@ -76,6 +76,14 @@ export interface AllocationPivot {
   rows: AllocationPivotRow[];
 }
 
+export interface WipProduct {
+  plan_prod_key: string;
+  init_wip: number;
+  remaining_wip: number;
+  consumed_wip: number;
+  plan_qty: number;
+}
+
 export interface AlgoView {
   kpis: Kpis;
   per_task: PerTask[];
@@ -83,6 +91,7 @@ export interface AlgoView {
   gantt: GanttSegment[];
   conversions: ConversionRow[];
   allocation_pivot: AllocationPivot;
+  wip_products?: WipProduct[];
 }
 
 export interface TaskInfo {
@@ -120,7 +129,10 @@ export interface DatasetDetail {
     total_eqp: number;
     has_real_equipments: boolean;
     note: string;
+    until_wip_exhausted?: boolean;
+    sim_hours?: { heuristic?: number | null; rl?: number | null };
   };
+  wip_products?: WipProduct[];
   tasks: TaskInfo[];
   equipments: EquipmentInfo[];
   optimal: number | null;
@@ -245,6 +257,7 @@ export interface InferRequest {
   skip_input_export?: boolean;
   write_db?: boolean;
   conv_groups?: Record<string, string[]> | null;
+  until_wip_exhausted?: boolean;
 }
 
 export interface TrainRequest {

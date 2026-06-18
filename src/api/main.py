@@ -47,12 +47,13 @@ def datasets():
 
 
 @app.get("/api/datasets/{name}")
-def dataset_detail(name: str, env_type: str = "dispatch"):
+def dataset_detail(name: str, env_type: str = "dispatch", until_wip_exhausted: bool = False):
     """데이터셋 1건 분석 결과 — 간트/전환/move/달성률/가이드.
     env_type: dispatch(기본) | alloc
+    until_wip_exhausted: true면 재공 소진까지 시뮬레이션
     """
     try:
-        return service.analyze(name, env_type=env_type)
+        return service.analyze(name, env_type=env_type, until_wip_exhausted=until_wip_exhausted)
     except KeyError:
         raise HTTPException(status_code=404, detail=f"dataset not found: {name}")
 

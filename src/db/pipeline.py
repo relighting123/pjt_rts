@@ -100,6 +100,7 @@ def run_inference(
     input_path: Path | None = None,
     write_db: bool = True,
     policy: str = "RL",
+    until_wip_exhausted: bool = True,
 ):
     """DB→input JSON→추론→result JSON→(선택)DB write."""
     import src.evaluate as report
@@ -118,6 +119,7 @@ def run_inference(
         skip_input_export=skip_input_export,
         write_db=write_db,
         policy=policy,
+        until_wip_exhausted=until_wip_exhausted,
         input_path=input_path,
         ops_log=config.ARTIFACTS_DIR / "inference" / "ops.jsonl",
     )
@@ -150,7 +152,9 @@ def run_inference(
         from sb3_contrib import MaskablePPO
         model = MaskablePPO.load(config.MODEL_PATH)
 
-    eval_result = report.evaluate_benchmark(problem, model)
+    eval_result = report.evaluate_benchmark(
+        problem, model, until_wip_exhausted=until_wip_exhausted,
+    )
     result_doc = build_inference_result_document(problem, eval_result, policy=policy)
     result_path = save_inference_result_document(result_doc, result_json_path(rk, fac))
 
@@ -167,6 +171,8 @@ def run_inference(
         batchid_like=f"%{bid}%",
         horizon_hours=horizon_hours,
         plan_achievement=float(rate),
+        until_wip_exhausted=until_wip_exhausted,
+        sim_hours=eval_result.get("heuristic_sim_hours"),
         input_json=inp,
         result_json=result_path,
         write_db=write_db,

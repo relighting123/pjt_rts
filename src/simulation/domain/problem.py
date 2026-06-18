@@ -168,3 +168,17 @@ class ProblemInstance:
 
     def models(self) -> list[str]:
         return sorted(self.eqp_qty)
+
+
+def estimate_wip_simulation_hours(problem: ProblemInstance) -> int:
+    """재공 소진까지 필요한 상한 시간(시간) 추정."""
+    total_wip = sum(t.init_wip for t in problem.tasks)
+    if total_wip <= 0:
+        return problem.horizon_hours
+    uph_vals = [v for v in problem._uph.values() if v and v > 0]
+    min_uph = min(uph_vals) if uph_vals else 1.0
+    total_eqp = max(sum(problem.eqp_qty.values()), 1)
+    prod_hours = int(total_wip / (min_uph * total_eqp)) + 1
+    switch_pad = len(problem.tasks) * problem.switch_time_hours
+    est = prod_hours + switch_pad + problem.horizon_hours
+    return min(max(est, problem.horizon_hours), 720)

@@ -369,6 +369,7 @@ def _execute_infer(req: InferRequest) -> dict[str, Any]:
         horizon_hours=req.horizon_hours,
         skip_input_export=req.skip_input_export,
         write_db=req.write_db,
+        until_wip_exhausted=req.until_wip_exhausted,
     )
     doc = out.pop("result_doc", None)
     serialized = _serialize_value(out)
@@ -378,6 +379,8 @@ def _execute_infer(req: InferRequest) -> dict[str, Any]:
     serialized["facid"] = req.facid
     serialized["batchid"] = req.batchid
     serialized["conv_groups"] = config.load_conv_groups()
+    serialized["until_wip_exhausted"] = req.until_wip_exhausted
+    serialized["sim_hours"] = out.get("sim_hours")
     return serialized
 
 

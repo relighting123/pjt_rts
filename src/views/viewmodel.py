@@ -8,6 +8,7 @@ from src.utils.rows import avg_utilization, event_tm_for_hour, guide_allocation_
 from src.simulation.domain.problem import ProblemInstance
 from src.views.gantt import gantt_rows
 from src.views.pivot import aggregate_static_rate, allocation_pivot
+from src.views.wip import wip_product_summary
 
 
 def _parse_tm(s: str) -> datetime:
@@ -51,7 +52,12 @@ def _hourly_view(problem: ProblemInstance, hourly_stats: list[dict]) -> list[dic
     return out
 
 
-def algo_view(problem: ProblemInstance, result: dict, prefix: str = "") -> dict | None:
+def algo_view(
+    problem: ProblemInstance,
+    result: dict,
+    prefix: str = "",
+    final_wip: dict[int, int] | None = None,
+) -> dict | None:
     def g(key: str, default=None):
         return result.get(f"{prefix}{key}" if prefix else key, default)
 
@@ -87,6 +93,7 @@ def algo_view(problem: ProblemInstance, result: dict, prefix: str = "") -> dict 
         "allocation_pivot": allocation_pivot(
             problem, result.get("guide_allocation", {}), per_task,
         ),
+        "wip_products": wip_product_summary(problem, final_wip),
     }
 
 
@@ -106,9 +113,16 @@ def plan_achievement_for_env(view: dict | None, env_type: str = "dispatch") -> f
 
 
 def build_detail_payload(name: str, problem: ProblemInstance, result: dict,
-                         rl_status: dict, env_type: str = "dispatch") -> dict:
-    heuristic_view = algo_view(problem, result)
-    rl_view = algo_view(problem, result, prefix="rl_") if result.get("rl") is not None else None
+                         rl_status: dict, env_type: str = "dispatch",
+                         until_wip_exhausted: bool = False) -> dict:
+    heuristic_view = algo_view(
+        problem, result, final_wip=result.get("heuristic_final_wip"),
+    )
+    rl_view = (
+        algo_view(problem, result, prefix="rl_", final_wip=result.get("rl_final_wip"))
+        if result.get("rl") is not None
+        else None
+    )
 
     for view in (heuristic_view, rl_view):
         _attach_static_kpis(view)
@@ -133,7 +147,13 @@ def build_detail_payload(name: str, problem: ProblemInstance, result: dict,
             "total_eqp": sum(problem.eqp_qty.values()),
             "has_real_equipments": bool(problem.equipments),
             "note": problem.ground_truth.get("note", ""),
+            "until_wip_exhausted": until_wip_exhausted,
+            "sim_hours": {
+                "heuristic": result.get("heuristic_sim_hours"),
+                "rl": result.get("rl_sim_hours"),
+            },
         },
+        "wip_products": wip_product_summary(problem),
         "tasks": [
             {
                 "plan_prod_key": t.plan_prod_key,
