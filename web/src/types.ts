@@ -102,6 +102,13 @@ export interface EquipmentInfo {
   oper_id: string;
 }
 
+export interface InitAssignRow {
+  eqp_model: string;
+  plan_prod_key: string;
+  oper_id: string;
+  count: number;
+}
+
 export interface GuideRow {
   task: string;
   model: string;
@@ -123,6 +130,7 @@ export interface DatasetDetail {
   };
   tasks: TaskInfo[];
   equipments: EquipmentInfo[];
+  init_assign: InitAssignRow[];
   optimal: number | null;
   rl_status: {
     available: boolean;

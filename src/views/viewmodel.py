@@ -155,6 +155,16 @@ def build_detail_payload(name: str, problem: ProblemInstance, result: dict,
             }
             for e in problem.equipments
         ],
+        "init_assign": [
+            {
+                "eqp_model": model,
+                "plan_prod_key": problem.tasks[ti].plan_prod_key,
+                "oper_id": problem.tasks[ti].oper_id,
+                "count": int(cnt),
+            }
+            for (model, ti), cnt in sorted(problem.init_assign.items())
+            if cnt > 0
+        ],
         "optimal": problem.ground_truth.get("plan_achievement"),
         "rl_status": rl_status,
         "guide": guide_rows,
