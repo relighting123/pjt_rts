@@ -104,6 +104,7 @@ def behavior_clone(model: MaskablePPO, obs, acts, masks, epochs: int, lr: float,
                    loss_target: float = config.BC_LOSS_TARGET):
     if len(obs) == 0:
         return
+    log.info("[BC] 시작 — epochs=%s samples=%s", epochs, len(obs))
     policy = model.policy
     policy.set_training_mode(True)
     opt = torch.optim.Adam(policy.parameters(), lr=lr)
@@ -123,6 +124,7 @@ def behavior_clone(model: MaskablePPO, obs, acts, masks, epochs: int, lr: float,
             log.info("[BC] 조기종료: epoch %s/%s, loss=%.4f", epoch + 1, epochs, loss.item())
             break
         if (epoch + 1) % max(1, epochs // 20) == 0 or epoch == 0:
+            log.info("[BC] epoch %s/%s loss=%.4f", epoch + 1, epochs, float(loss.item()))
             append_training_point("dispatch", {
                 "phase": "bc",
                 "timesteps": epoch + 1,
@@ -166,12 +168,17 @@ def train_model(problems: list[ProblemInstance], ppo_steps: int = config.DEFAULT
         return DummyVecEnv([lambda: make_env(random.choice(problems))])
 
     if config.USE_ALLOC_MODEL and config.ALLOC_LAMBDA > 0.0:
-        train_alloc_model(problems, ppo_steps=max(2000, ppo_steps // 10))
+        alloc_steps = max(2000, ppo_steps // 10)
+        log.info("[train] alloc 사전학습 시작 — %s timesteps", alloc_steps)
+        train_alloc_model(problems, ppo_steps=alloc_steps)
+        log.info("[train] alloc 사전학습 완료")
 
     reset_training_log("dispatch")
 
-    model = MaskablePPO("MlpPolicy", _vec_env(), verbose=0, n_steps=256, batch_size=64)
+    log.info("[train] BC(교사 모방) 데이터 수집 중…")
+    model = MaskablePPO("MlpPolicy", _vec_env(), verbose=1, n_steps=256, batch_size=64)
     obs, acts, masks = collect_teacher_dataset(problems)
+    log.info("[train] BC 데이터 %s transition", len(obs))
     if len(obs) == 0:
         raise ValueError("교사 데이터셋이 비어 있습니다. 학습 JSON과 MAX_TASKS/MAX_MODELS를 확인하세요.")
     n_actions = int(model.action_space.n)
@@ -181,12 +188,14 @@ def train_model(problems: list[ProblemInstance], ppo_steps: int = config.DEFAULT
             "MAX_TASKS/MAX_MODELS 설정을 확인하세요."
         )
     behavior_clone(model, obs, acts, masks, bc_epochs, lr)
+    log.info("[train] PPO 학습 시작 — %s timesteps", ppo_steps)
     model.set_env(_vec_env())
     model.learn(
         total_timesteps=ppo_steps,
         progress_bar=False,
         callback=ConvergenceLogger("dispatch"),
     )
+    log.info("[train] PPO 학습 완료 — 모델 저장 %s", save_path)
     model.save(save_path)
     return model
 
