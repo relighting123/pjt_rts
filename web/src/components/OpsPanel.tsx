@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   fetchHealth,
+  fetchMlConfig,
   fetchOpsJobs,
   fetchOpsLogs,
   fetchOpsStatus,
@@ -51,6 +52,7 @@ export default function OpsPanel({ focus = "all" }: Props) {
   const [trainTo, setTrainTo] = useState("");
   const [trainLookback, setTrainLookback] = useState("30");
   const [trainSteps, setTrainSteps] = useState("50000");
+  const [convGroupsJson, setConvGroupsJson] = useState('{"G1":["B1","B2","B3"]}');
 
   const refresh = useCallback(async () => {
     try {
@@ -93,6 +95,12 @@ export default function OpsPanel({ focus = "all" }: Props) {
         setTrainSteps(String(st.defaults.default_ppo_steps));
       })
       .catch((e) => setError(String(e)));
+
+    fetchMlConfig()
+      .then((cfg) => setConvGroupsJson(JSON.stringify(cfg.conv_groups, null, 2)))
+      .catch(() => {
+        /* optional */
+      });
   }, []);
 
   useEffect(() => {
@@ -111,6 +119,50 @@ export default function OpsPanel({ focus = "all" }: Props) {
     mode === "explicit"
       ? { from_timekey: from.trim() || null, to_timekey: to.trim() || null }
       : { lookback_days: Number(lookback) || 30, from_timekey: null, to_timekey: null };
+
+  const parseConvGroups = (): Record<string, string[]> => {
+    try {
+      const parsed = JSON.parse(convGroupsJson) as Record<string, string[]>;
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        throw new Error("conv_groups는 객체여야 합니다.");
+      }
+      return parsed;
+    } catch {
+      throw new Error("전환 그룹(conv_groups) JSON 형식이 올바르지 않습니다.");
+    }
+  };
+
+  const dbFields = (prefix: string) => (
+    <>
+      <div className="ops-field-row">
+        <label>FAC_ID</label>
+        <input
+          id={`${prefix}-facid`}
+          value={facid}
+          onChange={(e) => setFacid(e.target.value)}
+          placeholder="ICPRB"
+        />
+      </div>
+      <div className="ops-field-row">
+        <label>BATCH_ID</label>
+        <input
+          id={`${prefix}-batchid`}
+          value={batchid}
+          onChange={(e) => setBatchid(e.target.value)}
+          placeholder="B1"
+        />
+      </div>
+      <div className="ops-field-row">
+        <label>Horizon (h)</label>
+        <input
+          type="number"
+          min={1}
+          value={horizon}
+          onChange={(e) => setHorizon(e.target.value)}
+        />
+      </div>
+    </>
+  );
 
   const runAction = async (label: string, fn: () => Promise<{ job_id: string }>) => {
     setError(null);
@@ -173,18 +225,7 @@ export default function OpsPanel({ focus = "all" }: Props) {
           <div className="ops-form-card">
             <h2>Export — DB → JSON</h2>
             <p className="panel-sub">단건은 추론 입력, 범위는 학습용 data/raw/train/</p>
-            <div className="ops-field-row">
-              <label>FAC_ID</label>
-              <input value={facid} onChange={(e) => setFacid(e.target.value)} placeholder="ICPRB" />
-            </div>
-            <div className="ops-field-row">
-              <label>BATCH_ID</label>
-              <input value={batchid} onChange={(e) => setBatchid(e.target.value)} placeholder="B1" />
-            </div>
-            <div className="ops-field-row">
-              <label>Horizon (h)</label>
-              <input type="number" min={1} value={horizon} onChange={(e) => setHorizon(e.target.value)} />
-            </div>
+            {dbFields("export")}
             <div className="ops-seg">
               <button
                 type="button"
@@ -277,6 +318,17 @@ export default function OpsPanel({ focus = "all" }: Props) {
           <div className="ops-form-card">
             <h2>Infer — 추론</h2>
             <p className="panel-sub">DB export → RL/휴리스틱 평가 → result JSON → (선택) DB write</p>
+            {dbFields("infer")}
+            <div className="ops-field-row">
+              <label>전환 그룹 (conv_groups JSON)</label>
+              <textarea
+                className="ops-textarea"
+                rows={4}
+                value={convGroupsJson}
+                onChange={(e) => setConvGroupsJson(e.target.value)}
+                spellCheck={false}
+              />
+            </div>
             <div className="ops-field-row">
               <label>RULE_TIMEKEY</label>
               <input
@@ -310,6 +362,7 @@ export default function OpsPanel({ focus = "all" }: Props) {
                   postOpsInfer({
                     timekey: inferTimekey.trim() || null,
                     ...baseParams(),
+                    conv_groups: parseConvGroups(),
                     skip_input_export: inferSkipExport,
                     write_db: inferWriteDb,
                   }),
@@ -325,6 +378,17 @@ export default function OpsPanel({ focus = "all" }: Props) {
           <div className="ops-form-card">
             <h2>Train — 학습</h2>
             <p className="panel-sub">data/raw/train/ JSON으로 PPO 학습 (선택: DB 범위 export 선행)</p>
+            {dbFields("train")}
+            <div className="ops-field-row">
+              <label>전환 그룹 (conv_groups JSON)</label>
+              <textarea
+                className="ops-textarea"
+                rows={4}
+                value={convGroupsJson}
+                onChange={(e) => setConvGroupsJson(e.target.value)}
+                spellCheck={false}
+              />
+            </div>
             <div className="ops-seg">
               <button
                 type="button"
@@ -398,6 +462,7 @@ export default function OpsPanel({ focus = "all" }: Props) {
                     ...baseParams(),
                     ...rangeParams(trainRangeMode, trainFrom, trainTo, trainLookback),
                     steps: Number(trainSteps) || 50000,
+                    conv_groups: parseConvGroups(),
                   }),
                 )
               }
@@ -424,6 +489,7 @@ export default function OpsPanel({ focus = "all" }: Props) {
                     <pre className="ops-job-result">{JSON.stringify(j.result, null, 2)}</pre>
                   )}
                   {j.error && <div className="ops-job-error">{j.error}</div>}
+                  {j.log && <pre className="ops-job-result">{j.log}</pre>}
                 </li>
               ))}
             </ul>

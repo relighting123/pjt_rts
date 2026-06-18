@@ -1,7 +1,11 @@
 """운영 작업(export / infer / train) 백그라운드 실행."""
 from __future__ import annotations
 
+import contextlib
+import io
 import json
+import logging
+import os
 import threading
 import uuid
 from datetime import datetime, timezone
@@ -11,6 +15,13 @@ from typing import Any, Callable
 import config
 from src.api.schemas import ExportRequest, InferRequest, TrainRequest
 from src.utils.ops_log import OPS_LOG_PATH
+
+log = logging.getLogger(__name__)
+
+_PIPE_ERROR_HINT = (
+    "콘솔 출력 파이프가 끊겼습니다(Windows: '파이프의 다른 끝에 프로세스가 없습니다'). "
+    "터미널에서 uvicorn을 실행하거나 `python main.py train`으로 학습해 보세요."
+)
 
 _jobs: dict[str, dict[str, Any]] = {}
 _jobs_order: list[str] = []
@@ -70,7 +81,62 @@ def _public_job(job: dict[str, Any] | None) -> dict[str, Any]:
         "finished_at": job["finished_at"],
         "result": job["result"],
         "error": job["error"],
+        "log": job.get("log"),
     }
+
+
+def _is_pipe_error(exc: BaseException) -> bool:
+    if isinstance(exc, BrokenPipeError):
+        return True
+    if isinstance(exc, OSError):
+        if getattr(exc, "winerror", None) == 109:
+            return True
+        msg = str(exc).lower()
+        if "pipe" in msg or "파이프" in msg:
+            return True
+    return False
+
+
+def _ensure_stdio() -> None:
+    """콘솔 없이 실행된 uvicorn(Windows 서비스 등)에서 stdout/stderr 보장."""
+    import sys
+
+    if sys.stdout is None:
+        sys.stdout = open(os.devnull, "w", encoding="utf-8")  # noqa: SIM115
+    if sys.stderr is None:
+        sys.stderr = open(os.devnull, "w", encoding="utf-8")  # noqa: SIM115
+
+
+def _configure_heavy_job_runtime(kind: str) -> None:
+    if kind not in ("train", "infer"):
+        return
+    _ensure_stdio()
+    os.environ.setdefault("OMP_NUM_THREADS", "1")
+    os.environ.setdefault("MKL_NUM_THREADS", "1")
+    os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+    try:
+        import torch
+
+        torch.set_num_threads(1)
+    except Exception:
+        pass
+
+
+def _run_job_callable(kind: str, fn: Callable[[], Any]) -> tuple[Any, str]:
+    _configure_heavy_job_runtime(kind)
+    out = io.StringIO()
+    err = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            result = fn()
+    except Exception as exc:
+        if _is_pipe_error(exc):
+            raise RuntimeError(_PIPE_ERROR_HINT) from exc
+        raise
+    combined = (out.getvalue() + err.getvalue()).strip()
+    if combined:
+        log.info("ops job %s log tail:\n%s", kind, combined[-2000:])
+    return result, combined
 
 
 def submit_job(kind: str, params: dict[str, Any], fn: Callable[[], Any]) -> dict[str, Any]:
@@ -88,6 +154,7 @@ def submit_job(kind: str, params: dict[str, Any], fn: Callable[[], Any]) -> dict
             "finished_at": None,
             "result": None,
             "error": None,
+            "log": None,
         }
         _jobs[job_id] = record
         _jobs_order.append(job_id)
@@ -100,10 +167,11 @@ def submit_job(kind: str, params: dict[str, Any], fn: Callable[[], Any]) -> dict
             _jobs[job_id]["status"] = "running"
             _jobs[job_id]["started_at"] = _utc_now()
         try:
-            result = _serialize_value(fn())
+            result, job_log = _run_job_callable(kind, fn)
             with _lock:
                 _jobs[job_id]["status"] = "done"
-                _jobs[job_id]["result"] = result
+                _jobs[job_id]["result"] = _serialize_value(result)
+                _jobs[job_id]["log"] = job_log or None
                 _jobs[job_id]["finished_at"] = _utc_now()
         except Exception as exc:
             with _lock:
@@ -111,7 +179,13 @@ def submit_job(kind: str, params: dict[str, Any], fn: Callable[[], Any]) -> dict
                 _jobs[job_id]["error"] = str(exc)
                 _jobs[job_id]["finished_at"] = _utc_now()
 
-    threading.Thread(target=runner, daemon=True, name=f"ops-{kind}-{job_id}").start()
+    # train/infer: daemon=False — Windows에서 PyTorch/SB3 파이프 오류 방지
+    use_daemon = kind not in ("train", "infer")
+    threading.Thread(
+        target=runner,
+        daemon=use_daemon,
+        name=f"ops-{kind}-{job_id}",
+    ).start()
     return {"job_id": job_id, "status": "queued"}
 
 
@@ -214,7 +288,11 @@ def _execute_export(req: ExportRequest) -> dict[str, Any]:
 
 
 def _execute_infer(req: InferRequest) -> dict[str, Any]:
+    from src.api import ml
     from src.inference import run_infer
+
+    if req.conv_groups:
+        ml.update_ml_config({"conv_groups": req.conv_groups})
 
     out = run_infer(
         rule_timekey=req.timekey,
@@ -229,13 +307,23 @@ def _execute_infer(req: InferRequest) -> dict[str, Any]:
     if isinstance(doc, dict):
         serialized["policy"] = doc.get("policy")
         serialized["guide_source"] = doc.get("guide", {}).get("source")
+    serialized["facid"] = req.facid
+    serialized["batchid"] = req.batchid
+    serialized["conv_groups"] = config.load_conv_groups()
     return serialized
 
 
 def _execute_train(req: TrainRequest) -> dict[str, Any]:
+    from src.api import ml
     from src.db.export import export_train_range
     from src.db.pipeline import load_train_problems_from_export
     from src.train import run_train
+
+    if req.conv_groups:
+        ml.update_ml_config({"conv_groups": req.conv_groups})
+
+    cfg = ml.get_ml_config()
+    steps = req.steps or cfg.get("ppo_steps", config.DEFAULT_PPO_STEPS)
 
     export_count = 0
     if req.mode == "db_range":
@@ -255,12 +343,15 @@ def _execute_train(req: TrainRequest) -> dict[str, Any]:
             "학습 JSON 없음. DB 범위 export를 선택하거나 data/raw/train/ 에 JSON을 준비하세요."
         )
 
-    model_path = run_train(problems=problems, ppo_steps=req.steps)
+    model_path = run_train(problems=problems, ppo_steps=steps)
     return {
         "mode": req.mode,
         "export_count": export_count,
         "problem_count": len(problems),
-        "steps": req.steps,
+        "steps": steps,
+        "facid": req.facid,
+        "batchid": req.batchid,
+        "conv_groups": config.load_conv_groups(),
         "model_path": str(model_path),
     }
 

@@ -27,6 +27,7 @@ class InferRequest(BaseModel):
     horizon_hours: int = Field(default=12, ge=1, le=168)
     skip_input_export: bool = False
     write_db: bool = True
+    conv_groups: dict[str, list[str]] | None = None
 
 
 class TrainRequest(BaseModel):
@@ -38,6 +39,7 @@ class TrainRequest(BaseModel):
     facid: str | None = None
     batchid: str | None = None
     steps: int = Field(default=config.DEFAULT_PPO_STEPS, ge=100, le=5_000_000)
+    conv_groups: dict[str, list[str]] | None = None
 
 
 class MlConfigUpdate(BaseModel):
@@ -53,6 +55,7 @@ class MlConfigUpdate(BaseModel):
     guide_band_pct: float | None = Field(default=None, ge=0, le=1)
     horizon_hours: int | None = Field(default=None, ge=1, le=168)
     lookback_days: int | None = Field(default=None, ge=1, le=365)
+    conv_groups: dict[str, list[str]] | None = None
     # max_tasks, max_models, metric_digits → .env (MAX_TASKS, MAX_MODELS, UI_METRIC_DIGITS)
 
 

@@ -45,6 +45,20 @@ def load_alloc_model(path: Path):
     return model
 
 
+def alloc_model_matches(model, problem: ProblemInstance) -> bool:
+    from envs.allocation_env import AllocationEnv
+
+    env = AllocationEnv(
+        problem, max_tasks=config.MAX_TASKS, max_models=config.MAX_MODELS,
+    )
+    try:
+        obs_ok = tuple(model.observation_space.shape) == tuple(env.observation_space.shape)
+        act_ok = tuple(model.action_space.shape) == tuple(env.action_space.shape)
+        return obs_ok and act_ok
+    except Exception:
+        return False
+
+
 def dispatch_model_matches(model, problem: ProblemInstance) -> bool:
     from envs.dispatch_env import DispatchEnv
     env = DispatchEnv(problem, max_tasks=config.MAX_TASKS,

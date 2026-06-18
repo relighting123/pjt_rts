@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import stable_baselines3 as sb3
 import torch
+from stable_baselines3.common.vec_env import DummyVecEnv
 
 import config
 from src.simulation.domain.problem import ProblemInstance
@@ -72,6 +73,8 @@ def behavior_clone_alloc(model, problems, epochs: int, lr: float):
 def train_alloc_model(problems: list[ProblemInstance], ppo_steps: int = 5000,
                       bc_epochs: int = config.BC_EPOCHS, lr: float = config.BC_LR,
                       save_path: Path | None = None):
+    if not problems:
+        raise ValueError("Alloc 학습 문제가 없습니다.")
     save_path = Path(save_path) if save_path else (config.SAVED_MODELS_DIR / "ppo_alloc.zip")
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -80,15 +83,19 @@ def train_alloc_model(problems: list[ProblemInstance], ppo_steps: int = 5000,
         return (tuple(e.observation_space.shape), tuple(e.action_space.shape))
     base = _shape(problems[0])
     same = [p for p in problems if _shape(p) == base]
+    if not same:
+        raise ValueError(
+            "Alloc 학습 가능한 문제가 없습니다. MAX_TASKS/MAX_MODELS를 확인하세요."
+        )
 
-    def env_fn():
-        return AllocationEnv(random.choice(same), max_tasks=config.MAX_TASKS,
-                             max_models=config.MAX_MODELS)
+    def _vec_env():
+        return DummyVecEnv([lambda: AllocationEnv(random.choice(same), max_tasks=config.MAX_TASKS,
+                                                     max_models=config.MAX_MODELS)])
 
     reset_training_log("alloc")
-    model = sb3.PPO("MlpPolicy", env_fn(), verbose=0, n_steps=64, batch_size=32)
+    model = sb3.PPO("MlpPolicy", _vec_env(), verbose=0, n_steps=64, batch_size=32)
     behavior_clone_alloc(model, same, bc_epochs, lr)
-    model.set_env(env_fn())
+    model.set_env(_vec_env())
     model.learn(
         total_timesteps=ppo_steps,
         progress_bar=False,

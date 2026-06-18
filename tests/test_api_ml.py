@@ -47,6 +47,19 @@ def test_ml_config_patch(client):
     assert r.json()["dwell_lambda"] == 0.25
 
 
+def test_ml_config_conv_groups_patch(client):
+    r = client.patch(
+        "/api/ml/config",
+        json={"conv_groups": {"G1": ["B1", "B2"], "G2": ["B3"]}},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["conv_groups"] == {"G1": ["B1", "B2"], "G2": ["B3"]}
+
+    r2 = client.get("/api/ml/config")
+    assert r2.json()["conv_groups"]["G2"] == ["B3"]
+
+
 def test_ml_models_list(client):
     r = client.get("/api/ml/models")
     assert r.status_code == 200

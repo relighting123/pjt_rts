@@ -85,18 +85,33 @@ def test_ops_export_sample_job(client, monkeypatch):
 def test_ops_train_local_job(client, monkeypatch):
     from src.api.schemas import TrainRequest
 
+    captured: list[TrainRequest] = []
+
     def fake_execute(req: TrainRequest):
+        captured.append(req)
         return {
             "mode": req.mode,
             "export_count": 0,
             "problem_count": 2,
             "steps": req.steps,
+            "facid": req.facid,
+            "batchid": req.batchid,
+            "conv_groups": req.conv_groups,
             "model_path": "/tmp/model.zip",
         }
 
     monkeypatch.setattr(ops, "_execute_train", fake_execute)
 
-    r = client.post("/api/ops/train", json={"mode": "local", "steps": 100})
+    r = client.post(
+        "/api/ops/train",
+        json={
+            "mode": "local",
+            "steps": 100,
+            "facid": "ICPRB",
+            "batchid": "B2",
+            "conv_groups": {"G1": ["B1", "B2"]},
+        },
+    )
     assert r.status_code == 200
     job_id = r.json()["job_id"]
 
@@ -108,6 +123,49 @@ def test_ops_train_local_job(client, monkeypatch):
     job = ops.get_job(job_id)
     assert job["status"] == "done"
     assert job["result"]["problem_count"] == 2
+    assert captured[0].facid == "ICPRB"
+    assert captured[0].batchid == "B2"
+    assert captured[0].conv_groups == {"G1": ["B1", "B2"]}
+
+
+def test_ops_infer_passes_conv_groups(client, monkeypatch):
+    from src.api.schemas import InferRequest
+
+    captured: list[InferRequest] = []
+
+    def fake_execute(req: InferRequest):
+        captured.append(req)
+        return {
+            "rule_timekey": "2026010100",
+            "facid": req.facid,
+            "batchid": req.batchid,
+            "conv_groups": req.conv_groups,
+            "result_path": "/tmp/result.json",
+        }
+
+    monkeypatch.setattr(ops, "_execute_infer", fake_execute)
+
+    r = client.post(
+        "/api/ops/infer",
+        json={
+            "facid": "ICPRB",
+            "batchid": "B3",
+            "conv_groups": {"G1": ["B1", "B2", "B3"]},
+        },
+    )
+    assert r.status_code == 200
+    job_id = r.json()["job_id"]
+
+    for _ in range(50):
+        if ops.get_job(job_id)["status"] in ("done", "failed"):
+            break
+        time.sleep(0.05)
+
+    job = ops.get_job(job_id)
+    assert job["status"] == "done"
+    assert captured[0].facid == "ICPRB"
+    assert captured[0].batchid == "B3"
+    assert captured[0].conv_groups == {"G1": ["B1", "B2", "B3"]}
 
 
 def test_ops_conflict_when_busy(client):
@@ -130,3 +188,19 @@ def test_ops_conflict_when_busy(client):
 def test_ops_job_not_found(client):
     r = client.get("/api/ops/jobs/missing-id")
     assert r.status_code == 404
+
+
+def test_is_pipe_error_detects_broken_pipe():
+    assert ops._is_pipe_error(BrokenPipeError())
+    assert ops._is_pipe_error(OSError(109, "The pipe has been ended"))
+    assert not ops._is_pipe_error(ValueError("other"))
+
+
+def test_run_job_callable_captures_stdout():
+    def fn():
+        print("hello-train-log")
+        return {"ok": True}
+
+    result, captured = ops._run_job_callable("train", fn)
+    assert result == {"ok": True}
+    assert "hello-train-log" in captured

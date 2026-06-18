@@ -44,6 +44,7 @@ const ENV_FIELDS: { key: keyof MlConfig; label: string; env: string }[] = [
 export default function ParametersPage() {
   const [config, setConfig] = useState<MlConfig | null>(null);
   const [draft, setDraft] = useState<Partial<MlConfig>>({});
+  const [convGroupsJson, setConvGroupsJson] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -53,9 +54,22 @@ export default function ParametersPage() {
       .then((c) => {
         setConfig(c);
         setDraft(c);
+        setConvGroupsJson(JSON.stringify(c.conv_groups, null, 2));
       })
       .catch((e) => setError(String(e)));
   }, []);
+
+  const parseConvGroups = (): Record<string, string[]> => {
+    try {
+      const parsed = JSON.parse(convGroupsJson) as Record<string, string[]>;
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        throw new Error("conv_groups는 객체여야 합니다.");
+      }
+      return parsed;
+    } catch {
+      throw new Error("전환 그룹(conv_groups) JSON 형식이 올바르지 않습니다.");
+    }
+  };
 
   const save = async () => {
     setSaving(true);
@@ -67,9 +81,11 @@ export default function ParametersPage() {
         const v = draft[f.key as keyof MlConfig];
         if (v !== undefined) (payload as Record<string, unknown>)[f.key] = v;
       }
+      payload.conv_groups = parseConvGroups();
       const updated = await patchMlConfig(payload);
       setConfig(updated);
       setDraft(updated);
+      setConvGroupsJson(JSON.stringify(updated.conv_groups, null, 2));
       setSaved(true);
     } catch (e) {
       setError(String(e));
@@ -134,6 +150,26 @@ export default function ParametersPage() {
         </div>
         <button type="button" className="ops-btn primary" disabled={saving} onClick={save}>
           {saving ? "저장 중…" : "런타임 파라미터 저장"}
+        </button>
+      </section>
+
+      <section className="panel-card">
+        <h2>전환 그룹 (conv_groups)</h2>
+        <p className="panel-sub">
+          동일 그룹 내 BATCH_ID는 설비 전환 시간이 공유됩니다. 학습·추론 시 이 설정이 적용됩니다.
+        </p>
+        <label className="param-field conv-groups-field">
+          <span>그룹 → BATCH_ID 목록 (JSON)</span>
+          <textarea
+            className="ops-textarea"
+            rows={6}
+            value={convGroupsJson}
+            onChange={(e) => setConvGroupsJson(e.target.value)}
+            spellCheck={false}
+          />
+        </label>
+        <button type="button" className="ops-btn primary" disabled={saving} onClick={save}>
+          {saving ? "저장 중…" : "전환 그룹 저장"}
         </button>
       </section>
 

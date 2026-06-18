@@ -209,6 +209,7 @@ export interface OpsJob {
   finished_at: string | null;
   result: Record<string, unknown> | null;
   error: string | null;
+  log?: string | null;
 }
 
 export interface OpsStatus {
@@ -243,6 +244,7 @@ export interface InferRequest {
   horizon_hours?: number;
   skip_input_export?: boolean;
   write_db?: boolean;
+  conv_groups?: Record<string, string[]> | null;
 }
 
 export interface TrainRequest {
@@ -254,6 +256,7 @@ export interface TrainRequest {
   facid?: string | null;
   batchid?: string | null;
   steps?: number;
+  conv_groups?: Record<string, string[]> | null;
 }
 
 export interface MlConfig {
@@ -272,6 +275,7 @@ export interface MlConfig {
   horizon_hours: number;
   lookback_days: number;
   metric_digits: number;
+  conv_groups: Record<string, string[]>;
   env_locked?: string[];
   paths: Record<string, string>;
 }
