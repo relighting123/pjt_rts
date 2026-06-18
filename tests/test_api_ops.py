@@ -1,3 +1,4 @@
+import io
 import json
 import time
 
@@ -204,3 +205,30 @@ def test_run_job_callable_captures_stdout():
     result, captured = ops._run_job_callable("train", fn)
     assert result == {"ok": True}
     assert "hello-train-log" in captured
+
+
+def test_run_job_callable_train_tees_to_real_stdio(monkeypatch):
+  import sys
+
+  lines: list[str] = []
+
+  class FakeStream(io.StringIO):
+      def write(self, s):
+          lines.append(s)
+          return super().write(s)
+
+      def flush(self):
+          pass
+
+  fake = FakeStream()
+  monkeypatch.setattr(sys, "stdout", fake)
+  monkeypatch.setattr(sys, "stderr", fake)
+
+  def fn():
+      print("tee-visible", flush=True)
+      return {"ok": True}
+
+  result, captured = ops._run_job_callable("train", fn)
+  assert result == {"ok": True}
+  assert "tee-visible" in captured
+  assert any("tee-visible" in line for line in lines)

@@ -1,10 +1,14 @@
 """학습 수렴 로그 — PPO callback."""
 from __future__ import annotations
 
+import logging
+
 import numpy as np
 from stable_baselines3.common.callbacks import BaseCallback
 
 from src.training.log_io import append_training_point
+
+log = logging.getLogger(__name__)
 
 
 class ConvergenceLogger(BaseCallback):
@@ -35,3 +39,11 @@ class ConvergenceLogger(BaseCallback):
             "mean_reward": round(float(np.mean(rewards)), 6),
             "episodes": len(rewards),
         })
+        log.info(
+            "[%s] PPO rollout %s — timesteps=%s mean_reward=%.4f episodes=%s",
+            self.stage,
+            self._rollouts,
+            int(self.num_timesteps),
+            float(np.mean(rewards)),
+            len(rewards),
+        )

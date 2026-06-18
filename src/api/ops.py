@@ -107,6 +107,58 @@ def _ensure_stdio() -> None:
         sys.stderr = open(os.devnull, "w", encoding="utf-8")  # noqa: SIM115
 
 
+class _TeeIO(io.TextIOBase):
+    """터미널과 job 로그 캡처에 동시에 출력."""
+
+    def __init__(self, stream: io.TextIOBase, capture: io.StringIO):
+        self._stream = stream
+        self._capture = capture
+
+    def write(self, s: str) -> int:
+        if not s:
+            return 0
+        self._capture.write(s)
+        try:
+            self._stream.write(s)
+            self._stream.flush()
+        except Exception:
+            pass
+        return len(s)
+
+    def flush(self) -> None:
+        self._capture.flush()
+        try:
+            self._stream.flush()
+        except Exception:
+            pass
+
+
+def _configure_job_console_logging() -> None:
+    """학습/추론 job 중 터미널에 진행 로그가 보이도록 설정."""
+    import sys
+
+    fmt = logging.Formatter(
+        "[%(asctime)s] %(levelname)s %(name)s: %(message)s",
+        datefmt="%H:%M:%S",
+    )
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setFormatter(fmt)
+    handler.setLevel(logging.INFO)
+    setattr(handler, "_ops_job_console", True)
+
+    for name in (
+        "src.api.ops",
+        "src.train",
+        "src.training",
+        "stable_baselines3",
+    ):
+        lg = logging.getLogger(name)
+        lg.setLevel(logging.INFO)
+        if not any(getattr(h, "_ops_job_console", False) for h in lg.handlers):
+            lg.addHandler(handler)
+        lg.propagate = False
+
+
 def _configure_heavy_job_runtime(kind: str) -> None:
     if kind not in ("train", "infer"):
         return
@@ -123,18 +175,34 @@ def _configure_heavy_job_runtime(kind: str) -> None:
 
 
 def _run_job_callable(kind: str, fn: Callable[[], Any]) -> tuple[Any, str]:
+    import sys
+
     _configure_heavy_job_runtime(kind)
     out = io.StringIO()
     err = io.StringIO()
+    stream_to_terminal = kind in ("train", "infer")
+    if stream_to_terminal:
+        _configure_job_console_logging()
+        log.info("ops %s job 시작 — 터미널에 진행 로그를 출력합니다.", kind)
     try:
-        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-            result = fn()
+        if stream_to_terminal:
+            orig_out, orig_err = sys.stdout, sys.stderr
+            sys.stdout = _TeeIO(orig_out, out)
+            sys.stderr = _TeeIO(orig_err, err)
+            try:
+                result = fn()
+            finally:
+                sys.stdout = orig_out
+                sys.stderr = orig_err
+        else:
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                result = fn()
     except Exception as exc:
         if _is_pipe_error(exc):
             raise RuntimeError(_PIPE_ERROR_HINT) from exc
         raise
     combined = (out.getvalue() + err.getvalue()).strip()
-    if combined:
+    if combined and not stream_to_terminal:
         log.info("ops job %s log tail:\n%s", kind, combined[-2000:])
     return result, combined
 
@@ -325,6 +393,15 @@ def _execute_train(req: TrainRequest) -> dict[str, Any]:
     cfg = ml.get_ml_config()
     steps = req.steps or cfg.get("ppo_steps", config.DEFAULT_PPO_STEPS)
 
+    log.info(
+        "[train] 시작 mode=%s problems_dir=%s steps=%s facid=%s batchid=%s",
+        req.mode,
+        config.TRAIN_DATA_DIR,
+        steps,
+        req.facid,
+        req.batchid,
+    )
+
     export_count = 0
     if req.mode == "db_range":
         paths = export_train_range(
@@ -344,6 +421,7 @@ def _execute_train(req: TrainRequest) -> dict[str, Any]:
         )
 
     model_path = run_train(problems=problems, ppo_steps=steps)
+    log.info("[train] 완료 model_path=%s", model_path)
     return {
         "mode": req.mode,
         "export_count": export_count,

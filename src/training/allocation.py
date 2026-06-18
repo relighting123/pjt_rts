@@ -1,6 +1,7 @@
 """AllocationEnv PPO 학습."""
 from __future__ import annotations
 
+import logging
 import random
 from pathlib import Path
 
@@ -14,6 +15,8 @@ from src.simulation.domain.problem import ProblemInstance
 from src.training.callbacks import ConvergenceLogger
 from src.training.log_io import append_training_point, reset_training_log
 from envs.allocation_env import AllocationEnv
+
+log = logging.getLogger(__name__)
 
 
 def _analytic_target_logits(env: AllocationEnv) -> np.ndarray:
@@ -93,7 +96,8 @@ def train_alloc_model(problems: list[ProblemInstance], ppo_steps: int = 5000,
                                                      max_models=config.MAX_MODELS)])
 
     reset_training_log("alloc")
-    model = sb3.PPO("MlpPolicy", _vec_env(), verbose=0, n_steps=64, batch_size=32)
+    log.info("[alloc] PPO 학습 시작 — %s timesteps, %s problems", ppo_steps, len(same))
+    model = sb3.PPO("MlpPolicy", _vec_env(), verbose=1, n_steps=64, batch_size=32)
     behavior_clone_alloc(model, same, bc_epochs, lr)
     model.set_env(_vec_env())
     model.learn(
@@ -101,5 +105,6 @@ def train_alloc_model(problems: list[ProblemInstance], ppo_steps: int = 5000,
         progress_bar=False,
         callback=ConvergenceLogger("alloc"),
     )
+    log.info("[alloc] PPO 학습 완료 — 저장 %s", save_path)
     model.save(save_path)
     return model
