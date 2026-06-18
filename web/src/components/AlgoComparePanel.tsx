@@ -67,7 +67,7 @@ function AlgoColumn({
       {envType === "alloc" ? (
         <AllocationPivotTable pivot={view.allocation_pivot} />
       ) : (
-        <GanttChart segments={view.gantt} />
+        <GanttChart segments={view.gantt} title={title} />
       )}
     </div>
   );

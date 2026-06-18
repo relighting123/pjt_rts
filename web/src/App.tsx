@@ -12,6 +12,8 @@ import OpsPage from "./pages/OpsPage";
 import BenchmarkPage from "./pages/BenchmarkPage";
 import "./styles.css";
 
+const SIDEBAR_KEY = "rts-sidebar-hidden";
+
 function PageContent({ page }: { page: PageId }) {
   switch (page) {
     case "pipeline":
@@ -37,6 +39,9 @@ function PageContent({ page }: { page: PageId }) {
 
 export default function App() {
   const [page, setPage] = useState<PageId>("pipeline");
+  const [sidebarHidden, setSidebarHidden] = useState(
+    () => localStorage.getItem(SIDEBAR_KEY) === "1",
+  );
 
   useEffect(() => {
     fetchMlConfig().catch(() => {
@@ -44,10 +49,25 @@ export default function App() {
     });
   }, []);
 
+  useEffect(() => {
+    localStorage.setItem(SIDEBAR_KEY, sidebarHidden ? "1" : "0");
+  }, [sidebarHidden]);
+
   return (
-    <div className="app-shell">
+    <div className={`app-shell${sidebarHidden ? " sidebar-hidden" : ""}`}>
       <Sidebar active={page} onSelect={setPage} />
       <main className="main-content">
+        <div className="app-topbar">
+          <button
+            type="button"
+            className="app-topbar-btn"
+            onClick={() => setSidebarHidden((v) => !v)}
+            title={sidebarHidden ? "네비게이션 표시" : "네비게이션 숨김"}
+          >
+            {sidebarHidden ? "☰ 메뉴" : "◀ 네비 숨김"}
+          </button>
+          <span className="app-topbar-hint">간트 차트는 확대·줌 버튼 사용 · Esc로 닫기</span>
+        </div>
         <PageContent page={page} />
       </main>
     </div>
