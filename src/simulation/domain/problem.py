@@ -22,13 +22,36 @@ class Equipment:
 
 
 def largest_remainder(fracs: list[float], total: int) -> list[int]:
-    """비례 실수 배분 → 정수. 합계 = total (최대잉여법)."""
+    """비례 실수 배분 → 정수. 합계 = total (최대잉여법 + 잉여 시 라운드로빈)."""
+    n = len(fracs)
+    if n == 0:
+        return []
+    total = max(0, int(total))
+    if total == 0:
+        return [0] * n
+
     floors = [int(f) for f in fracs]
-    remainders = [(fracs[i] - floors[i], i) for i in range(len(fracs))]
-    deficit = total - sum(floors)
+    assigned = sum(floors)
+
+    if assigned > total:
+        excess = assigned - total
+        order = sorted(
+            range(n),
+            key=lambda i: (floors[i], fracs[i]),
+            reverse=True,
+        )
+        for j in range(excess):
+            floors[order[j % n]] = max(0, floors[order[j % n]] - 1)
+        return floors
+
+    need = total - assigned
+    if need == 0:
+        return floors
+
+    remainders = [(fracs[i] - floors[i], i) for i in range(n)]
     remainders.sort(reverse=True)
-    for k in range(max(0, deficit)):
-        floors[remainders[k][1]] += 1
+    for k in range(need):
+        floors[remainders[k % n][1]] += 1
     return floors
 
 

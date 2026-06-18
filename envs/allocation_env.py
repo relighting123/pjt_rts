@@ -86,7 +86,20 @@ class AllocationEnv(gym.Env):
             if raw_sum > eqp and raw_sum > 0:
                 scale = eqp / raw_sum
                 raw = [v * scale for v in raw]
-            counts = largest_remainder(raw, eqp)
+            assign_total = eqp
+            if raw_sum > 0:
+                assign_total = min(eqp, raw_sum)
+            elif eqp > 0:
+                active = [
+                    ti for ti in range(self.n_tasks)
+                    if p.uph_of(model, ti) is not None
+                ]
+                if active:
+                    raw = [eqp / len(active) if ti in active else 0.0 for ti in range(self.n_tasks)]
+                    assign_total = eqp
+                else:
+                    assign_total = 0
+            counts = largest_remainder(raw, int(round(assign_total)))
             for ti, cnt in enumerate(counts):
                 if ti < self.n_tasks and p.uph_of(model, ti) is not None:
                     alloc[(model, ti)] = cnt
