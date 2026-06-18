@@ -12,6 +12,7 @@ import {
 } from "../api";
 import type { OpsJob, OpsLogEntry, OpsStatus, TrainingMetrics } from "../types";
 import ConvergenceChart from "./ConvergenceChart";
+import InferResultPanel from "./InferResultPanel";
 
 type RangeMode = "lookback" | "explicit";
 
@@ -528,6 +529,8 @@ export default function OpsPanel({ focus = "all" }: Props) {
           )}
         </section>
       </div>
+
+      {showInfer && <InferResultPanel jobs={jobs} />}
     </div>
   );
 }
