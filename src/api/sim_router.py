@@ -200,7 +200,7 @@ def _session_response(session: dict) -> dict:
         "hour": state.hour,
         "total_hours": problem.horizon_hours,
         "is_done": sim.is_done(state),
-        "gantt": _build_gantt(problem, snapshots + [state]),
+        "gantt": _build_gantt(problem, snapshots),
         "wip": wip_list,
         "assign": assign_list,
         "valid_moves": valid_moves,
