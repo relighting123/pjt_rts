@@ -4,6 +4,7 @@ from __future__ import annotations
 import copy
 import uuid
 from datetime import datetime, timedelta
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -20,6 +21,7 @@ _sessions: dict[str, dict] = {}
 
 class StartRequest(BaseModel):
     dataset: str
+    mode: Literal["manual", "heuristic", "rl"] = "manual"
 
 
 class MoveRequest(BaseModel):
@@ -196,15 +198,34 @@ def _session_response(session: dict) -> dict:
         if cnt > 0
     ]
 
+    base_dt = _parse_timekey(problem.rule_timekey)
     return {
         "hour": state.hour,
         "total_hours": problem.horizon_hours,
         "is_done": sim.is_done(state),
+        "start_time": base_dt.isoformat(),
+        "end_time": (base_dt + timedelta(hours=problem.horizon_hours)).isoformat(),
+        "mode": session.get("mode", "manual"),
+        "rl_available": session.get("policy_fn") is not None if session.get("mode") == "rl" else None,
         "gantt": _build_gantt(problem, snapshots),
         "wip": wip_list,
         "assign": assign_list,
         "valid_moves": valid_moves,
     }
+
+
+def _make_policy_fn(mode: str, problem: ProblemInstance):
+    if mode == "heuristic":
+        from agents.registry import get_dispatch
+        return get_dispatch("heuristic")
+    if mode == "rl":
+        from agents.model_store import load_dispatch_model
+        from agents.rl_dispatch import rl_dispatch_factory
+        model = load_dispatch_model()
+        if model is None:
+            return None
+        return rl_dispatch_factory(model, problem)
+    return None
 
 
 @router.post("/start")
@@ -217,6 +238,7 @@ def sim_start(req: StartRequest):
     problem = load_problem(paths[req.dataset])
     sim = Simulator(problem)
     state = sim.reset()
+    policy_fn = _make_policy_fn(req.mode, problem)
 
     sid = str(uuid.uuid4())
     _sessions[sid] = {
@@ -224,6 +246,8 @@ def sim_start(req: StartRequest):
         "sim": sim,
         "state": state,
         "snapshots": [copy.deepcopy(state)],
+        "mode": req.mode,
+        "policy_fn": policy_fn,
     }
 
     resp = _session_response(_sessions[sid])
@@ -249,6 +273,27 @@ def sim_advance(sid: str):
     state: SimState = session["state"]
     if sim.is_done(state):
         raise HTTPException(status_code=400, detail="simulation already done")
+
+    sim.advance_hour(state)
+    session["snapshots"].append(copy.deepcopy(state))
+    return _session_response(session)
+
+
+@router.post("/{sid}/auto_step")
+def sim_auto_step(sid: str):
+    """선택된 방식(heuristic/rl)으로 이동 결정 후 1시간 자동 진행."""
+    session = _sessions.get(sid)
+    if not session:
+        raise HTTPException(status_code=404, detail="session not found")
+
+    sim: Simulator = session["sim"]
+    state: SimState = session["state"]
+    if sim.is_done(state):
+        raise HTTPException(status_code=400, detail="simulation already done")
+
+    policy_fn = session.get("policy_fn")
+    if policy_fn:
+        policy_fn(sim, state)
 
     sim.advance_hour(state)
     session["snapshots"].append(copy.deepcopy(state))

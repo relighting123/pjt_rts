@@ -369,6 +369,10 @@ export interface SimState {
   hour: number;
   total_hours: number;
   is_done: boolean;
+  start_time?: string;
+  end_time?: string;
+  mode?: "manual" | "heuristic" | "rl";
+  rl_available?: boolean | null;
   gantt: GanttSegment[];
   wip: SimWipRow[];
   assign: SimAssignRow[];

@@ -149,14 +149,17 @@ export const postMlActivate = (modelId: string) =>
   );
 
 // ── Simulation API ──
-export const simStart = (dataset: string) =>
-  postJson<SimState>("/api/sim/start", { dataset });
+export const simStart = (dataset: string, mode: "manual" | "heuristic" | "rl" = "manual") =>
+  postJson<SimState>("/api/sim/start", { dataset, mode });
 
 export const simGet = (sid: string) =>
   getJson<SimState>(`/api/sim/${encodeURIComponent(sid)}`);
 
 export const simAdvance = (sid: string) =>
   postJson<SimState>(`/api/sim/${encodeURIComponent(sid)}/advance`, {});
+
+export const simAutoStep = (sid: string) =>
+  postJson<SimState>(`/api/sim/${encodeURIComponent(sid)}/auto_step`, {});
 
 export const simMove = (sid: string, model: string, from_index: number, to_index: number) =>
   postJson<SimState>(`/api/sim/${encodeURIComponent(sid)}/move`, { model, from_index, to_index });
