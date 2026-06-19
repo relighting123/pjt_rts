@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { fetchDatasets, pct, simAdvance, simDelete, simMove, simReset, simStart } from "../api";
+import { fetchDatasets, pct, simAdvance, simAutoStep, simDelete, simMove, simReset, simStart } from "../api";
 import type { DatasetInfo, SimAssignRow, SimMove, SimState, SimWipRow } from "../types";
 import GanttChart from "../components/GanttChart";
+
+type SimMode = "manual" | "heuristic" | "rl";
 
 const AUTO_INTERVAL_MS = 800;
 
@@ -83,7 +85,6 @@ function MovePanel({
     return <div className="empty" style={{ padding: "12px 0" }}>가능한 이동 없음</div>;
   }
 
-  // from_task 기준 그룹화
   const grouped: Record<string, SimMove[]> = {};
   for (const mv of moves) {
     (grouped[mv.from_task] ??= []).push(mv);
@@ -118,10 +119,10 @@ function MovePanel({
 
 // ── 진행 바 ────────────────────────────────────────────────────────────
 function ProgressBar({ hour, total }: { hour: number; total: number }) {
-  const pct = total > 0 ? (hour / total) * 100 : 0;
+  const p = total > 0 ? (hour / total) * 100 : 0;
   return (
     <div className="sim-progress-wrap">
-      <div className="sim-progress-bar" style={{ width: `${pct}%` }} />
+      <div className="sim-progress-bar" style={{ width: `${p}%` }} />
       <span className="sim-progress-label">
         {hour} / {total} h
       </span>
@@ -129,10 +130,17 @@ function ProgressBar({ hour, total }: { hour: number; total: number }) {
   );
 }
 
+const MODE_LABEL: Record<SimMode, string> = {
+  manual: "수동",
+  heuristic: "휴리스틱",
+  rl: "RL 모델",
+};
+
 // ── 메인 페이지 ────────────────────────────────────────────────────────
 export default function SimulationPage() {
   const [datasets, setDatasets] = useState<DatasetInfo[]>([]);
   const [selected, setSelected] = useState("");
+  const [mode, setMode] = useState<SimMode>("manual");
   const [simState, setSimState] = useState<SimState | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -140,6 +148,9 @@ export default function SimulationPage() {
   const [playing, setPlaying] = useState(false);
   const playRef = useRef(false);
   const sidRef = useRef<string | null>(null);
+  const modeRef = useRef<SimMode>("manual");
+
+  useEffect(() => { modeRef.current = mode; }, [mode]);
 
   useEffect(() => {
     fetchDatasets()
@@ -150,7 +161,6 @@ export default function SimulationPage() {
       .catch((e) => setError(String(e)));
   }, []);
 
-  // 세션 정리
   useEffect(() => {
     return () => {
       if (sidRef.current) simDelete(sidRef.current);
@@ -165,7 +175,7 @@ export default function SimulationPage() {
     setPlaying(false);
     playRef.current = false;
     try {
-      const s = await simStart(selected);
+      const s = await simStart(selected, mode);
       setSimState(s);
       setSessionId(s.session_id ?? null);
       sidRef.current = s.session_id ?? null;
@@ -174,13 +184,16 @@ export default function SimulationPage() {
     } finally {
       setLoading(false);
     }
-  }, [selected]);
+  }, [selected, mode]);
 
-  const handleAdvance = useCallback(async () => {
+  const handleStep = useCallback(async () => {
     if (!sidRef.current) return;
     setLoading(true);
     try {
-      const s = await simAdvance(sidRef.current);
+      const currentMode = modeRef.current;
+      const s = currentMode === "manual"
+        ? await simAdvance(sidRef.current)
+        : await simAutoStep(sidRef.current);
       setSimState(s);
       if (s.is_done) {
         setPlaying(false);
@@ -223,7 +236,6 @@ export default function SimulationPage() {
     }
   }, []);
 
-  // Auto play
   useEffect(() => {
     if (!playing) { playRef.current = false; return; }
     playRef.current = true;
@@ -231,11 +243,11 @@ export default function SimulationPage() {
     const tick = async () => {
       if (!playRef.current || !sidRef.current) return;
       if (simState?.is_done) { setPlaying(false); return; }
-      await handleAdvance();
+      await handleStep();
       if (playRef.current) setTimeout(tick, AUTO_INTERVAL_MS);
     };
     setTimeout(tick, AUTO_INTERVAL_MS);
-  }, [playing, handleAdvance, simState?.is_done]);
+  }, [playing, handleStep, simState?.is_done]);
 
   const togglePlay = () => {
     if (simState?.is_done) return;
@@ -243,6 +255,9 @@ export default function SimulationPage() {
   };
 
   const hasSession = !!simState && !!sessionId;
+  const activeMode = simState?.mode ?? mode;
+  const isManual = activeMode === "manual";
+  const rlUnavailable = simState?.mode === "rl" && simState?.rl_available === false;
 
   return (
     <div className="page">
@@ -255,9 +270,9 @@ export default function SimulationPage() {
 
       {error && <div className="error">⚠ {error}</div>}
 
-      {/* 데이터셋 선택 + 시작 */}
+      {/* 데이터셋 선택 + 모드 + 시작 */}
       <div className="panel" style={{ marginBottom: 16 }}>
-        <div className="row" style={{ gap: 10, flexWrap: "wrap" }}>
+        <div className="row" style={{ gap: 10, flexWrap: "wrap", alignItems: "center" }}>
           <select
             className="select"
             value={selected}
@@ -271,6 +286,30 @@ export default function SimulationPage() {
               </option>
             ))}
           </select>
+
+          <div style={{ display: "flex", gap: 4, borderRadius: 6, overflow: "hidden", border: "1px solid var(--border)" }}>
+            {(["manual", "heuristic", "rl"] as SimMode[]).map((m) => (
+              <button
+                key={m}
+                type="button"
+                style={{
+                  padding: "5px 12px",
+                  fontSize: 12,
+                  fontWeight: mode === m ? 700 : 400,
+                  background: mode === m ? "var(--accent)" : "transparent",
+                  color: mode === m ? "#fff" : "var(--text)",
+                  border: "none",
+                  cursor: loading ? "not-allowed" : "pointer",
+                  transition: "background 0.15s",
+                }}
+                onClick={() => setMode(m)}
+                disabled={loading}
+              >
+                {MODE_LABEL[m]}
+              </button>
+            ))}
+          </div>
+
           <button
             type="button"
             className="btn primary"
@@ -280,7 +319,20 @@ export default function SimulationPage() {
             {hasSession ? "재시작" : "시뮬레이션 시작"}
           </button>
         </div>
+
+        {mode !== "manual" && (
+          <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
+            {MODE_LABEL[mode]} 정책이 매 스텝 배치를 자동으로 결정합니다.
+            {mode === "rl" && " RL 모델 파일이 없으면 빈 정책으로 동작합니다."}
+          </p>
+        )}
       </div>
+
+      {rlUnavailable && (
+        <div className="error" style={{ marginBottom: 12 }}>
+          ⚠ RL 모델을 불러오지 못했습니다. 빈 정책으로 동작합니다.
+        </div>
+      )}
 
       {hasSession && simState && (
         <>
@@ -291,7 +343,7 @@ export default function SimulationPage() {
               <button
                 type="button"
                 className="btn"
-                onClick={handleAdvance}
+                onClick={handleStep}
                 disabled={loading || playing || simState.is_done}
                 title="1시간 진행"
               >
@@ -313,6 +365,14 @@ export default function SimulationPage() {
               >
                 ↺ 초기화
               </button>
+              {activeMode !== "manual" && (
+                <span
+                  className="badge"
+                  style={{ alignSelf: "center", background: activeMode === "rl" ? "#9270CA" : "#5B8FF9", color: "#fff" }}
+                >
+                  {MODE_LABEL[activeMode]}
+                </span>
+              )}
               {simState.is_done && (
                 <span className="badge good" style={{ alignSelf: "center" }}>
                   시뮬레이션 완료
@@ -330,7 +390,11 @@ export default function SimulationPage() {
           <div className="panel">
             <h3 className="section-title">간트차트 (Hour 0 → {simState.hour})</h3>
             {simState.gantt.length > 0 ? (
-              <GanttChart segments={simState.gantt} />
+              <GanttChart
+                segments={simState.gantt}
+                fixedStart={simState.start_time}
+                fixedEnd={simState.end_time}
+              />
             ) : (
               <div className="empty">아직 진행된 시간이 없습니다. Next Step을 눌러 진행하세요.</div>
             )}
@@ -352,8 +416,8 @@ export default function SimulationPage() {
             </div>
           </div>
 
-          {/* 이동 선택 */}
-          {!simState.is_done && (
+          {/* 이동 선택 — 수동 모드만 */}
+          {!simState.is_done && isManual && (
             <div className="panel">
               <h3 className="section-title">
                 이동 선택{" "}

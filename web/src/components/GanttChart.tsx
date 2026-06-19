@@ -11,6 +11,9 @@ interface Props {
   onZoomChange?: (z: number) => void;
   /** 툴바/확대 버튼 숨김 (모달 내부 재사용 시) */
   compact?: boolean;
+  /** 전체 시뮬레이션 기간 고정 (ISO 문자열) — 지정 시 x축이 동적으로 변하지 않음 */
+  fixedStart?: string;
+  fixedEnd?: string;
 }
 
 const ROW_H = 36;
@@ -36,13 +39,17 @@ function GanttSvg({
   segments,
   initialAssign,
   zoom,
+  fixedStart,
+  fixedEnd,
 }: {
   segments: GanttSegment[];
   initialAssign?: Record<string, string>;
   zoom: number;
+  fixedStart?: string;
+  fixedEnd?: string;
 }) {
-  const t0 = Math.min(...segments.map((s) => +new Date(s.start)));
-  const t1 = Math.max(...segments.map((s) => +new Date(s.end)));
+  const t0 = fixedStart ? +new Date(fixedStart) : Math.min(...segments.map((s) => +new Date(s.start)));
+  const t1 = fixedEnd ? +new Date(fixedEnd) : Math.max(...segments.map((s) => +new Date(s.end)));
   const span = Math.max(t1 - t0, 1);
   const spanHours = span / 3.6e6;
   const baseW = Math.max(480, Math.min(1200, Math.round(spanHours * 96)));
@@ -202,6 +209,8 @@ export default function GanttChart({
   zoom: zoomProp,
   onZoomChange,
   compact = false,
+  fixedStart,
+  fixedEnd,
 }: Props) {
   const [internalZoom, setInternalZoom] = useState(1);
   const [expanded, setExpanded] = useState(false);
@@ -236,7 +245,7 @@ export default function GanttChart({
   const body = (
     <>
       <div className="gantt-wrap">
-        <GanttSvg segments={segments} initialAssign={initialAssign} zoom={zoom} />
+        <GanttSvg segments={segments} initialAssign={initialAssign} zoom={zoom} fixedStart={fixedStart} fixedEnd={fixedEnd} />
       </div>
       <GanttLegend segments={segments} />
     </>
@@ -276,7 +285,7 @@ export default function GanttChart({
             </div>
             <div className="gantt-modal-body">
               <div className="gantt-wrap gantt-wrap-modal">
-                <GanttSvg segments={segments} initialAssign={initialAssign} zoom={zoom} />
+                <GanttSvg segments={segments} initialAssign={initialAssign} zoom={zoom} fixedStart={fixedStart} fixedEnd={fixedEnd} />
               </div>
               <GanttLegend segments={segments} />
             </div>
