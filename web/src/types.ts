@@ -335,6 +335,46 @@ export interface EvalResult {
   };
 }
 
+// ── Simulation step-by-step ──
+
+export interface SimWipRow {
+  task_index: number;
+  task: string;
+  plan_prod_key: string;
+  oper_id: string;
+  wip: number;
+  produced: number;
+  plan: number;
+  rate: number;
+}
+
+export interface SimAssignRow {
+  model: string;
+  task_index: number;
+  task: string;
+  count: number;
+  switching: number;
+}
+
+export interface SimMove {
+  model: string;
+  from_index: number;
+  to_index: number;
+  from_task: string;
+  to_task: string;
+}
+
+export interface SimState {
+  session_id?: string;
+  hour: number;
+  total_hours: number;
+  is_done: boolean;
+  gantt: GanttSegment[];
+  wip: SimWipRow[];
+  assign: SimAssignRow[];
+  valid_moves: SimMove[];
+}
+
 export interface ModelCompareRow {
   model_id: string;
   name?: string;

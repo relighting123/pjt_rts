@@ -11,6 +11,7 @@ import type {
   OpsLogEntry,
   OpsStatus,
   PipelineStatus,
+  SimState,
   Summary,
   TrainRequest,
   TrainingMetrics,
@@ -146,6 +147,25 @@ export const postMlActivate = (modelId: string) =>
     `/api/ml/models/${encodeURIComponent(modelId)}/activate`,
     {},
   );
+
+// ── Simulation API ──
+export const simStart = (dataset: string) =>
+  postJson<SimState>("/api/sim/start", { dataset });
+
+export const simGet = (sid: string) =>
+  getJson<SimState>(`/api/sim/${encodeURIComponent(sid)}`);
+
+export const simAdvance = (sid: string) =>
+  postJson<SimState>(`/api/sim/${encodeURIComponent(sid)}/advance`, {});
+
+export const simMove = (sid: string, model: string, from_index: number, to_index: number) =>
+  postJson<SimState>(`/api/sim/${encodeURIComponent(sid)}/move`, { model, from_index, to_index });
+
+export const simReset = (sid: string) =>
+  postJson<SimState>(`/api/sim/${encodeURIComponent(sid)}/reset`, {});
+
+export const simDelete = (sid: string) =>
+  fetch(`/api/sim/${encodeURIComponent(sid)}`, { method: "DELETE" });
 
 /** ground_truth 최적해가 100%면 비교 가치가 없어 UI에서 숨김. */
 export const isMeaningfulOptimal = (v: number | null | undefined) =>

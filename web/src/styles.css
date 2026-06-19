@@ -1047,3 +1047,101 @@ table.data tr:hover td { background: rgba(91,143,249,0.06); }
   gap: 8px;
   margin-bottom: 14px;
 }
+
+/* ── Simulation Viewer ─────────────────────────────────────────── */
+.sim-control-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sim-progress-wrap {
+  position: relative;
+  height: 22px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.sim-progress-bar {
+  height: 100%;
+  background: var(--accent);
+  opacity: 0.25;
+  transition: width 0.3s ease;
+}
+.sim-progress-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.sim-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.sim-state-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 0;
+}
+@media (max-width: 860px) {
+  .sim-state-grid { grid-template-columns: 1fr; }
+}
+
+/* Move panel */
+.sim-moves {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.sim-move-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.sim-move-from {
+  font-size: 11px;
+  font-family: monospace;
+  color: var(--muted);
+  width: 180px;
+  flex-shrink: 0;
+  padding-top: 5px;
+}
+.sim-move-targets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.sim-move-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  cursor: pointer;
+  font-size: 11px;
+  transition: border-color 0.15s, background 0.15s;
+}
+.sim-move-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: #eff4ff;
+}
+.sim-move-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.sim-move-model { color: var(--accent); font-weight: 700; }
+.sim-move-arrow { color: var(--muted); }
+.sim-move-to { font-family: monospace; color: var(--text); }
+
+/* btn variants */
+.btn.warn { background: var(--warn); color: #fff; border-color: var(--warn); }
+.btn.warn:hover:not(:disabled) { filter: brightness(0.9); }

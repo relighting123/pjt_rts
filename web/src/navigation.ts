@@ -6,7 +6,8 @@ export type PageId =
   | "compare"
   | "registry"
   | "ops"
-  | "benchmarks";
+  | "benchmarks"
+  | "simulation";
 
 export interface NavItem {
   id: PageId;
@@ -23,4 +24,5 @@ export const NAV_ITEMS: NavItem[] = [
   { id: "registry", label: "모델 등록" },
   { id: "ops", label: "Export / Infer", section: "운영" },
   { id: "benchmarks", label: "벤치마크 분석", section: "분석" },
+  { id: "simulation", label: "시뮬레이션 뷰어" },
 ];

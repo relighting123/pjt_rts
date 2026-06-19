@@ -10,6 +10,7 @@ import ModelComparePage from "./pages/ModelComparePage";
 import ModelRegistryPage from "./pages/ModelRegistryPage";
 import OpsPage from "./pages/OpsPage";
 import BenchmarkPage from "./pages/BenchmarkPage";
+import SimulationPage from "./pages/SimulationPage";
 import "./styles.css";
 
 function PageContent({ page }: { page: PageId }) {
@@ -30,6 +31,8 @@ function PageContent({ page }: { page: PageId }) {
       return <OpsPage />;
     case "benchmarks":
       return <BenchmarkPage />;
+    case "simulation":
+      return <SimulationPage />;
     default:
       return <PipelineOverviewPage />;
   }

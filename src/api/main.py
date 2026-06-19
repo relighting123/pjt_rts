@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 
 import config
 from src.api import ml, ops, service
+from src.api import sim_router
 from src.api.schemas import (
     ExportRequest,
     InferRequest,
@@ -25,6 +26,7 @@ from src.api.schemas import (
 )
 
 app = FastAPI(title="RTS 스케줄링 분석 API", version="1.0")
+app.include_router(sim_router.router)
 
 app.add_middleware(
     CORSMiddleware,
